@@ -1,0 +1,190 @@
+# TruePulse - Docker Compose for Local Development
+# Run with: docker compose up -d
+# API available at http://localhost:8001, Frontend at http://localhost:3000
+
+services:
+  # ==========================================================================
+  # Backend API
+  # ==========================================================================
+  api:
+    build:
+      context: ./src/backend
+      dockerfile: Dockerfile
+    container_name: truepulse-api
+    ports:
+      - "8001:8000"
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://truepulse:truepulse_dev@postgres:5432/truepulse
+      - POSTGRES_HOST=postgres
+      - POSTGRES_PORT=5432
+      - POSTGRES_USER=truepulse
+      - POSTGRES_PASSWORD=truepulse_dev
+      - POSTGRES_DB=truepulse
+      - REDIS_URL=redis://redis:6379/0
+      - COSMOS_ENDPOINT=${COSMOS_ENDPOINT:-}
+      - COSMOS_KEY=${COSMOS_KEY:-}
+      - COSMOS_DATABASE=truepulse-votes
+      - SECRET_KEY=${SECRET_KEY:-dev-secret-key-change-in-production}
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY:-dev-secret-key-change-in-production}
+      - JWT_ALGORITHM=HS256
+      - VOTE_HASH_SECRET=${VOTE_HASH_SECRET:-dev-vote-hash-secret-change-in-production}
+      - AI_FOUNDRY_ENDPOINT=${AI_FOUNDRY_ENDPOINT:-}
+      - AI_FOUNDRY_API_KEY=${AI_FOUNDRY_API_KEY:-}
+      - AI_FOUNDRY_DEPLOYMENT_NAME=${AI_FOUNDRY_DEPLOYMENT_NAME:-gpt-4}
+      - ENVIRONMENT=development
+      - LOG_LEVEL=DEBUG
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - truepulse-network
+    restart: unless-stopped
+
+  # ==========================================================================
+  # Frontend (Development mode with hot reload)
+  # ==========================================================================
+  frontend:
+    build:
+      context: ./src/frontend
+      dockerfile: Dockerfile.dev
+    container_name: truepulse-frontend
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:8001/api/v1
+      - WATCHPACK_POLLING=true
+    volumes:
+      - ./src/frontend:/app
+      - /app/node_modules
+      - /app/.next
+    depends_on:
+      - api
+    networks:
+      - truepulse-network
+    restart: unless-stopped
+
+  # ==========================================================================
+  # PostgreSQL Database
+  # ==========================================================================
+  postgres:
+    image: postgres:16-alpine
+    container_name: truepulse-postgres
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_USER=truepulse
+      - POSTGRES_PASSWORD=truepulse_dev
+      - POSTGRES_DB=truepulse
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./scripts/init-db.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U truepulse -d truepulse"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - truepulse-network
+    restart: unless-stopped
+
+  # ==========================================================================
+  # Redis Cache
+  # ==========================================================================
+  redis:
+    image: redis:7-alpine
+    container_name: truepulse-redis
+    ports:
+      - "6379:6379"
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy volatile-lru
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - truepulse-network
+    restart: unless-stopped
+
+  # ==========================================================================
+  # Cosmos DB Emulator (Optional - for local development)
+  # ==========================================================================
+  # cosmos:
+  #   image: mcr.microsoft.com/cosmosdb/linux/azure-cosmos-emulator:latest
+  #   container_name: truepulse-cosmos
+  #   ports:
+  #     - "8081:8081"
+  #     - "10251:10251"
+  #     - "10252:10252"
+  #     - "10253:10253"
+  #     - "10254:10254"
+  #   environment:
+  #     - AZURE_COSMOS_EMULATOR_PARTITION_COUNT=10
+  #     - AZURE_COSMOS_EMULATOR_ENABLE_DATA_PERSISTENCE=true
+  #   volumes:
+  #     - cosmos_data:/tmp/cosmos/appdata
+  #   networks:
+  #     - truepulse-network
+
+  # ==========================================================================
+  # PgAdmin (Optional - Database administration)
+  # ==========================================================================
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: truepulse-pgadmin
+    ports:
+      - "5050:80"
+    environment:
+      - PGADMIN_DEFAULT_EMAIL=admin@truepulse.dev
+      - PGADMIN_DEFAULT_PASSWORD=admin
+      - PGADMIN_CONFIG_SERVER_MODE=False
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+    depends_on:
+      - postgres
+    networks:
+      - truepulse-network
+    profiles:
+      - tools
+
+  # ==========================================================================
+  # Redis Commander (Optional - Redis administration)
+  # ==========================================================================
+  redis-commander:
+    image: rediscommander/redis-commander:latest
+    container_name: truepulse-redis-commander
+    ports:
+      - "8085:8081"
+    environment:
+      - REDIS_HOSTS=local:redis:6379
+    depends_on:
+      - redis
+    networks:
+      - truepulse-network
+    profiles:
+      - tools
+
+# ==========================================================================
+# Networks
+# ==========================================================================
+networks:
+  truepulse-network:
+    driver: bridge
+
+# ==========================================================================
+# Volumes
+# ==========================================================================
+volumes:
+  postgres_data:
+  redis_data:
+  pgadmin_data:
+  # cosmos_data:

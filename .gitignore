@@ -1,0 +1,52 @@
+# Environment variables (NEVER commit secrets)
+.env
+.env.local
+.env.*.local
+*.env
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv/
+venv/
+ENV/
+.eggs/
+*.egg-info/
+dist/
+build/
+.pytest_cache/
+.coverage
+htmlcov/
+.mypy_cache/
+.ruff_cache/
+
+# Node.js
+node_modules/
+.next/
+out/
+.npm
+*.tsbuildinfo
+
+# IDEs
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# Docker
+*.log
+
+# Azure
+.azure/
+
+# Bicep build artifacts (compiled ARM templates)
+infra/main.json
+
+# Local development
+*.local
+.secrets/

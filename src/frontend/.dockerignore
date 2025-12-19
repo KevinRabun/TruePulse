@@ -1,0 +1,12 @@
+node_modules
+.next
+out
+.git
+.gitignore
+*.md
+.env*
+.DS_Store
+Thumbs.db
+*.log
+coverage
+.eslintcache
