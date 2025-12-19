@@ -12,7 +12,7 @@ targetScope = 'subscription'
 param environmentName string = 'dev'
 
 @description('Primary Azure region for resources')
-param location string = 'eastus'
+param location string = 'eastus2'
 
 @description('Resource name prefix')
 param prefix string = 'truepulse'

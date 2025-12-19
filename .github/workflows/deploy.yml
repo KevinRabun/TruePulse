@@ -89,6 +89,7 @@ jobs:
             --location ${{ env.AZURE_LOCATION }} \
             --template-file infra/main.bicep \
             --parameters environmentName=${{ needs.setup.outputs.environment }} \
+            --parameters location=${{ env.AZURE_LOCATION }} \
             --parameters postgresAdminUsername='truepulseadmin' \
             --parameters postgresAdminPassword='${{ secrets.POSTGRES_PASSWORD }}' \
             --parameters jwtSecretKey='${{ secrets.JWT_SECRET_KEY }}' \
