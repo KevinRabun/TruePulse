@@ -96,22 +96,35 @@ jobs:
         run: |
           echo "Deploying shared resources..."
           
-          DEPLOYMENT_OUTPUT=$(az deployment sub create \
+          # Deploy and capture output
+          az deployment sub create \
             --name "shared-$(date +%Y%m%d%H%M%S)" \
             --location ${{ env.AZURE_LOCATION }} \
             --template-file infra/shared.bicep \
-            --parameters location=${{ env.AZURE_LOCATION }} \
-            --query 'properties.outputs' \
-            --output json)
+            --parameters location=${{ env.AZURE_LOCATION }}
           
-          echo "logAnalyticsWorkspaceId=$(echo $DEPLOYMENT_OUTPUT | jq -r '.logAnalyticsWorkspaceId.value')" >> $GITHUB_OUTPUT
-          echo "containerRegistryName=$(echo $DEPLOYMENT_OUTPUT | jq -r '.containerRegistryName.value')" >> $GITHUB_OUTPUT
-          echo "containerRegistryLoginServer=$(echo $DEPLOYMENT_OUTPUT | jq -r '.containerRegistryLoginServer.value')" >> $GITHUB_OUTPUT
+          # Fetch outputs from the deployment (more reliable than capturing inline)
+          SHARED_RG="rg-truepulse-shared"
           
-          # Get Communication Service connection string via CLI (not available in Bicep outputs)
-          ACS_NAME=$(echo $DEPLOYMENT_OUTPUT | jq -r '.communicationServiceName.value')
+          # Log Analytics - get the resource ID
+          LOG_ANALYTICS_ID=$(az monitor log-analytics workspace list \
+            --resource-group $SHARED_RG \
+            --query '[0].id' -o tsv)
+          echo "Log Analytics ID: $LOG_ANALYTICS_ID"
+          echo "logAnalyticsWorkspaceId=$LOG_ANALYTICS_ID" >> $GITHUB_OUTPUT
+          
+          # Container Registry
+          ACR_NAME=$(az acr list --resource-group $SHARED_RG --query '[0].name' -o tsv)
+          ACR_LOGIN=$(az acr list --resource-group $SHARED_RG --query '[0].loginServer' -o tsv)
+          echo "ACR: $ACR_NAME ($ACR_LOGIN)"
+          echo "containerRegistryName=$ACR_NAME" >> $GITHUB_OUTPUT
+          echo "containerRegistryLoginServer=$ACR_LOGIN" >> $GITHUB_OUTPUT
+          
+          # Communication Services
+          ACS_NAME=$(az communication list --resource-group $SHARED_RG --query '[0].name' -o tsv)
+          ACS_CONN=$(az communication list-key --name $ACS_NAME --resource-group $SHARED_RG --query 'primaryConnectionString' -o tsv)
+          echo "ACS: $ACS_NAME"
           echo "communicationServiceName=$ACS_NAME" >> $GITHUB_OUTPUT
-          ACS_CONN=$(az communication list-key --name $ACS_NAME --resource-group rg-truepulse-shared --query 'primaryConnectionString' -o tsv)
           echo "communicationServiceConnectionString=$ACS_CONN" >> $GITHUB_OUTPUT
 
   # ============================================================================
@@ -190,24 +203,45 @@ jobs:
           # Use outputs from whichever job ran
           if [ "${{ needs.setup.outputs.deploy_shared }}" == "true" ]; then
             echo "Using outputs from shared-infrastructure job"
-            echo "logAnalyticsWorkspaceId=${{ needs.shared-infrastructure.outputs.logAnalyticsWorkspaceId }}" >> $GITHUB_OUTPUT
-            echo "containerRegistryName=${{ needs.shared-infrastructure.outputs.containerRegistryName }}" >> $GITHUB_OUTPUT
-            echo "containerRegistryLoginServer=${{ needs.shared-infrastructure.outputs.containerRegistryLoginServer }}" >> $GITHUB_OUTPUT
-            echo "communicationServiceName=${{ needs.shared-infrastructure.outputs.communicationServiceName }}" >> $GITHUB_OUTPUT
-            echo "communicationServiceConnectionString=${{ needs.shared-infrastructure.outputs.communicationServiceConnectionString }}" >> $GITHUB_OUTPUT
+            LOG_ID="${{ needs.shared-infrastructure.outputs.logAnalyticsWorkspaceId }}"
+            ACR_NAME="${{ needs.shared-infrastructure.outputs.containerRegistryName }}"
+            ACR_LOGIN="${{ needs.shared-infrastructure.outputs.containerRegistryLoginServer }}"
+            ACS_NAME="${{ needs.shared-infrastructure.outputs.communicationServiceName }}"
+            ACS_CONN="${{ needs.shared-infrastructure.outputs.communicationServiceConnectionString }}"
           else
             echo "Using outputs from get-shared-info job"
-            echo "logAnalyticsWorkspaceId=${{ needs.get-shared-info.outputs.logAnalyticsWorkspaceId }}" >> $GITHUB_OUTPUT
-            echo "containerRegistryName=${{ needs.get-shared-info.outputs.containerRegistryName }}" >> $GITHUB_OUTPUT
-            echo "containerRegistryLoginServer=${{ needs.get-shared-info.outputs.containerRegistryLoginServer }}" >> $GITHUB_OUTPUT
-            echo "communicationServiceName=${{ needs.get-shared-info.outputs.communicationServiceName }}" >> $GITHUB_OUTPUT
-            echo "communicationServiceConnectionString=${{ needs.get-shared-info.outputs.communicationServiceConnectionString }}" >> $GITHUB_OUTPUT
+            LOG_ID="${{ needs.get-shared-info.outputs.logAnalyticsWorkspaceId }}"
+            ACR_NAME="${{ needs.get-shared-info.outputs.containerRegistryName }}"
+            ACR_LOGIN="${{ needs.get-shared-info.outputs.containerRegistryLoginServer }}"
+            ACS_NAME="${{ needs.get-shared-info.outputs.communicationServiceName }}"
+            ACS_CONN="${{ needs.get-shared-info.outputs.communicationServiceConnectionString }}"
           fi
+          
+          # Debug output
+          echo "=== Shared Resource Values ==="
+          echo "Log Analytics ID: $LOG_ID"
+          echo "ACR Name: $ACR_NAME"
+          echo "ACR Login: $ACR_LOGIN"
+          echo "ACS Name: $ACS_NAME"
+          echo "==============================="
+          
+          # Validate required values
+          if [ -z "$LOG_ID" ]; then
+            echo "ERROR: Log Analytics Workspace ID is empty!"
+            exit 1
+          fi
+          
+          echo "logAnalyticsWorkspaceId=$LOG_ID" >> $GITHUB_OUTPUT
+          echo "containerRegistryName=$ACR_NAME" >> $GITHUB_OUTPUT
+          echo "containerRegistryLoginServer=$ACR_LOGIN" >> $GITHUB_OUTPUT
+          echo "communicationServiceName=$ACS_NAME" >> $GITHUB_OUTPUT
+          echo "communicationServiceConnectionString=$ACS_CONN" >> $GITHUB_OUTPUT
 
       - name: Deploy Environment Bicep
         id: deploy
         run: |
           echo "Deploying ${{ needs.setup.outputs.environment }} environment..."
+          echo "Using Log Analytics: ${{ steps.shared.outputs.logAnalyticsWorkspaceId }}"
           
           DEPLOYMENT_OUTPUT=$(az deployment sub create \
             --name "${{ needs.setup.outputs.environment }}-$(date +%Y%m%d%H%M%S)" \
@@ -223,6 +257,7 @@ jobs:
             --parameters newsApiOrgKey='${{ secrets.NEWSAPI_ORG_KEY }}' \
             --parameters communicationSenderNumber='${{ secrets.COMMUNICATION_SENDER_NUMBER }}' \
             --parameters enableCMK=false \
+            --parameters enableCustomDomain=false \
             --parameters sharedLogAnalyticsWorkspaceId='${{ steps.shared.outputs.logAnalyticsWorkspaceId }}' \
             --parameters sharedContainerRegistryName='${{ steps.shared.outputs.containerRegistryName }}' \
             --parameters sharedContainerRegistryLoginServer='${{ steps.shared.outputs.containerRegistryLoginServer }}' \

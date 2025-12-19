@@ -43,23 +43,19 @@ module containerAppsEnv 'br/public:avm/res/app/managed-environment:0.10.1' = {
     // VNet integration - WAF aligned
     internal: true
     infrastructureSubnetId: infrastructureSubnetId
-    infrastructureResourceGroupName: 'rg-${name}-infra'
+    infrastructureResourceGroupName: 'ME_${name}'
     platformReservedCidr: platformReservedCidr
     platformReservedDnsIP: platformReservedDnsIP
     dockerBridgeCidr: dockerBridgeCidr
     // Zone redundancy
     zoneRedundant: true
-    // Logging via Log Analytics resource ID
+    // Logging configuration
     logAnalyticsWorkspaceResourceId: logAnalyticsWorkspaceResourceId
     logsDestination: 'log-analytics'
     // Workload profiles for production workloads
     workloadProfiles: [
       {
-        name: 'Consumption'
-        workloadProfileType: 'Consumption'
-      }
-      {
-        name: 'D4'
+        name: 'CAW01'
         workloadProfileType: 'D4'
         minimumCount: 0
         maximumCount: 10
