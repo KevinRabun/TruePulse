@@ -1,5 +1,5 @@
 # TruePulse Deployment Pipeline
-# Two-phase deployment: shared resources (once) then environment-specific resources
+# Two-phase deployment: shared resources then environment-specific resources
 # Only runs after CI workflow succeeds
 
 name: Deploy
@@ -20,11 +20,6 @@ on:
           - dev
           - staging
           - prod
-      deploy_shared:
-        description: 'Deploy shared resources (usually only needed once)'
-        required: false
-        default: false
-        type: boolean
 
 permissions:
   id-token: write
@@ -53,28 +48,24 @@ jobs:
     needs: check-ci
     outputs:
       environment: ${{ steps.set-env.outputs.environment }}
-      deploy_shared: ${{ steps.set-env.outputs.deploy_shared }}
     steps:
       - name: Set environment
         id: set-env
         run: |
           if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
             echo "environment=${{ github.event.inputs.environment }}" >> $GITHUB_OUTPUT
-            echo "deploy_shared=${{ github.event.inputs.deploy_shared }}" >> $GITHUB_OUTPUT
           else
             echo "environment=dev" >> $GITHUB_OUTPUT
-            echo "deploy_shared=false" >> $GITHUB_OUTPUT
           fi
 
   # ============================================================================
   # Deploy Shared Resources (ACR, Communication Services, Log Analytics, DNS)
-  # Only runs when deploy_shared=true or first-time setup
+  # Always runs - Azure deployments are idempotent
   # ============================================================================
   shared-infrastructure:
     name: Deploy Shared Resources
     runs-on: ubuntu-latest
     needs: setup
-    if: ${{ needs.setup.outputs.deploy_shared == 'true' }}
     outputs:
       logAnalyticsWorkspaceId: ${{ steps.deploy-shared.outputs.logAnalyticsWorkspaceId }}
       containerRegistryName: ${{ steps.deploy-shared.outputs.containerRegistryName }}
@@ -128,66 +119,12 @@ jobs:
           echo "communicationServiceConnectionString=$ACS_CONN" >> $GITHUB_OUTPUT
 
   # ============================================================================
-  # Get Shared Resource Info (when not deploying shared)
-  # ============================================================================
-  get-shared-info:
-    name: Get Shared Resource Info
-    runs-on: ubuntu-latest
-    needs: setup
-    if: ${{ needs.setup.outputs.deploy_shared != 'true' }}
-    outputs:
-      logAnalyticsWorkspaceId: ${{ steps.get-info.outputs.logAnalyticsWorkspaceId }}
-      containerRegistryName: ${{ steps.get-info.outputs.containerRegistryName }}
-      containerRegistryLoginServer: ${{ steps.get-info.outputs.containerRegistryLoginServer }}
-      communicationServiceName: ${{ steps.get-info.outputs.communicationServiceName }}
-      communicationServiceConnectionString: ${{ steps.get-info.outputs.communicationServiceConnectionString }}
-    steps:
-      - name: Azure Login
-        uses: azure/login@v2
-        with:
-          client-id: ${{ secrets.AZURE_CLIENT_ID }}
-          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
-          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-
-      - name: Get Shared Resource Info
-        id: get-info
-        run: |
-          SHARED_RG="rg-truepulse-shared"
-          
-          # Ensure correct subscription
-          az account set --subscription ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-          echo "Using subscription: $(az account show --query 'name' -o tsv)"
-          
-          # Log Analytics - list all first to debug
-          echo "Listing Log Analytics workspaces in $SHARED_RG..."
-          az monitor log-analytics workspace list --resource-group $SHARED_RG -o table
-          
-          LOG_ANALYTICS_ID=$(az monitor log-analytics workspace list \
-            --resource-group $SHARED_RG \
-            --query '[0].id' -o tsv)
-          echo "Log Analytics ID: $LOG_ANALYTICS_ID"
-          echo "logAnalyticsWorkspaceId=$LOG_ANALYTICS_ID" >> $GITHUB_OUTPUT
-          
-          # Container Registry
-          ACR_NAME=$(az acr list --resource-group $SHARED_RG --query '[0].name' -o tsv)
-          ACR_LOGIN=$(az acr list --resource-group $SHARED_RG --query '[0].loginServer' -o tsv)
-          echo "containerRegistryName=$ACR_NAME" >> $GITHUB_OUTPUT
-          echo "containerRegistryLoginServer=$ACR_LOGIN" >> $GITHUB_OUTPUT
-          
-          # Communication Services
-          ACS_NAME=$(az communication list --resource-group $SHARED_RG --query '[0].name' -o tsv)
-          ACS_CONN=$(az communication list-key --name $ACS_NAME --resource-group $SHARED_RG --query 'primaryConnectionString' -o tsv)
-          echo "communicationServiceName=$ACS_NAME" >> $GITHUB_OUTPUT
-          echo "communicationServiceConnectionString=$ACS_CONN" >> $GITHUB_OUTPUT
-
-  # ============================================================================
   # Deploy Environment Infrastructure
   # ============================================================================
   infrastructure:
     name: Deploy ${{ needs.setup.outputs.environment }} Infrastructure
     runs-on: ubuntu-latest
-    needs: [setup, shared-infrastructure, get-shared-info]
-    if: ${{ !cancelled() && (needs.shared-infrastructure.result == 'success' || needs.shared-infrastructure.result == 'skipped') }}
+    needs: [setup, shared-infrastructure]
     environment: ${{ needs.setup.outputs.environment }}
     outputs:
       resourceGroupName: ${{ steps.deploy.outputs.resourceGroupName }}
@@ -205,25 +142,15 @@ jobs:
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
-      - name: Determine Shared Resource Values
+      - name: Display Shared Resource Values
         id: shared
         run: |
-          # Use outputs from whichever job ran
-          if [ "${{ needs.setup.outputs.deploy_shared }}" == "true" ]; then
-            echo "Using outputs from shared-infrastructure job"
-            LOG_ID="${{ needs.shared-infrastructure.outputs.logAnalyticsWorkspaceId }}"
-            ACR_NAME="${{ needs.shared-infrastructure.outputs.containerRegistryName }}"
-            ACR_LOGIN="${{ needs.shared-infrastructure.outputs.containerRegistryLoginServer }}"
-            ACS_NAME="${{ needs.shared-infrastructure.outputs.communicationServiceName }}"
-            ACS_CONN="${{ needs.shared-infrastructure.outputs.communicationServiceConnectionString }}"
-          else
-            echo "Using outputs from get-shared-info job"
-            LOG_ID="${{ needs.get-shared-info.outputs.logAnalyticsWorkspaceId }}"
-            ACR_NAME="${{ needs.get-shared-info.outputs.containerRegistryName }}"
-            ACR_LOGIN="${{ needs.get-shared-info.outputs.containerRegistryLoginServer }}"
-            ACS_NAME="${{ needs.get-shared-info.outputs.communicationServiceName }}"
-            ACS_CONN="${{ needs.get-shared-info.outputs.communicationServiceConnectionString }}"
-          fi
+          # Use outputs from shared-infrastructure job
+          LOG_ID="${{ needs.shared-infrastructure.outputs.logAnalyticsWorkspaceId }}"
+          ACR_NAME="${{ needs.shared-infrastructure.outputs.containerRegistryName }}"
+          ACR_LOGIN="${{ needs.shared-infrastructure.outputs.containerRegistryLoginServer }}"
+          ACS_NAME="${{ needs.shared-infrastructure.outputs.communicationServiceName }}"
+          ACS_CONN="${{ needs.shared-infrastructure.outputs.communicationServiceConnectionString }}"
           
           # Debug output
           echo "=== Shared Resource Values ==="
