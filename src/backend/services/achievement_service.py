@@ -120,13 +120,13 @@ class AchievementService:
         if platform in platform_map:
             achievement_id = platform_map[platform]
             result = await self.db.execute(select(Achievement).where(Achievement.id == achievement_id))
-            achievement = result.scalar_one_or_none()
+            platform_achievement = result.scalar_one_or_none()
 
-            if achievement:
-                newly_awarded = await self._try_award_achievement(user, achievement)
+            if platform_achievement:
+                newly_awarded = await self._try_award_achievement(user, platform_achievement)
                 if newly_awarded:
-                    awarded.append(achievement)
-                    points_earned += achievement.points_reward
+                    awarded.append(platform_achievement)
+                    points_earned += platform_achievement.points_reward
 
         # Check cross-platform champion achievement
         # Need to check if user has earned all platform achievements

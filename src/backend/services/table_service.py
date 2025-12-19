@@ -443,13 +443,13 @@ class AzureTableService:
         except ResourceNotFoundError:
             # First request
             count = 1
-            entity = {
+            new_entity: dict[str, object] = {
                 "PartitionKey": partition,
                 "RowKey": row_key,
                 "count": count,
                 "window_start": now.isoformat(),
             }
-            await table_client.upsert_entity(entity)
+            await table_client.upsert_entity(new_entity)
 
         allowed = count <= max_requests
         remaining = max(0, max_requests - count)

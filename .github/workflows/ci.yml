@@ -51,7 +51,6 @@ jobs:
           ruff format --check .
 
       - name: Run MyPy type checking
-        continue-on-error: true  # Type errors are warnings, not blockers for now
         run: |
           cd src/backend
           mypy . --ignore-missing-imports --exclude tests/ --exclude scripts/ --explicit-package-bases

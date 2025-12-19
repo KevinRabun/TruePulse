@@ -3,7 +3,7 @@ Gamification endpoints for points, achievements, and leaderboards.
 """
 
 from datetime import datetime, timezone
-from typing import Annotated, List, Optional
+from typing import Annotated, List, Optional, TypedDict
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import select
@@ -29,8 +29,18 @@ from services.achievement_service import AchievementService
 
 router = APIRouter()
 
+
+class LevelDefinition(TypedDict):
+    """Type for level definition entries."""
+
+    level: int
+    name: str
+    points_required: int
+    perks: list[str]
+
+
 # Level definitions for progression
-LEVEL_DEFINITIONS = [
+LEVEL_DEFINITIONS: list[LevelDefinition] = [
     {"level": 1, "name": "Newcomer", "points_required": 0, "perks": []},
     {
         "level": 2,
@@ -543,8 +553,8 @@ async def get_points_history(
     return []
 
 
-@router.get("/levels", response_model=list[dict])
-async def get_level_definitions() -> list[dict]:
+@router.get("/levels", response_model=list[LevelDefinition])
+async def get_level_definitions() -> list[LevelDefinition]:
     """
     Get the level progression definitions.
     """

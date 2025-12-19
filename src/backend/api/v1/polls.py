@@ -464,7 +464,7 @@ async def get_poll_demographics(
     choice_lookup = {str(c.id): c.text for c in poll.choices}
 
     # Parse and aggregate by category
-    demographics = {
+    demographics: dict[str, dict] = {
         "age_range": {},
         "gender": {},
         "country": {},
@@ -514,7 +514,7 @@ async def get_poll_demographics(
                 demographics[category][value]["choices"][choice_text] += count
 
     # Transform to frontend-friendly format
-    result = {
+    result: dict[str, str | int | list] = {
         "poll_id": poll_id,
         "total_votes": poll.total_votes or 0,
         "breakdowns": [],
@@ -531,14 +531,16 @@ async def get_poll_demographics(
         "political_leaning": "Political Leaning",
     }
 
+    breakdowns_list: list[dict] = []
     for category, segments in demographics.items():
         if not segments:
             continue
 
+        segment_list: list[dict] = []
         breakdown = {
             "category": category,
             "label": category_labels.get(category, category),
-            "segments": [],
+            "segments": segment_list,
         }
 
         for segment_name, data in segments.items():
@@ -555,11 +557,12 @@ async def get_poll_demographics(
                     if count > 0
                 ],
             }
-            breakdown["segments"].append(segment)
+            segment_list.append(segment)
 
-        if breakdown["segments"]:
-            result["breakdowns"].append(breakdown)
+        if segment_list:
+            breakdowns_list.append(breakdown)
 
+    result["breakdowns"] = breakdowns_list
     return result
 
 

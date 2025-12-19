@@ -256,7 +256,7 @@ class UserRepository:
         flash_polls_per_day: Optional[int] = None,
     ) -> Optional[User]:
         """Update user settings."""
-        updates = {}
+        updates: dict[str, bool | str | int] = {}
         if email_notifications is not None:
             updates["email_notifications"] = email_notifications
         if push_notifications is not None:

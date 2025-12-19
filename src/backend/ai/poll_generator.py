@@ -7,6 +7,7 @@ to generate unbiased poll questions from current events.
 
 import logging
 from datetime import datetime, timedelta, timezone
+from typing import TYPE_CHECKING, Any, Optional
 from uuid import uuid4
 
 from pydantic import BaseModel
@@ -14,6 +15,11 @@ from pydantic import BaseModel
 from ai.event_aggregator import NewsEvent
 from core.config import settings
 from schemas.poll import Poll, PollChoice
+
+if TYPE_CHECKING:
+    from azure.ai.projects.aio import AIProjectClient
+    from azure.identity.aio import DefaultAzureCredential
+    from openai import AsyncAzureOpenAI
 
 logger = logging.getLogger(__name__)
 
@@ -73,11 +79,11 @@ Output format:
 }"""
 
     def __init__(self) -> None:
-        self._agent = None
-        self._initialized = False
-        self._client = None
-        self._openai_client = None
-        self._credential = None
+        self._agent: Any = None
+        self._initialized: bool = False
+        self._client: Optional["AIProjectClient"] = None
+        self._openai_client: Optional["AsyncAzureOpenAI"] = None
+        self._credential: Optional["DefaultAzureCredential"] = None
 
     async def initialize(self) -> None:
         """Initialize the AI agent for poll generation."""
@@ -191,7 +197,7 @@ Return your response as JSON."""
 
     def _generate_mock_poll(self, event: NewsEvent) -> GeneratedPoll:
         """Generate a mock poll for development/testing."""
-        mock_questions = {
+        mock_questions: dict[str, dict[str, str | list[str]]] = {
             "Environment": {
                 "question": "Regarding recent climate discussions, what approach do you think governments should prioritize?",
                 "choices": [
@@ -214,7 +220,7 @@ Return your response as JSON."""
             },
         }
 
-        default = {
+        default: dict[str, str | list[str]] = {
             "question": f"What is your view on: {event.title}?",
             "choices": [
                 "Strongly support the described approach",
@@ -227,9 +233,13 @@ Return your response as JSON."""
 
         poll_template = mock_questions.get(event.category, default)
 
+        # Cast to expected types since we know the dict structure
+        question = str(poll_template["question"])
+        choices = list(poll_template["choices"]) if isinstance(poll_template["choices"], list) else []
+
         return GeneratedPoll(
-            question=poll_template["question"],
-            choices=poll_template["choices"],
+            question=question,
+            choices=choices,
             category=event.category,
             source_event_id=event.id,
             bias_check_passed=True,
@@ -404,8 +414,8 @@ Respond in JSON format:
         generated_polls = []
 
         # Ensure category diversity
-        categories_used = set()
-        events_to_use = []
+        categories_used: set[str] = set()
+        events_to_use: list[NewsEvent] = []
 
         for event in sorted(events, key=lambda e: e.relevance_score, reverse=True):
             if event.category not in categories_used and len(events_to_use) < count:

@@ -83,7 +83,7 @@ class NewsDataClient:
         size: int = 10,
     ) -> list[NewsEvent]:
         """Fetch news from NewsData.io."""
-        params = {
+        params: dict[str, str | int] = {
             "apikey": self.api_key,
             "language": language,
             "size": min(size, 10),  # Max 10 per call on free tier
@@ -184,6 +184,7 @@ class NewsAPIClient:
         headers = {"X-Api-Key": self.api_key}
 
         # Use /everything for keyword search, /top-headlines for categories
+        params: dict[str, str | int]
         if keywords:
             endpoint = f"{self.BASE_URL}/everything"
             params = {

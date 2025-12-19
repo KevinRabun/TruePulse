@@ -4,7 +4,7 @@ Authentication endpoints for user registration and login.
 
 import hashlib
 from datetime import datetime, timedelta, timezone
-from typing import Annotated, Optional
+from typing import Annotated, Optional, TypedDict
 
 import structlog
 from fastapi import APIRouter, Body, Depends, HTTPException, status
@@ -33,9 +33,18 @@ logger = structlog.get_logger(__name__)
 
 router = APIRouter()
 
+
+class PasswordResetToken(TypedDict):
+    """Type for password reset token data."""
+
+    email: str
+    user_id: str
+    expires_at: datetime
+
+
 # Fallback in-memory store for password reset tokens (used only when Redis unavailable)
 # In production, Redis is preferred for distributed systems
-_password_reset_tokens: dict[str, dict] = {}
+_password_reset_tokens: dict[str, PasswordResetToken] = {}
 
 
 class ForgotPasswordRequest(BaseModel):
@@ -372,20 +381,20 @@ async def validate_reset_token(
     """
     # Try Redis first
     if redis.is_available:
-        token_data = await redis.get_password_reset_token(token)
-        if token_data:
+        redis_token_data = await redis.get_password_reset_token(token)
+        if redis_token_data:
             return {"valid": True}
 
     # Fallback to in-memory
-    token_data = _password_reset_tokens.get(token)
+    inmem_token_data = _password_reset_tokens.get(token)
 
-    if not token_data:
+    if not inmem_token_data:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Invalid or expired reset token",
         )
 
-    if datetime.now(timezone.utc) > token_data["expires_at"]:
+    if datetime.now(timezone.utc) > inmem_token_data["expires_at"]:
         # Clean up expired token
         del _password_reset_tokens[token]
         raise HTTPException(
@@ -408,36 +417,40 @@ async def reset_password(
 
     Token is single-use and expires after 1 hour.
     """
-    token_data = None
+    email: str | None = None
+    user_id: str | None = None
     from_redis = False
+    expires_at: datetime | None = None
 
     # Try Redis first
     if redis.is_available:
-        token_data = await redis.get_password_reset_token(token)
-        if token_data:
+        redis_token_data = await redis.get_password_reset_token(token)
+        if redis_token_data:
             from_redis = True
+            email = redis_token_data.get("email")
+            user_id = redis_token_data.get("user_id")
 
     # Fallback to in-memory
-    if not token_data:
-        token_data = _password_reset_tokens.get(token)
+    if not email:
+        inmem_token_data = _password_reset_tokens.get(token)
+        if inmem_token_data:
+            email = inmem_token_data["email"]
+            user_id = inmem_token_data["user_id"]
+            expires_at = inmem_token_data["expires_at"]
 
-    if not token_data:
+    if not email:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Invalid or expired reset token",
         )
 
     # Check expiry for in-memory tokens (Redis handles TTL automatically)
-    expires_at = token_data.get("expires_at")
-    if not from_redis and expires_at and isinstance(expires_at, datetime) and datetime.now(timezone.utc) > expires_at:
+    if not from_redis and expires_at and datetime.now(timezone.utc) > expires_at:
         del _password_reset_tokens[token]
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Reset token has expired",
         )
-
-    email = token_data["email"]
-    user_id = token_data.get("user_id")
 
     # Validate password strength
     if len(request.new_password) < 8:

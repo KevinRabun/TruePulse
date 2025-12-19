@@ -11,11 +11,19 @@ import logging
 import random
 import string
 from datetime import datetime, timedelta, timezone
-from typing import Optional
+from typing import Optional, TypedDict
 
 from core.config import settings
 
 logger = logging.getLogger(__name__)
+
+
+class BulkSMSResult(TypedDict):
+    """Result of bulk SMS sending operation."""
+
+    sent: int
+    failed: int
+    failed_user_ids: list[str]
 
 
 class SMSService:
@@ -183,7 +191,7 @@ class SMSService:
         poll_question: str,
         poll_id: str,
         base_url: str = "https://truepulse.app",
-    ) -> dict:
+    ) -> BulkSMSResult:
         """
         Send daily poll notifications to multiple recipients.
 
@@ -196,7 +204,7 @@ class SMSService:
         Returns:
             Dict with 'sent' count, 'failed' count, and 'failed_numbers' list
         """
-        results = {
+        results: BulkSMSResult = {
             "sent": 0,
             "failed": 0,
             "failed_user_ids": [],
