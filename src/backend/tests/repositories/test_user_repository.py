@@ -175,6 +175,4 @@ class TestUserRepositoryPointsCalculation:
 
         for points, expected_level in test_cases:
             calculated_level = max(1, (points // 500) + 1)
-            assert calculated_level == expected_level, (
-                f"Points {points} should be level {expected_level}"
-            )
+            assert calculated_level == expected_level, f"Points {points} should be level {expected_level}"

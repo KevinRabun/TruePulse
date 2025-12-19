@@ -22,10 +22,7 @@ class TestHealthEndpoints:
         response = await client.get("/")
         assert response.status_code == 200
         data = response.json()
-        assert (
-            "TruePulse" in data.get("name", "")
-            or "truepulse" in data.get("message", "").lower()
-        )
+        assert "TruePulse" in data.get("name", "") or "truepulse" in data.get("message", "").lower()
 
 
 @pytest.mark.unit

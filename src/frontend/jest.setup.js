@@ -1,8 +1,5 @@
 // Jest setup file
-import '@testing-library/jest-dom';
-
-// Extend expect with jest-dom matchers
-// This is already done by the import above, but we declare the types here for TypeScript
+require('@testing-library/jest-dom');
 
 // Mock next/navigation
 jest.mock('next/navigation', () => ({
@@ -26,7 +23,7 @@ global.fetch = jest.fn(() =>
     ok: true,
     status: 200,
   })
-) as jest.Mock;
+);
 
 // Reset mocks before each test
 beforeEach(() => {

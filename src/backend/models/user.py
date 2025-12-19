@@ -53,38 +53,28 @@ class User(Base):
     current_streak: Mapped[int] = mapped_column(Integer, default=0)
     longest_streak: Mapped[int] = mapped_column(Integer, default=0)
     votes_cast: Mapped[int] = mapped_column(Integer, default=0)
-    total_shares: Mapped[int] = mapped_column(
-        Integer, default=0
-    )  # Track sharing for achievements
+    total_shares: Mapped[int] = mapped_column(Integer, default=0)  # Track sharing for achievements
 
     # Ad engagement tracking (supports TruePulse)
     ad_views: Mapped[int] = mapped_column(Integer, default=0)
     ad_clicks: Mapped[int] = mapped_column(Integer, default=0)
     ad_view_streak: Mapped[int] = mapped_column(Integer, default=0)
-    last_ad_view_at: Mapped[Optional[datetime]] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
+    last_ad_view_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
 
     # Demographics (optional, for aggregation only)
     age_range: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
     gender: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
     country: Mapped[Optional[str]] = mapped_column(String(2), nullable=True)  # ISO code
-    state_province: Mapped[Optional[str]] = mapped_column(
-        String(100), nullable=True
-    )  # State/Province name
+    state_province: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)  # State/Province name
     city: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)  # City name
-    region: Mapped[Optional[str]] = mapped_column(
-        String(100), nullable=True
-    )  # Legacy field
+    region: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)  # Legacy field
     education_level: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
     employment_status: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
     industry: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
     political_leaning: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
     # New demographic fields
     marital_status: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
-    religious_affiliation: Mapped[Optional[str]] = mapped_column(
-        String(100), nullable=True
-    )
+    religious_affiliation: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
     ethnicity: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
     household_income: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
     parental_status: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
@@ -96,54 +86,34 @@ class User(Base):
     daily_poll_reminder: Mapped[bool] = mapped_column(Boolean, default=True)
     show_on_leaderboard: Mapped[bool] = mapped_column(Boolean, default=True)
     share_anonymous_demographics: Mapped[bool] = mapped_column(Boolean, default=True)
-    theme_preference: Mapped[str] = mapped_column(
-        String(20), default="system"
-    )  # light, dark, system
+    theme_preference: Mapped[str] = mapped_column(String(20), default="system")  # light, dark, system
 
     # Phone/SMS Settings
-    phone_number: Mapped[Optional[str]] = mapped_column(
-        String(20), unique=True, nullable=True, index=True
-    )
+    phone_number: Mapped[Optional[str]] = mapped_column(String(20), unique=True, nullable=True, index=True)
     phone_verified: Mapped[bool] = mapped_column(Boolean, default=False)
-    email_verified: Mapped[bool] = mapped_column(
-        Boolean, default=False
-    )  # Separate from is_verified
-    phone_verification_code: Mapped[Optional[str]] = mapped_column(
-        String(6), nullable=True
-    )
-    phone_verification_sent_at: Mapped[Optional[datetime]] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
+    email_verified: Mapped[bool] = mapped_column(Boolean, default=False)  # Separate from is_verified
+    phone_verification_code: Mapped[Optional[str]] = mapped_column(String(6), nullable=True)
+    phone_verification_sent_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
     sms_notifications: Mapped[bool] = mapped_column(Boolean, default=False)
     daily_poll_sms: Mapped[bool] = mapped_column(Boolean, default=False)
 
     # Poll Notification Preferences
-    pulse_poll_notifications: Mapped[bool] = mapped_column(
-        Boolean, default=True
-    )  # Daily pulse poll notifications
-    flash_poll_notifications: Mapped[bool] = mapped_column(
-        Boolean, default=True
-    )  # Flash poll notifications
+    pulse_poll_notifications: Mapped[bool] = mapped_column(Boolean, default=True)  # Daily pulse poll notifications
+    flash_poll_notifications: Mapped[bool] = mapped_column(Boolean, default=True)  # Flash poll notifications
     flash_polls_per_day: Mapped[int] = mapped_column(
         Integer, default=5
     )  # Max flash poll notifications per day (0 = unlimited)
     flash_polls_notified_today: Mapped[int] = mapped_column(
         Integer, default=0
     )  # Counter for today's flash notifications
-    flash_notification_reset_date: Mapped[Optional[datetime]] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
+    flash_notification_reset_date: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
 
     # Poll engagement stats
     pulse_polls_voted: Mapped[int] = mapped_column(Integer, default=0)
     flash_polls_voted: Mapped[int] = mapped_column(Integer, default=0)
-    pulse_poll_streak: Mapped[int] = mapped_column(
-        Integer, default=0
-    )  # Consecutive days voting on pulse polls
+    pulse_poll_streak: Mapped[int] = mapped_column(Integer, default=0)  # Consecutive days voting on pulse polls
     longest_pulse_streak: Mapped[int] = mapped_column(Integer, default=0)
-    last_pulse_vote_date: Mapped[Optional[datetime]] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
+    last_pulse_vote_date: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
 
     # Timestamps
     created_at: Mapped[datetime] = mapped_column(

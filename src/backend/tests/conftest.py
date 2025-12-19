@@ -39,9 +39,7 @@ async def client(app: Any) -> AsyncGenerator[AsyncClient, None]:
     """Create async test client with required frontend headers."""
     # Include X-Frontend-Secret and Origin headers to pass FrontendOnlyMiddleware
     headers = {
-        "X-Frontend-Secret": os.environ.get(
-            "FRONTEND_API_SECRET", "test-frontend-secret-for-testing"
-        ),
+        "X-Frontend-Secret": os.environ.get("FRONTEND_API_SECRET", "test-frontend-secret-for-testing"),
         "Origin": "http://localhost:3000",  # From ALLOWED_ORIGINS
     }
     async with AsyncClient(

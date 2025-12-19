@@ -40,9 +40,7 @@ class UserCreate(UserBase):
         cleaned = re.sub(r"[\s\-\(\)\.]", "", v)
         # Must start with + or be digits only
         if not re.match(r"^\+?[0-9]{10,15}$", cleaned):
-            raise ValueError(
-                "Invalid phone number format. Use format: +1234567890 or 1234567890"
-            )
+            raise ValueError("Invalid phone number format. Use format: +1234567890 or 1234567890")
         return cleaned
 
 
@@ -134,38 +132,24 @@ class UserDemographics(BaseModel):
         description="Age range (e.g., '18-24', '25-34', '35-44', '45-54', '55-64', '65+')",
     )
     gender: Optional[str] = Field(None, description="Gender identity")
-    country: Optional[str] = Field(
-        None, description="Country of residence (ISO 3166-1 alpha-2)"
-    )
-    state_province: Optional[str] = Field(
-        None, description="State or Province of residence"
-    )
+    country: Optional[str] = Field(None, description="Country of residence (ISO 3166-1 alpha-2)")
+    state_province: Optional[str] = Field(None, description="State or Province of residence")
     city: Optional[str] = Field(None, description="City of residence")
     region: Optional[str] = Field(None, description="Region/State (legacy field)")
     education_level: Optional[str] = Field(None, description="Highest education level")
     employment_status: Optional[str] = Field(None, description="Employment status")
     industry: Optional[str] = Field(None, description="Industry sector")
-    political_leaning: Optional[str] = Field(
-        None, description="General political leaning (optional, self-reported)"
-    )
+    political_leaning: Optional[str] = Field(None, description="General political leaning (optional, self-reported)")
     # New demographic fields
     marital_status: Optional[str] = Field(
         None,
         description="Marital status (e.g., 'single', 'married', 'divorced', 'widowed')",
     )
-    religious_affiliation: Optional[str] = Field(
-        None, description="Religious affiliation (optional, self-reported)"
-    )
-    ethnicity: Optional[str] = Field(
-        None, description="Ethnic background (optional, self-reported)"
-    )
+    religious_affiliation: Optional[str] = Field(None, description="Religious affiliation (optional, self-reported)")
+    ethnicity: Optional[str] = Field(None, description="Ethnic background (optional, self-reported)")
     household_income: Optional[str] = Field(None, description="Household income range")
-    parental_status: Optional[str] = Field(
-        None, description="Parental status (e.g., 'no children', 'parent')"
-    )
-    housing_status: Optional[str] = Field(
-        None, description="Housing status (e.g., 'own', 'rent')"
-    )
+    parental_status: Optional[str] = Field(None, description="Parental status (e.g., 'no children', 'parent')")
+    housing_status: Optional[str] = Field(None, description="Housing status (e.g., 'own', 'rent')")
 
 
 # Points awarded for each demographic field
@@ -243,9 +227,7 @@ class PhoneNumberUpdate(BaseModel):
             elif len(cleaned) == 11 and cleaned.startswith("1"):
                 cleaned = "+" + cleaned
             else:
-                raise ValueError(
-                    "Phone number must include country code or be a valid US number"
-                )
+                raise ValueError("Phone number must include country code or be a valid US number")
 
         # Validate length (E.164 is max 15 digits)
         if len(cleaned) < 10 or len(cleaned) > 16:

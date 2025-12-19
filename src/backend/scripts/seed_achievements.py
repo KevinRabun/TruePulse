@@ -1026,9 +1026,7 @@ async def seed_achievements():
     async with async_session_maker() as session:
         for achievement_data in ACHIEVEMENTS:
             # Check if achievement already exists
-            result = await session.execute(
-                select(Achievement).where(Achievement.id == achievement_data["id"])
-            )
+            result = await session.execute(select(Achievement).where(Achievement.id == achievement_data["id"]))
             existing = result.scalar_one_or_none()
 
             if existing:

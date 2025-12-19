@@ -66,9 +66,7 @@ class AzureTableService:
 
         self.account_name = account_name or settings.AZURE_STORAGE_ACCOUNT_NAME
         self.table_endpoint = table_endpoint or settings.AZURE_STORAGE_TABLE_ENDPOINT
-        self._connection_string = connection_string or getattr(
-            settings, "AZURE_STORAGE_CONNECTION_STRING", None
-        )
+        self._connection_string = connection_string or getattr(settings, "AZURE_STORAGE_CONNECTION_STRING", None)
 
         self._service_client: Optional[AsyncTableServiceClient] = None
         self._is_initialized = False
@@ -81,17 +79,13 @@ class AzureTableService:
         try:
             if self._connection_string:
                 # Use connection string (local development)
-                self._service_client = AsyncTableServiceClient.from_connection_string(
-                    self._connection_string
-                )
+                self._service_client = AsyncTableServiceClient.from_connection_string(self._connection_string)
                 logger.info("azure_tables_init", method="connection_string")
             else:
                 # Use managed identity (production)
                 credential = AsyncDefaultAzureCredential()
                 if not self.table_endpoint:
-                    raise ValueError(
-                        "AZURE_STORAGE_TABLE_ENDPOINT must be set for managed identity auth"
-                    )
+                    raise ValueError("AZURE_STORAGE_TABLE_ENDPOINT must be set for managed identity auth")
                 self._service_client = AsyncTableServiceClient(
                     endpoint=self.table_endpoint,
                     credential=credential,
@@ -135,9 +129,7 @@ class AzureTableService:
     def _get_table_client(self, table_name: str) -> AsyncTableClient:
         """Get a table client for the specified table."""
         if not self._service_client:
-            raise RuntimeError(
-                "Azure Table Service not initialized. Call initialize() first."
-            )
+            raise RuntimeError("Azure Table Service not initialized. Call initialize() first.")
         return self._service_client.get_table_client(table_name)
 
     async def close(self) -> None:
@@ -223,9 +215,7 @@ class AzureTableService:
         table_client = self._get_table_client(VOTES_TABLE)
 
         votes = []
-        async for entity in table_client.query_entities(
-            query_filter=f"PartitionKey eq '{poll_id}'"
-        ):
+        async for entity in table_client.query_entities(query_filter=f"PartitionKey eq '{poll_id}'"):
             votes.append(dict(entity))
 
         return votes
@@ -437,9 +427,7 @@ class AzureTableService:
             entity = await table_client.get_entity(partition, row_key)
 
             # Check if window has reset
-            last_reset = datetime.fromisoformat(
-                entity.get("window_start", now.isoformat())
-            )
+            last_reset = datetime.fromisoformat(entity.get("window_start", now.isoformat()))
 
             if last_reset < window_start:
                 # Window expired, reset counter

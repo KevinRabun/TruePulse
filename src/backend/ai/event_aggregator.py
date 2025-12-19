@@ -108,9 +108,7 @@ class NewsDataClient:
             data = response.json()
 
             if data.get("status") != "success":
-                logger.warning(
-                    f"NewsData API error: {data.get('results', {}).get('message', 'Unknown error')}"
-                )
+                logger.warning(f"NewsData API error: {data.get('results', {}).get('message', 'Unknown error')}")
                 return []
 
             events = []
@@ -124,9 +122,7 @@ class NewsDataClient:
                 pub_date = article.get("pubDate")
                 if pub_date:
                     try:
-                        published_at = datetime.fromisoformat(
-                            pub_date.replace("Z", "+00:00")
-                        )
+                        published_at = datetime.fromisoformat(pub_date.replace("Z", "+00:00"))
                     except ValueError:
                         published_at = datetime.now(timezone.utc)
                 else:
@@ -136,21 +132,15 @@ class NewsDataClient:
                     NewsEvent(
                         id=f"nd-{event_id}",
                         title=article.get("title", ""),
-                        summary=article.get("description")
-                        or article.get("content", "")[:500],
-                        source=article.get("source_name")
-                        or article.get("source_id", "Unknown"),
+                        summary=article.get("description") or article.get("content", "")[:500],
+                        source=article.get("source_name") or article.get("source_id", "Unknown"),
                         source_api="newsdata",
                         url=article.get("link", ""),
                         image_url=article.get("image_url"),
                         published_at=published_at,
-                        category=article.get("category", ["general"])[0]
-                        if article.get("category")
-                        else "general",
+                        category=article.get("category", ["general"])[0] if article.get("category") else "general",
                         keywords=article.get("keywords", []) or [],
-                        country=article.get("country", [None])[0]
-                        if article.get("country")
-                        else None,
+                        country=article.get("country", [None])[0] if article.get("country") else None,
                         language=article.get("language", "en"),
                         relevance_score=0.7,  # Default score for NewsData
                     )
@@ -222,9 +212,7 @@ class NewsAPIClient:
             data = response.json()
 
             if data.get("status") != "ok":
-                logger.warning(
-                    f"NewsAPI.org error: {data.get('message', 'Unknown error')}"
-                )
+                logger.warning(f"NewsAPI.org error: {data.get('message', 'Unknown error')}")
                 return []
 
             events = []
@@ -235,34 +223,26 @@ class NewsAPIClient:
 
                 # Generate unique ID
                 source_name = article.get("source", {}).get("name", "Unknown")
-                event_id = hashlib.md5(
-                    f"{article.get('title', '')}-{source_name}".encode()
-                ).hexdigest()[:16]
+                event_id = hashlib.md5(f"{article.get('title', '')}-{source_name}".encode()).hexdigest()[:16]
 
                 # Parse publication date
                 pub_date = article.get("publishedAt")
                 if pub_date:
                     try:
-                        published_at = datetime.fromisoformat(
-                            pub_date.replace("Z", "+00:00")
-                        )
+                        published_at = datetime.fromisoformat(pub_date.replace("Z", "+00:00"))
                     except ValueError:
                         published_at = datetime.now(timezone.utc)
                 else:
                     published_at = datetime.now(timezone.utc)
 
                 # Infer category from the request or content
-                category = (
-                    categories[0] if categories else self._infer_category(article)
-                )
+                category = categories[0] if categories else self._infer_category(article)
 
                 events.append(
                     NewsEvent(
                         id=f"na-{event_id}",
                         title=article.get("title", ""),
-                        summary=article.get("description")
-                        or article.get("content", "")[:500]
-                        or "",
+                        summary=article.get("description") or article.get("content", "")[:500] or "",
                         source=source_name,
                         source_api="newsapi",
                         url=article.get("url", ""),
@@ -347,15 +327,11 @@ class EventAggregator:
 
         # Initialize available clients
         if settings.NEWSDATA_API_KEY:
-            self.newsdata_client = NewsDataClient(
-                settings.NEWSDATA_API_KEY, self.http_client
-            )
+            self.newsdata_client = NewsDataClient(settings.NEWSDATA_API_KEY, self.http_client)
             logger.info("NewsData.io client initialized")
 
         if settings.NEWSAPI_ORG_API_KEY:
-            self.newsapi_client = NewsAPIClient(
-                settings.NEWSAPI_ORG_API_KEY, self.http_client
-            )
+            self.newsapi_client = NewsAPIClient(settings.NEWSAPI_ORG_API_KEY, self.http_client)
             logger.info("NewsAPI.org client initialized")
 
         if not self.newsdata_client and not self.newsapi_client:
@@ -387,9 +363,7 @@ class EventAggregator:
         Returns:
             List of NewsEvent objects from multiple sources
         """
-        logger.info(
-            f"Fetching trending events, categories={categories}, keywords={keywords}, limit={limit}"
-        )
+        logger.info(f"Fetching trending events, categories={categories}, keywords={keywords}, limit={limit}")
 
         all_events: list[NewsEvent] = []
         fetch_tasks = []
@@ -443,9 +417,7 @@ class EventAggregator:
         unique_events = await self.deduplicate_events(all_events)
         unique_events.sort(key=lambda e: e.relevance_score, reverse=True)
 
-        logger.info(
-            f"Aggregated {len(unique_events)} unique events from {len(fetch_tasks)} sources"
-        )
+        logger.info(f"Aggregated {len(unique_events)} unique events from {len(fetch_tasks)} sources")
         return unique_events[:limit]
 
     async def fetch_by_topic(
@@ -490,9 +462,7 @@ class EventAggregator:
         # Source API distribution
         source_api_counts: dict[str, int] = {}
         for event in events:
-            source_api_counts[event.source_api] = (
-                source_api_counts.get(event.source_api, 0) + 1
-            )
+            source_api_counts[event.source_api] = source_api_counts.get(event.source_api, 0) + 1
 
         # Source (publication) distribution
         source_counts: dict[str, int] = {}
@@ -527,27 +497,19 @@ class EventAggregator:
         if sum(sentiment_values) > 0:
             sentiment_std = self._calculate_std(sentiment_values)
             max_sentiment_std = total / 3  # Max std would be if all in one category
-            sentiment_balance = (
-                1.0 - (sentiment_std / max_sentiment_std)
-                if max_sentiment_std > 0
-                else 0.5
-            )
+            sentiment_balance = 1.0 - (sentiment_std / max_sentiment_std) if max_sentiment_std > 0 else 0.5
         else:
             sentiment_balance = 0.5
 
         # API diversity (using multiple APIs is good)
         api_diversity = len(source_api_counts) / 3.0  # Max 3 APIs currently
 
-        balance_score = (
-            source_diversity * 0.4 + sentiment_balance * 0.4 + api_diversity * 0.2
-        )
+        balance_score = source_diversity * 0.4 + sentiment_balance * 0.4 + api_diversity * 0.2
 
         return {
             "total_events": total,
             "category_distribution": category_counts,
-            "source_distribution": dict(
-                list(source_counts.items())[:10]
-            ),  # Top 10 sources
+            "source_distribution": dict(list(source_counts.items())[:10]),  # Top 10 sources
             "source_api_distribution": source_api_counts,
             "sentiment_distribution": sentiment_counts,
             "balance_score": round(balance_score, 3),
@@ -585,9 +547,7 @@ class EventAggregator:
             # Check for similar titles
             is_duplicate = False
             for seen_title, seen_event in list(seen_titles.items()):
-                similarity = self._calculate_title_similarity(
-                    normalized_title, seen_title
-                )
+                similarity = self._calculate_title_similarity(normalized_title, seen_title)
                 if similarity >= similarity_threshold:
                     # Keep the one with higher relevance score
                     if event.relevance_score > seen_event.relevance_score:
@@ -710,9 +670,7 @@ class EventAggregator:
                 )
 
                 if response.status_code != 200:
-                    logger.warning(
-                        f"Fact check API error: status={response.status_code}, query='{query[:50]}'"
-                    )
+                    logger.warning(f"Fact check API error: status={response.status_code}, query='{query[:50]}'")
                     return []
 
                 data = response.json()
@@ -730,17 +688,13 @@ class EventAggregator:
                                 "claimant": claim.get("claimant", "Unknown"),
                                 "claim_date": claim.get("claimDate"),
                                 "rating": review.get("textualRating", ""),
-                                "publisher": review.get("publisher", {}).get(
-                                    "name", ""
-                                ),
+                                "publisher": review.get("publisher", {}).get("name", ""),
                                 "url": review.get("url", ""),
                                 "title": review.get("title", ""),
                             }
                         )
 
-                logger.info(
-                    f"Fetched {len(fact_checks)} fact checks for event {event.id}"
-                )
+                logger.info(f"Fetched {len(fact_checks)} fact checks for event {event.id}")
 
                 return fact_checks
 

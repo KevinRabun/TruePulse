@@ -21,9 +21,7 @@ class AchievementService:
     def __init__(self, db: AsyncSession):
         self.db = db
 
-    async def check_and_award_voting_achievements(
-        self, user: User
-    ) -> list[Achievement]:
+    async def check_and_award_voting_achievements(self, user: User) -> list[Achievement]:
         """
         Check and award voting-related achievements.
         Called after a user casts a vote.
@@ -33,9 +31,7 @@ class AchievementService:
         awarded = []
 
         # Get voting achievements
-        result = await self.db.execute(
-            select(Achievement).where(Achievement.action_type == "vote")
-        )
+        result = await self.db.execute(select(Achievement).where(Achievement.action_type == "vote"))
         voting_achievements = result.scalars().all()
 
         for achievement in voting_achievements:
@@ -46,9 +42,7 @@ class AchievementService:
 
         return awarded
 
-    async def check_and_award_streak_achievements(
-        self, user: User
-    ) -> list[Achievement]:
+    async def check_and_award_streak_achievements(self, user: User) -> list[Achievement]:
         """
         Check and award streak-related achievements.
         Called after streak is updated.
@@ -58,9 +52,7 @@ class AchievementService:
         awarded = []
 
         # Get streak achievements
-        result = await self.db.execute(
-            select(Achievement).where(Achievement.action_type == "streak")
-        )
+        result = await self.db.execute(select(Achievement).where(Achievement.action_type == "streak"))
         streak_achievements = result.scalars().all()
 
         for achievement in streak_achievements:
@@ -72,9 +64,7 @@ class AchievementService:
 
         return awarded
 
-    async def check_and_award_sharing_achievements(
-        self, user: User, platform: str
-    ) -> tuple[list[Achievement], int]:
+    async def check_and_award_sharing_achievements(self, user: User, platform: str) -> tuple[list[Achievement], int]:
         """
         Check and award sharing-related achievements.
         Called after a user shares content.
@@ -107,9 +97,7 @@ class AchievementService:
         user.total_shares += 1
 
         # Check total share achievements (first, 10th, 50th, 100th)
-        result = await self.db.execute(
-            select(Achievement).where(Achievement.action_type == "share")
-        )
+        result = await self.db.execute(select(Achievement).where(Achievement.action_type == "share"))
         share_achievements = result.scalars().all()
 
         for achievement in share_achievements:
@@ -131,9 +119,7 @@ class AchievementService:
 
         if platform in platform_map:
             achievement_id = platform_map[platform]
-            result = await self.db.execute(
-                select(Achievement).where(Achievement.id == achievement_id)
-            )
+            result = await self.db.execute(select(Achievement).where(Achievement.id == achievement_id))
             achievement = result.scalar_one_or_none()
 
             if achievement:
@@ -155,24 +141,18 @@ class AchievementService:
         earned_platform_achievements = result.scalars().all()
 
         if len(earned_platform_achievements) >= 6:
-            result = await self.db.execute(
-                select(Achievement).where(Achievement.id == "share_all_platforms")
-            )
+            result = await self.db.execute(select(Achievement).where(Achievement.id == "share_all_platforms"))
             cross_platform_achievement = result.scalar_one_or_none()
 
             if cross_platform_achievement:
-                newly_awarded = await self._try_award_achievement(
-                    user, cross_platform_achievement
-                )
+                newly_awarded = await self._try_award_achievement(user, cross_platform_achievement)
                 if newly_awarded:
                     awarded.append(cross_platform_achievement)
                     points_earned += cross_platform_achievement.points_reward
 
         return awarded, points_earned
 
-    async def check_and_award_demographic_achievements(
-        self, user: User, field_updated: str
-    ) -> list[Achievement]:
+    async def check_and_award_demographic_achievements(self, user: User, field_updated: str) -> list[Achievement]:
         """
         Check and award demographic-related achievements.
         Called after a user updates their profile demographics.
@@ -198,9 +178,7 @@ class AchievementService:
 
             if all_filled:
                 # Get the achievement
-                result = await self.db.execute(
-                    select(Achievement).where(Achievement.id == achievement_id)
-                )
+                result = await self.db.execute(select(Achievement).where(Achievement.id == achievement_id))
                 achievement = result.scalar_one_or_none()
 
                 if achievement:
@@ -226,9 +204,7 @@ class AchievementService:
                 demo_count += 1
 
         if demo_count >= 8:
-            result = await self.db.execute(
-                select(Achievement).where(Achievement.id == "profile_complete")
-            )
+            result = await self.db.execute(select(Achievement).where(Achievement.id == "profile_complete"))
             achievement = result.scalar_one_or_none()
             if achievement:
                 newly_awarded = await self._try_award_achievement(user, achievement)
@@ -255,9 +231,7 @@ class AchievementService:
 
         achievement_id = f"{period_type}_rank_{rank}"
 
-        result = await self.db.execute(
-            select(Achievement).where(Achievement.id == achievement_id)
-        )
+        result = await self.db.execute(select(Achievement).where(Achievement.id == achievement_id))
         achievement = result.scalar_one_or_none()
 
         if not achievement:
@@ -348,9 +322,7 @@ class AchievementService:
 
         return True
 
-    async def _award_points(
-        self, user: User, points: int, description: str, action: str
-    ) -> None:
+    async def _award_points(self, user: User, points: int, description: str, action: str) -> None:
         """Award points to a user and create a transaction record."""
         # Update user's total points
         user.total_points += points
@@ -380,9 +352,7 @@ class AchievementService:
 
         # Award specific verification achievement
         if verification_type == "email":
-            result = await self.db.execute(
-                select(Achievement).where(Achievement.id == "email_verified")
-            )
+            result = await self.db.execute(select(Achievement).where(Achievement.id == "email_verified"))
             achievement = result.scalar_one_or_none()
             if achievement:
                 newly_awarded = await self._try_award_achievement(user, achievement)
@@ -390,9 +360,7 @@ class AchievementService:
                     awarded.append(achievement)
 
         elif verification_type == "phone":
-            result = await self.db.execute(
-                select(Achievement).where(Achievement.id == "phone_verified")
-            )
+            result = await self.db.execute(select(Achievement).where(Achievement.id == "phone_verified"))
             achievement = result.scalar_one_or_none()
             if achievement:
                 newly_awarded = await self._try_award_achievement(user, achievement)
@@ -401,9 +369,7 @@ class AchievementService:
 
         # Check if fully verified (both email and phone)
         if user.email_verified and user.phone_verified:
-            result = await self.db.execute(
-                select(Achievement).where(Achievement.id == "fully_verified")
-            )
+            result = await self.db.execute(select(Achievement).where(Achievement.id == "fully_verified"))
             achievement = result.scalar_one_or_none()
             if achievement:
                 newly_awarded = await self._try_award_achievement(user, achievement)
@@ -413,9 +379,7 @@ class AchievementService:
         return awarded
 
 
-async def check_all_achievements_for_user(
-    db: AsyncSession, user: User
-) -> list[Achievement]:
+async def check_all_achievements_for_user(db: AsyncSession, user: User) -> list[Achievement]:
     """
     Check and award all applicable achievements for a user.
     Useful for retroactively awarding achievements after system updates.

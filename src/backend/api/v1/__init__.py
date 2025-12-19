@@ -26,9 +26,7 @@ router.include_router(
     prefix="/secure-votes",
     tags=["Secure Voting (Fraud Prevention)"],
 )
-router.include_router(
-    gamification_router, prefix="/gamification", tags=["Gamification"]
-)
+router.include_router(gamification_router, prefix="/gamification", tags=["Gamification"])
 router.include_router(stats_router, prefix="/stats", tags=["Platform Statistics"])
 router.include_router(locations_router, tags=["Locations"])
 router.include_router(ads_router, prefix="/ads", tags=["Ad Engagement"])

@@ -36,9 +36,7 @@ class EmailService:
         if self._initialized:
             return
 
-        connection_string = getattr(
-            settings, "AZURE_COMMUNICATION_CONNECTION_STRING", None
-        )
+        connection_string = getattr(settings, "AZURE_COMMUNICATION_CONNECTION_STRING", None)
         self._sender_address = getattr(settings, "AZURE_EMAIL_SENDER_ADDRESS", None)
 
         if not connection_string or not self._sender_address:
@@ -99,9 +97,7 @@ class EmailService:
             )
             return False
 
-        base_url = frontend_url or getattr(
-            settings, "FRONTEND_URL", "http://localhost:3000"
-        )
+        base_url = frontend_url or getattr(settings, "FRONTEND_URL", "http://localhost:3000")
         reset_url = f"{base_url}/reset-password?token={reset_token}"
 
         subject = "Reset Your TruePulse Password"
@@ -197,9 +193,7 @@ you can safely ignore this email.
             )
             return False
 
-        base_url = frontend_url or getattr(
-            settings, "FRONTEND_URL", "http://localhost:3000"
-        )
+        base_url = frontend_url or getattr(settings, "FRONTEND_URL", "http://localhost:3000")
         verify_url = f"{base_url}/verify-email?token={verification_token}"
 
         subject = "Verify Your TruePulse Account"

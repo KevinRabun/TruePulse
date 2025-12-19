@@ -97,9 +97,7 @@ class RedisService:
         """
         if self._table_service:
             try:
-                return await self._table_service.blacklist_token(
-                    token_jti, expires_in_seconds
-                )
+                return await self._table_service.blacklist_token(token_jti, expires_in_seconds)
             except Exception as e:
                 logger.error("token_blacklist_failed", error=str(e))
 
@@ -162,9 +160,7 @@ class RedisService:
         """
         if self._table_service:
             try:
-                return await self._table_service.check_rate_limit(
-                    identifier, limit, window_seconds
-                )
+                return await self._table_service.check_rate_limit(identifier, limit, window_seconds)
             except Exception as e:
                 logger.error("rate_limit_check_failed", error=str(e))
 
@@ -196,9 +192,7 @@ class RedisService:
         """
         if self._table_service:
             try:
-                return await self._table_service.store_password_reset_token(
-                    user_id, token, expires_in_seconds
-                )
+                return await self._table_service.store_password_reset_token(user_id, token, expires_in_seconds)
             except Exception as e:
                 logger.error("password_reset_store_failed", error=str(e))
 

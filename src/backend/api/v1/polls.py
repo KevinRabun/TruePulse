@@ -38,8 +38,7 @@ def poll_model_to_schema(poll: PollModel) -> Poll:
         id=str(poll.id),
         question=poll.question,
         choices=[
-            PollChoice(id=str(c.id), text=c.text, order=c.order)
-            for c in sorted(poll.choices, key=lambda x: x.order)
+            PollChoice(id=str(c.id), text=c.text, order=c.order) for c in sorted(poll.choices, key=lambda x: x.order)
         ],
         category=poll.category,
         source_event=poll.source_event,
@@ -54,9 +53,7 @@ def poll_model_to_schema(poll: PollModel) -> Poll:
         total_votes=poll.total_votes,
         is_featured=poll.is_featured,
         ai_generated=poll.ai_generated,
-        poll_type=PollTypeEnum(poll.poll_type)
-        if poll.poll_type
-        else PollTypeEnum.STANDARD,
+        poll_type=PollTypeEnum(poll.poll_type) if poll.poll_type else PollTypeEnum.STANDARD,
         time_remaining_seconds=poll.time_remaining_seconds,
     )
 
@@ -91,9 +88,7 @@ def poll_model_to_results_schema(poll: PollModel) -> PollWithResults:
         total_votes=total,
         is_featured=poll.is_featured,
         ai_generated=poll.ai_generated,
-        poll_type=PollTypeEnum(poll.poll_type)
-        if poll.poll_type
-        else PollTypeEnum.STANDARD,
+        poll_type=PollTypeEnum(poll.poll_type) if poll.poll_type else PollTypeEnum.STANDARD,
         time_remaining_seconds=poll.time_remaining_seconds,
         demographic_breakdown=poll.demographic_results,
         confidence_interval=poll.confidence_interval,
@@ -389,11 +384,7 @@ async def get_daily_polls(
     polls, _ = await repo.list_polls(page=1, per_page=24, active_only=False)
 
     # Filter to today's polls
-    daily = [
-        p
-        for p in polls
-        if p.scheduled_start and today_start <= p.scheduled_start < today_end
-    ]
+    daily = [p for p in polls if p.scheduled_start and today_start <= p.scheduled_start < today_end]
 
     return [poll_model_to_schema(p) for p in daily]
 
@@ -558,9 +549,7 @@ async def get_poll_demographics(
                     {
                         "choice_text": choice_text,
                         "count": count,
-                        "percentage": round(count / data["total"] * 100, 1)
-                        if data["total"] > 0
-                        else 0,
+                        "percentage": round(count / data["total"] * 100, 1) if data["total"] > 0 else 0,
                     }
                     for choice_text, count in data["choices"].items()
                     if count > 0

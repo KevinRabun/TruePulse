@@ -144,9 +144,7 @@ async def get_user_progress(
     )
 
 
-def calculate_achievement_progress(
-    user, achievement: AchievementModel
-) -> tuple[int, bool]:
+def calculate_achievement_progress(user, achievement: AchievementModel) -> tuple[int, bool]:
     """Calculate progress and unlock status for an achievement based on user data."""
     action_type = achievement.action_type
     target = achievement.target_count
@@ -191,9 +189,7 @@ def calculate_achievement_progress(
             is_unlocked = bool(getattr(user, demo_map[achievement.id], None))
             progress = 1 if is_unlocked else 0
         elif achievement.id == "demo_geo_detailed":
-            has_both = bool(getattr(user, "state_province", None)) and bool(
-                getattr(user, "city", None)
-            )
+            has_both = bool(getattr(user, "state_province", None)) and bool(getattr(user, "city", None))
             is_unlocked = has_both
             progress = 1 if is_unlocked else 0
         else:
@@ -225,9 +221,7 @@ async def get_achievements(
     current_user: Annotated[UserInDB, Depends(get_current_active_user)],
     db: AsyncSession = Depends(get_db),
     include_locked: bool = Query(True),
-    category: Optional[str] = Query(
-        None, description="Filter by category: voting, streak, profile, leaderboard"
-    ),
+    category: Optional[str] = Query(None, description="Filter by category: voting, streak, profile, leaderboard"),
 ) -> List[AchievementWithHistory]:
     """
     Get the user's achievements and badges with earn history.
@@ -280,9 +274,7 @@ async def get_achievements(
         unlocked_at = earned_dates[0] if earned_dates else None
 
         # Build earned history for repeatable achievements
-        earned_history = [
-            AchievementEarnedDate(earned_at=d, period_key=None) for d in earned_dates
-        ]
+        earned_history = [AchievementEarnedDate(earned_at=d, period_key=None) for d in earned_dates]
 
         achievement_response = AchievementWithHistory(
             id=achievement.id,
@@ -310,12 +302,8 @@ async def get_achievements(
 @router.get("/achievements/all", response_model=List[AchievementWithHistory])
 async def get_all_achievements(
     db: AsyncSession = Depends(get_db),
-    category: Optional[str] = Query(
-        None, description="Filter by category: voting, streak, profile, leaderboard"
-    ),
-    tier: Optional[str] = Query(
-        None, description="Filter by tier: bronze, silver, gold, platinum"
-    ),
+    category: Optional[str] = Query(None, description="Filter by category: voting, streak, profile, leaderboard"),
+    tier: Optional[str] = Query(None, description="Filter by tier: bronze, silver, gold, platinum"),
     search: Optional[str] = Query(None, description="Search by name or description"),
 ) -> List[AchievementWithHistory]:
     """
@@ -340,10 +328,7 @@ async def get_all_achievements(
         # Apply search filter if provided
         if search:
             search_lower = search.lower()
-            if (
-                search_lower not in achievement.name.lower()
-                and search_lower not in achievement.description.lower()
-            ):
+            if search_lower not in achievement.name.lower() and search_lower not in achievement.description.lower():
                 continue
 
         achievement_response = AchievementWithHistory(
@@ -371,12 +356,8 @@ async def get_all_achievements(
 async def get_user_achievements_status(
     current_user: Annotated[UserInDB, Depends(get_current_active_user)],
     db: AsyncSession = Depends(get_db),
-    category: Optional[str] = Query(
-        None, description="Filter by category: voting, streak, profile, leaderboard"
-    ),
-    tier: Optional[str] = Query(
-        None, description="Filter by tier: bronze, silver, gold, platinum"
-    ),
+    category: Optional[str] = Query(None, description="Filter by category: voting, streak, profile, leaderboard"),
+    tier: Optional[str] = Query(None, description="Filter by tier: bronze, silver, gold, platinum"),
     search: Optional[str] = Query(None, description="Search by name or description"),
     unlocked_only: bool = Query(False, description="Only show unlocked achievements"),
 ) -> List[AchievementWithHistory]:
@@ -424,10 +405,7 @@ async def get_user_achievements_status(
         # Apply search filter if provided
         if search:
             search_lower = search.lower()
-            if (
-                search_lower not in achievement.name.lower()
-                and search_lower not in achievement.description.lower()
-            ):
+            if search_lower not in achievement.name.lower() and search_lower not in achievement.description.lower():
                 continue
 
         progress, is_unlocked = calculate_achievement_progress(user, achievement)
@@ -448,9 +426,7 @@ async def get_user_achievements_status(
         unlocked_at = earned_dates[0] if earned_dates else None
 
         # Build earned history for repeatable achievements
-        earned_history = [
-            AchievementEarnedDate(earned_at=d, period_key=None) for d in earned_dates
-        ]
+        earned_history = [AchievementEarnedDate(earned_at=d, period_key=None) for d in earned_dates]
 
         achievement_response = AchievementWithHistory(
             id=achievement.id,

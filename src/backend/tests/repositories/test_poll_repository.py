@@ -76,9 +76,7 @@ class TestPollRepository:
 
         assert result is None
 
-    async def test_get_current_poll_returns_active_poll(
-        self, mock_session, mock_poll
-    ) -> None:
+    async def test_get_current_poll_returns_active_poll(self, mock_session, mock_poll) -> None:
         """Test getting current active poll."""
         from repositories.poll_repository import PollRepository
 

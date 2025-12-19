@@ -264,9 +264,7 @@ async def update_demographics(
         achievement_service = AchievementService(db)
         # Pass any field that was updated to check relevant achievements
         for field in demographics_dict.keys():
-            await achievement_service.check_and_award_demographic_achievements(
-                updated_user, field
-            )
+            await achievement_service.check_and_award_demographic_achievements(updated_user, field)
 
     return DemographicsUpdateResponse(
         demographics=demographics,
@@ -297,33 +295,17 @@ async def get_settings(
         )
 
     return UserSettings(
-        email_notifications=user.email_notifications
-        if hasattr(user, "email_notifications")
-        else True,
-        push_notifications=user.push_notifications
-        if hasattr(user, "push_notifications")
-        else False,
-        daily_poll_reminder=user.daily_poll_reminder
-        if hasattr(user, "daily_poll_reminder")
-        else True,
-        show_on_leaderboard=user.show_on_leaderboard
-        if hasattr(user, "show_on_leaderboard")
-        else True,
+        email_notifications=user.email_notifications if hasattr(user, "email_notifications") else True,
+        push_notifications=user.push_notifications if hasattr(user, "push_notifications") else False,
+        daily_poll_reminder=user.daily_poll_reminder if hasattr(user, "daily_poll_reminder") else True,
+        show_on_leaderboard=user.show_on_leaderboard if hasattr(user, "show_on_leaderboard") else True,
         share_anonymous_demographics=user.share_anonymous_demographics
         if hasattr(user, "share_anonymous_demographics")
         else True,
-        theme_preference=user.theme_preference
-        if hasattr(user, "theme_preference")
-        else "system",
-        pulse_poll_notifications=user.pulse_poll_notifications
-        if hasattr(user, "pulse_poll_notifications")
-        else True,
-        flash_poll_notifications=user.flash_poll_notifications
-        if hasattr(user, "flash_poll_notifications")
-        else True,
-        flash_polls_per_day=user.flash_polls_per_day
-        if hasattr(user, "flash_polls_per_day")
-        else 5,
+        theme_preference=user.theme_preference if hasattr(user, "theme_preference") else "system",
+        pulse_poll_notifications=user.pulse_poll_notifications if hasattr(user, "pulse_poll_notifications") else True,
+        flash_poll_notifications=user.flash_poll_notifications if hasattr(user, "flash_poll_notifications") else True,
+        flash_polls_per_day=user.flash_polls_per_day if hasattr(user, "flash_polls_per_day") else 5,
     )
 
 
@@ -460,9 +442,7 @@ async def verify_phone_number(
         from services.achievement_service import AchievementService
 
         achievement_service = AchievementService(db)
-        await achievement_service.check_and_award_verification_achievements(
-            user, "phone"
-        )
+        await achievement_service.check_and_award_verification_achievements(user, "phone")
         await db.commit()
 
     return PhoneVerificationResponse(

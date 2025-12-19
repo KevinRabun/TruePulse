@@ -63,21 +63,15 @@ async def get_countries(
     return [CountryResponse(code=c.code, name=c.name) for c in countries]
 
 
-@router.get(
-    "/countries/{country_code}/states", response_model=List[StateProvinceResponse]
-)
+@router.get("/countries/{country_code}/states", response_model=List[StateProvinceResponse])
 async def get_states_by_country(
     country_code: str,
     db: AsyncSession = Depends(get_db),
-    search: Optional[str] = Query(
-        None, description="Search term for state/province name"
-    ),
+    search: Optional[str] = Query(None, description="Search term for state/province name"),
 ):
     """Get all active states/provinces for a given country code."""
     # First get the country
-    country_result = await db.execute(
-        select(Country).where(Country.code == country_code.upper())
-    )
+    country_result = await db.execute(select(Country).where(Country.code == country_code.upper()))
     country = country_result.scalar_one_or_none()
 
     if not country:
@@ -97,12 +91,7 @@ async def get_states_by_country(
     result = await db.execute(query)
     states = result.scalars().all()
 
-    return [
-        StateProvinceResponse(
-            id=s.id, code=s.code, name=s.name, country_code=country_code.upper()
-        )
-        for s in states
-    ]
+    return [StateProvinceResponse(id=s.id, code=s.code, name=s.name, country_code=country_code.upper()) for s in states]
 
 
 @router.get("/states/{state_id}/cities", response_model=List[CityResponse])
@@ -113,21 +102,14 @@ async def get_cities_by_state(
 ):
     """Get all active cities for a given state/province ID."""
     # Verify state exists
-    state_result = await db.execute(
-        select(StateProvince).where(StateProvince.id == state_id)
-    )
+    state_result = await db.execute(select(StateProvince).where(StateProvince.id == state_id))
     state = state_result.scalar_one_or_none()
 
     if not state:
         return []
 
     # Get cities for this state
-    query = (
-        select(City)
-        .where(City.state_province_id == state_id)
-        .where(City.is_active == True)
-        .order_by(City.name)
-    )
+    query = select(City).where(City.state_province_id == state_id).where(City.is_active == True).order_by(City.name)
 
     if search:
         query = query.where(City.name.ilike(f"%{search}%"))

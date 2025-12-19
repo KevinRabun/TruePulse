@@ -42,14 +42,10 @@ class VoteRecord(BaseModel):
     """
 
     id: str  # Cosmos DB document ID
-    vote_hash: str = Field(
-        ..., description="SHA-256 hash of user_id + poll_id (cannot be reversed)"
-    )
+    vote_hash: str = Field(..., description="SHA-256 hash of user_id + poll_id (cannot be reversed)")
     poll_id: str
     choice_id: str
-    demographics_bucket: Optional[str] = Field(
-        None, description="Anonymized demographic bucket for aggregation"
-    )
+    demographics_bucket: Optional[str] = Field(None, description="Anonymized demographic bucket for aggregation")
     created_at: datetime
 
     model_config = {"from_attributes": True}

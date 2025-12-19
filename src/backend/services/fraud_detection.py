@@ -405,9 +405,7 @@ class IPIntelligenceService:
             if response.status_code == 200:
                 data = response.json().get("data", {})
                 result.recent_abuse_reports = data.get("totalReports", 0)
-                result.ip_risk_score = max(
-                    result.ip_risk_score, data.get("abuseConfidenceScore", 0)
-                )
+                result.ip_risk_score = max(result.ip_risk_score, data.get("abuseConfidenceScore", 0))
 
     def _calculate_ip_risk_score(self, result: IPIntelligence) -> int:
         """Calculate overall IP risk score."""
@@ -470,9 +468,7 @@ class BehavioralAnalysisService:
             factors.append("Suspiciously fast voting (<1s)")
 
         # Check mouse/touch activity
-        total_interaction = (
-            signals.mouse_move_count + signals.mouse_click_count + signals.scroll_count
-        )
+        total_interaction = signals.mouse_move_count + signals.mouse_click_count + signals.scroll_count
 
         if total_interaction == 0:
             # Desktop with no mouse movement is suspicious
@@ -520,9 +516,7 @@ class BehavioralAnalysisService:
             frequency = positions.count(most_common) / len(positions)
             if frequency > FraudConfig.SUSPICIOUS_CHOICE_PATTERN_THRESHOLD:
                 score += 30
-                factors.append(
-                    f"Suspicious voting pattern (same position {frequency:.0%})"
-                )
+                factors.append(f"Suspicious voting pattern (same position {frequency:.0%})")
 
         # Check for regular timing patterns (bot-like consistency)
         timestamps = [v.get("timestamp") for v in history[-20:] if v.get("timestamp")]
@@ -538,9 +532,7 @@ class BehavioralAnalysisService:
             if intervals:
                 # Check for suspiciously consistent timing
                 avg_interval = sum(intervals) / len(intervals)
-                variance = sum((i - avg_interval) ** 2 for i in intervals) / len(
-                    intervals
-                )
+                variance = sum((i - avg_interval) ** 2 for i in intervals) / len(intervals)
                 std_dev = math.sqrt(variance)
 
                 # Very low variance suggests automation
@@ -614,9 +606,7 @@ class DeviceFingerprintService:
         device_users = self._get_device_user_history(fingerprint_id)
         if len(device_users) > 3:
             score += 40
-            factors.append(
-                f"Device associated with {len(device_users)} different accounts"
-            )
+            factors.append(f"Device associated with {len(device_users)} different accounts")
 
         # Store this vote attempt
         self._fingerprint_store[fingerprint_key] = {
@@ -767,15 +757,11 @@ class FraudDetectionService:
 
         if ip_intel.recent_abuse_reports > 10:
             risk_score += 20
-            assessment.risk_factors.append(
-                f"IP has {ip_intel.recent_abuse_reports} abuse reports"
-            )
+            assessment.risk_factors.append(f"IP has {ip_intel.recent_abuse_reports} abuse reports")
 
         # 3. Device fingerprint check
         if fingerprint:
-            fp_score, fp_factors = await self.fingerprint_service.check_fingerprint(
-                fingerprint, user_id, poll_id
-            )
+            fp_score, fp_factors = await self.fingerprint_service.check_fingerprint(fingerprint, user_id, poll_id)
             risk_score += fp_score
             assessment.risk_factors.extend(fp_factors)
         else:
@@ -785,25 +771,19 @@ class FraudDetectionService:
 
         # 4. Behavioral analysis
         if behavioral_signals:
-            behav_score, behav_factors = self.behavioral_service.analyze(
-                behavioral_signals
-            )
+            behav_score, behav_factors = self.behavioral_service.analyze(behavioral_signals)
             risk_score += behav_score
             assessment.risk_factors.extend(behav_factors)
 
         # 5. CRITICAL: Verification requirements check
         # This is the primary defense against bot farms
-        verification_block = self._check_verification_requirements(
-            user_reputation, assessment
-        )
+        verification_block = self._check_verification_requirements(user_reputation, assessment)
         if verification_block:
             return assessment
 
         # 6. User reputation adjustment (only if verification passed)
         if user_reputation:
-            reputation_adjustment = self._calculate_reputation_adjustment(
-                user_reputation
-            )
+            reputation_adjustment = self._calculate_reputation_adjustment(user_reputation)
             risk_score += reputation_adjustment
 
             # Bonus for fully verified users (both email + phone)
@@ -992,17 +972,11 @@ class FraudDetectionService:
                 assessment.risk_factors.append("missing_email_verification")
                 assessment.risk_factors.append("missing_phone_verification")
             elif "phone" in missing_verifications:
-                assessment.block_reason = (
-                    "Phone verification required. "
-                    "This helps ensure one person = one vote."
-                )
+                assessment.block_reason = "Phone verification required. This helps ensure one person = one vote."
                 assessment.required_challenge = ChallengeType.SMS_VERIFY
                 assessment.risk_factors.append("missing_phone_verification")
             else:
-                assessment.block_reason = (
-                    "Email verification required. "
-                    "Please check your inbox and verify your email."
-                )
+                assessment.block_reason = "Email verification required. Please check your inbox and verify your email."
                 assessment.required_challenge = ChallengeType.BLOCK
                 assessment.risk_factors.append("missing_email_verification")
 
@@ -1012,9 +986,7 @@ class FraudDetectionService:
 
         # User is properly verified
         assessment.debug_info["verification_passed"] = True
-        assessment.debug_info["both_verified"] = (
-            user_reputation.email_verified and user_reputation.phone_verified
-        )
+        assessment.debug_info["both_verified"] = user_reputation.email_verified and user_reputation.phone_verified
         return False
 
 

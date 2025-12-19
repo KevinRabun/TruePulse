@@ -117,11 +117,7 @@ async def get_user_reputation(user: UserInDB, db: AsyncSession) -> UserReputatio
             votes_last_7d=0,
         )
 
-    account_age = (
-        (datetime.now(timezone.utc) - db_user.created_at).days
-        if db_user.created_at
-        else 0
-    )
+    account_age = (datetime.now(timezone.utc) - db_user.created_at).days if db_user.created_at else 0
 
     email_verified = db_user.is_verified
     phone_verified = getattr(db_user, "phone_verified", False)
@@ -205,10 +201,7 @@ def check_verification_status(user: UserInDB) -> tuple[bool, Optional[dict]]:
         return False, {
             "error": "phone_verification_required",
             "missing_verifications": ["phone"],
-            "message": (
-                "Phone verification is required to vote. "
-                "This helps ensure one person = one vote."
-            ),
+            "message": ("Phone verification is required to vote. This helps ensure one person = one vote."),
             "actions": [
                 {
                     "type": "verify_phone",
@@ -283,8 +276,7 @@ async def pre_check_vote(
             allow_vote=False,
             risk_level=assessment.risk_level.value,
             required_challenge=assessment.required_challenge.value,
-            message=assessment.block_reason
-            or "Vote blocked due to suspicious activity",
+            message=assessment.block_reason or "Vote blocked due to suspicious activity",
         )
 
     if assessment.required_challenge == ChallengeType.CAPTCHA:
@@ -363,8 +355,7 @@ async def cast_secure_vote(
             status_code=status.HTTP_403_FORBIDDEN,
             detail={
                 "error": "vote_blocked",
-                "message": assessment.block_reason
-                or "Vote blocked due to suspicious activity",
+                "message": assessment.block_reason or "Vote blocked due to suspicious activity",
                 "risk_level": assessment.risk_level.value,
                 "factors": assessment.risk_factors[:3],  # Show top 3 reasons
             },

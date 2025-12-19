@@ -27,9 +27,7 @@ class VoteRepository:
 
     async def exists_by_hash(self, vote_hash: str) -> bool:
         """Check if a vote exists by hash (for duplicate detection)."""
-        result = await self.db.execute(
-            select(func.count(Vote.id)).where(Vote.vote_hash == vote_hash)
-        )
+        result = await self.db.execute(select(func.count(Vote.id)).where(Vote.vote_hash == vote_hash))
         count = result.scalar() or 0
         return count > 0
 
@@ -69,21 +67,15 @@ class VoteRepository:
 
     async def count_by_poll(self, poll_id: str) -> int:
         """Get total vote count for a poll."""
-        result = await self.db.execute(
-            select(func.count(Vote.id)).where(Vote.poll_id == poll_id)
-        )
+        result = await self.db.execute(select(func.count(Vote.id)).where(Vote.poll_id == poll_id))
         return result.scalar() or 0
 
     async def count_by_choice(self, choice_id: str) -> int:
         """Get vote count for a specific choice."""
-        result = await self.db.execute(
-            select(func.count(Vote.id)).where(Vote.choice_id == choice_id)
-        )
+        result = await self.db.execute(select(func.count(Vote.id)).where(Vote.choice_id == choice_id))
         return result.scalar() or 0
 
-    async def get_demographic_breakdown(
-        self, poll_id: str
-    ) -> dict[str, dict[str, int]]:
+    async def get_demographic_breakdown(self, poll_id: str) -> dict[str, dict[str, int]]:
         """
         Get vote breakdown by demographics bucket.
 
@@ -106,9 +98,7 @@ class VoteRepository:
 
         breakdown: dict[str, dict[str, int]] = {}
         for row in result.all():
-            bucket = (
-                str(row.demographics_bucket) if row.demographics_bucket else "unknown"
-            )
+            bucket = str(row.demographics_bucket) if row.demographics_bucket else "unknown"
             if bucket not in breakdown:
                 breakdown[bucket] = {}
             count_val: int = row[2]  # Access count by index

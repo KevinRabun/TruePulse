@@ -333,9 +333,7 @@ async def seed_community_achievements():
         for achievement_data in COMMUNITY_ACHIEVEMENTS:
             # Check if achievement already exists
             result = await session.execute(
-                select(CommunityAchievement).where(
-                    CommunityAchievement.id == achievement_data["id"]
-                )
+                select(CommunityAchievement).where(CommunityAchievement.id == achievement_data["id"])
             )
             existing = result.scalar_one_or_none()
 
@@ -351,9 +349,7 @@ async def seed_community_achievements():
                 print(f"Created community achievement: {achievement_data['id']}")
 
         await session.commit()
-        print(
-            f"\nSeeded {len(COMMUNITY_ACHIEVEMENTS)} community achievements successfully!"
-        )
+        print(f"\nSeeded {len(COMMUNITY_ACHIEVEMENTS)} community achievements successfully!")
 
 
 if __name__ == "__main__":

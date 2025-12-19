@@ -40,9 +40,7 @@ class AchievementEarnedDate(BaseModel):
     """Record of when a repeatable achievement was earned."""
 
     earned_at: datetime
-    period_key: Optional[str] = (
-        None  # e.g., "2025-01-15" for daily, "2025-01" for monthly
-    )
+    period_key: Optional[str] = None  # e.g., "2025-01-15" for daily, "2025-01" for monthly
 
 
 class AchievementWithHistory(BaseModel):
@@ -100,9 +98,7 @@ class ShareTrackRequest(BaseModel):
     """Request to track a share action."""
 
     poll_id: str
-    platform: (
-        str  # twitter, facebook, linkedin, reddit, whatsapp, telegram, copy, native
-    )
+    platform: str  # twitter, facebook, linkedin, reddit, whatsapp, telegram, copy, native
 
 
 class ShareTrackResponse(BaseModel):

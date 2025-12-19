@@ -229,9 +229,5 @@ class RateLimiter:
 
 # Pre-configured rate limiters
 rate_limit_default = RateLimiter(requests_per_minute=settings.RATE_LIMIT_PER_MINUTE)
-rate_limit_auth = RateLimiter(
-    requests_per_minute=10, key_prefix="auth"
-)  # Stricter for auth
-rate_limit_vote = RateLimiter(
-    requests_per_minute=30, key_prefix="vote"
-)  # Moderate for voting
+rate_limit_auth = RateLimiter(requests_per_minute=10, key_prefix="auth")  # Stricter for auth
+rate_limit_vote = RateLimiter(requests_per_minute=30, key_prefix="vote")  # Moderate for voting

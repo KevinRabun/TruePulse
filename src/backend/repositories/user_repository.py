@@ -39,17 +39,13 @@ class UserRepository:
 
     async def email_exists(self, email: str) -> bool:
         """Check if email is already registered."""
-        result = await self.db.execute(
-            select(func.count(User.id)).where(User.email == email.lower())
-        )
+        result = await self.db.execute(select(func.count(User.id)).where(User.email == email.lower()))
         count = result.scalar() or 0
         return count > 0
 
     async def username_exists(self, username: str) -> bool:
         """Check if username is already taken."""
-        result = await self.db.execute(
-            select(func.count(User.id)).where(User.username == username)
-        )
+        result = await self.db.execute(select(func.count(User.id)).where(User.username == username))
         count = result.scalar() or 0
         return count > 0
 
@@ -81,9 +77,7 @@ class UserRepository:
     async def update_last_login(self, user_id: str) -> bool:
         """Update user's last login timestamp."""
         result = await self.db.execute(
-            update(User)
-            .where(User.id == user_id)
-            .values(last_login_at=datetime.now(timezone.utc))
+            update(User).where(User.id == user_id).values(last_login_at=datetime.now(timezone.utc))
         )
         return self._get_rowcount(result) > 0
 
@@ -105,11 +99,7 @@ class UserRepository:
             # Level calculation: level up every 500 points
             new_level = max(1, (new_points // 500) + 1)
 
-        await self.db.execute(
-            update(User)
-            .where(User.id == user_id)
-            .values(total_points=new_points, level=new_level)
-        )
+        await self.db.execute(update(User).where(User.id == user_id).values(total_points=new_points, level=new_level))
 
         await self.db.refresh(user)
         return user
@@ -213,25 +203,17 @@ class UserRepository:
 
     async def verify_user(self, user_id: str) -> bool:
         """Mark user as verified."""
-        result = await self.db.execute(
-            update(User).where(User.id == user_id).values(is_verified=True)
-        )
+        result = await self.db.execute(update(User).where(User.id == user_id).values(is_verified=True))
         return self._get_rowcount(result) > 0
 
     async def update_password(self, user_id: str, hashed_password: str) -> bool:
         """Update user's password."""
-        result = await self.db.execute(
-            update(User)
-            .where(User.id == user_id)
-            .values(hashed_password=hashed_password)
-        )
+        result = await self.db.execute(update(User).where(User.id == user_id).values(hashed_password=hashed_password))
         return self._get_rowcount(result) > 0
 
     async def deactivate_user(self, user_id: str) -> bool:
         """Deactivate a user account."""
-        result = await self.db.execute(
-            update(User).where(User.id == user_id).values(is_active=False)
-        )
+        result = await self.db.execute(update(User).where(User.id == user_id).values(is_active=False))
         return self._get_rowcount(result) > 0
 
     async def get_leaderboard(
@@ -241,11 +223,7 @@ class UserRepository:
     ) -> list[User]:
         """Get users sorted by points for leaderboard."""
         result = await self.db.execute(
-            select(User)
-            .where(User.is_active == True)
-            .order_by(User.total_points.desc())
-            .offset(offset)
-            .limit(limit)
+            select(User).where(User.is_active == True).order_by(User.total_points.desc()).offset(offset).limit(limit)
         )
         return list(result.scalars().all())
 
@@ -340,9 +318,7 @@ class UserRepository:
         if user and user.email_verified:
             update_values["is_verified"] = True
 
-        result = await self.db.execute(
-            update(User).where(User.id == user_id).values(**update_values)
-        )
+        result = await self.db.execute(update(User).where(User.id == user_id).values(**update_values))
         return self._get_rowcount(result) > 0
 
     async def remove_phone(self, user_id: str) -> bool:
@@ -376,9 +352,7 @@ class UserRepository:
         if not updates:
             return True
 
-        result = await self.db.execute(
-            update(User).where(User.id == user_id).values(**updates)
-        )
+        result = await self.db.execute(update(User).where(User.id == user_id).values(**updates))
         return self._get_rowcount(result) > 0
 
     async def delete_user(self, user_id: str) -> bool:

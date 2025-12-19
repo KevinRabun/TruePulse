@@ -83,9 +83,7 @@ class Poll(Base):
 
     # Special poll flag (for polls that run longer than the standard duration)
     is_special: Mapped[bool] = mapped_column(Boolean, default=False)
-    duration_hours: Mapped[int] = mapped_column(
-        Integer, default=1
-    )  # Override default duration
+    duration_hours: Mapped[int] = mapped_column(Integer, default=1)  # Override default duration
 
     # Scheduling
     scheduled_start: Mapped[datetime] = mapped_column(
@@ -129,9 +127,7 @@ class Poll(Base):
     )
 
     # Relationships
-    choices = relationship(
-        "PollChoice", back_populates="poll", cascade="all, delete-orphan"
-    )
+    choices = relationship("PollChoice", back_populates="poll", cascade="all, delete-orphan")
 
     @property
     def is_expired(self) -> bool:

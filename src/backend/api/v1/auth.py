@@ -50,12 +50,8 @@ class ResetPasswordRequest(BaseModel):
     new_password: str
 
 
-@router.post(
-    "/register", response_model=TokenResponse, status_code=status.HTTP_201_CREATED
-)
-async def register(
-    user_data: UserCreate, db: AsyncSession = Depends(get_db)
-) -> TokenResponse:
+@router.post("/register", response_model=TokenResponse, status_code=status.HTTP_201_CREATED)
+async def register(user_data: UserCreate, db: AsyncSession = Depends(get_db)) -> TokenResponse:
     """
     Register a new user account.
 
@@ -76,9 +72,7 @@ async def register(
         )
 
     # Check if phone number already exists
-    result = await db.execute(
-        select(User).where(User.phone_number == user_data.phone_number)
-    )
+    result = await db.execute(select(User).where(User.phone_number == user_data.phone_number))
     existing_phone = result.scalar_one_or_none()
     if existing_phone:
         raise HTTPException(
@@ -152,9 +146,7 @@ async def login(
     Uses OAuth2 password flow for compatibility with OpenAPI.
     """
     # Fetch user from database
-    result = await db.execute(
-        select(User).where(User.email == form_data.username.lower())
-    )
+    result = await db.execute(select(User).where(User.email == form_data.username.lower()))
     user = result.scalar_one_or_none()
 
     if not user or not verify_password(form_data.password, user.hashed_password):
@@ -242,9 +234,7 @@ async def logout(
         if success:
             logger.info("user_logout", token_blacklisted=True)
         else:
-            logger.warning(
-                "user_logout", token_blacklisted=False, reason="redis_unavailable"
-            )
+            logger.warning("user_logout", token_blacklisted=False, reason="redis_unavailable")
     else:
         logger.info("user_logout", token_blacklisted=False, reason="no_token_provided")
 
@@ -287,26 +277,20 @@ async def verify_email(
     from sqlalchemy import update as sql_update
 
     # First, set email_verified=True
-    await db.execute(
-        sql_update(User).where(User.id == user_id).values(email_verified=True)
-    )
+    await db.execute(sql_update(User).where(User.id == user_id).values(email_verified=True))
 
     # Check if phone is also verified, if so set is_verified=True
     result = await db.execute(select(User).where(User.id == user_id))
     user = result.scalar_one_or_none()
     if user and user.phone_verified:
-        await db.execute(
-            sql_update(User).where(User.id == user_id).values(is_verified=True)
-        )
+        await db.execute(sql_update(User).where(User.id == user_id).values(is_verified=True))
 
     # Award verification achievement
     if user:
         from services.achievement_service import AchievementService
 
         achievement_service = AchievementService(db)
-        await achievement_service.check_and_award_verification_achievements(
-            user, "email"
-        )
+        await achievement_service.check_and_award_verification_achievements(user, "email")
 
     await db.commit()
 
@@ -445,12 +429,7 @@ async def reset_password(
 
     # Check expiry for in-memory tokens (Redis handles TTL automatically)
     expires_at = token_data.get("expires_at")
-    if (
-        not from_redis
-        and expires_at
-        and isinstance(expires_at, datetime)
-        and datetime.now(timezone.utc) > expires_at
-    ):
+    if not from_redis and expires_at and isinstance(expires_at, datetime) and datetime.now(timezone.utc) > expires_at:
         del _password_reset_tokens[token]
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -474,11 +453,7 @@ async def reset_password(
     if user_id:
         from sqlalchemy import update as sql_update
 
-        await db.execute(
-            sql_update(User)
-            .where(User.id == user_id)
-            .values(hashed_password=hashed_password)
-        )
+        await db.execute(sql_update(User).where(User.id == user_id).values(hashed_password=hashed_password))
         await db.commit()
 
     # Invalidate the token (single-use)

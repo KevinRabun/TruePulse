@@ -67,9 +67,7 @@ async def seed_countries(db: AsyncSession) -> dict[str, int]:
     return country_map
 
 
-async def seed_states(
-    db: AsyncSession, country_map: dict[str, int]
-) -> dict[tuple[str, str], int]:
+async def seed_states(db: AsyncSession, country_map: dict[str, int]) -> dict[tuple[str, str], int]:
     """Seed states/provinces and return mapping of (country_code, state_name) to database ID."""
     print("\n📍 Step 2: Seeding states/provinces...")
 
@@ -81,9 +79,7 @@ async def seed_states(
         states = result.scalars().all()
         state_map = {}
         for s in states:
-            country_result = await db.execute(
-                select(Country).where(Country.id == s.country_id)
-            )
+            country_result = await db.execute(select(Country).where(Country.id == s.country_id))
             country = country_result.scalar_one()
             state_map[(country.code, s.name)] = s.id
         return state_map
@@ -120,9 +116,7 @@ async def seed_states(
     result = await db.execute(select(StateProvince))
     states = result.scalars().all()
     for s in states:
-        country_result = await db.execute(
-            select(Country).where(Country.id == s.country_id)
-        )
+        country_result = await db.execute(select(Country).where(Country.id == s.country_id))
         country = country_result.scalar_one()
         state_map[(country.code, s.name)] = s.id
 
@@ -186,9 +180,7 @@ async def seed_cities(
         processed_states += 1
         if processed_states % 100 == 0:
             await db.flush()
-            print(
-                f"  Progress: {processed_states}/{len(cities_by_state)} states processed, {count} cities added..."
-            )
+            print(f"  Progress: {processed_states}/{len(cities_by_state)} states processed, {count} cities added...")
 
     await db.commit()
     print(f"  ✓ Seeded {count} cities")

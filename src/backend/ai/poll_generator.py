@@ -107,10 +107,7 @@ Output format:
             logger.info("Poll generator AI agent initialized successfully")
 
         except ImportError:
-            logger.warning(
-                "Azure AI Projects not installed. Install with: "
-                "pip install azure-ai-projects"
-            )
+            logger.warning("Azure AI Projects not installed. Install with: pip install azure-ai-projects")
             self._initialized = True
         except Exception as e:
             logger.error(f"Failed to initialize AI agent: {e}")
@@ -156,11 +153,7 @@ Return your response as JSON."""
 
         try:
             # For development or when AI is not configured, use mock data
-            if (
-                not settings.FOUNDRY_PROJECT_ENDPOINT
-                or not hasattr(self, "_openai_client")
-                or not self._openai_client
-            ):
+            if not settings.FOUNDRY_PROJECT_ENDPOINT or not hasattr(self, "_openai_client") or not self._openai_client:
                 return self._generate_mock_poll(event)
 
             # Use Azure AI Projects SDK with OpenAI client for chat completions
@@ -187,10 +180,7 @@ Return your response as JSON."""
                 choices=result["choices"],
                 category=event.category,
                 source_event_id=event.id,
-                bias_check_passed=result.get("bias_analysis", {}).get(
-                    "confidence_score", 0
-                )
-                > 0.8,
+                bias_check_passed=result.get("bias_analysis", {}).get("confidence_score", 0) > 0.8,
                 bias_analysis=result.get("bias_analysis", {}),
                 suggested_duration_hours=24,
             )
@@ -376,14 +366,11 @@ Respond in JSON format:
         choices_lower = [c.lower() for c in poll.choices]
         if len(poll.choices) == 2 and set(choices_lower) == {"yes", "no"}:
             issues.append("Binary yes/no options may oversimplify the issue")
-            suggestions.append(
-                "Consider adding nuanced options like 'It depends' or 'Partially'"
-            )
+            suggestions.append("Consider adding nuanced options like 'It depends' or 'Partially'")
 
         # Check for "undecided" option
         has_undecided = any(
-            "undecided" in c.lower() or "unsure" in c.lower() or "other" in c.lower()
-            for c in poll.choices
+            "undecided" in c.lower() or "unsure" in c.lower() or "other" in c.lower() for c in poll.choices
         )
         if not has_undecided and len(poll.choices) < 5:
             suggestions.append("Consider adding an 'Undecided/Other' option")
@@ -437,15 +424,11 @@ Respond in JSON format:
                 poll = Poll(
                     id=str(uuid4()),
                     question=generated.question,
-                    choices=[
-                        PollChoice(id=str(i), text=choice, order=i)
-                        for i, choice in enumerate(generated.choices)
-                    ],
+                    choices=[PollChoice(id=str(i), text=choice, order=i) for i, choice in enumerate(generated.choices)],
                     category=generated.category,
                     source_event=event.title,
                     created_at=datetime.now(timezone.utc),
-                    expires_at=datetime.now(timezone.utc)
-                    + timedelta(hours=generated.suggested_duration_hours),
+                    expires_at=datetime.now(timezone.utc) + timedelta(hours=generated.suggested_duration_hours),
                     is_active=True,
                     ai_generated=True,
                     time_remaining_seconds=generated.suggested_duration_hours * 3600,

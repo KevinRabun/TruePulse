@@ -25,9 +25,7 @@ class PollRepository:
 
     async def get_by_id(self, poll_id: str) -> Optional[Poll]:
         """Get a poll by ID with its choices."""
-        result = await self.db.execute(
-            select(Poll).options(selectinload(Poll.choices)).where(Poll.id == poll_id)
-        )
+        result = await self.db.execute(select(Poll).options(selectinload(Poll.choices)).where(Poll.id == poll_id))
         return result.scalar_one_or_none()
 
     async def get_current_poll(self) -> Optional[Poll]:
@@ -140,9 +138,7 @@ class PollRepository:
             scheduled_start=scheduled_start,
             scheduled_end=scheduled_end,
             expires_at=scheduled_end,
-            duration_hours=int(
-                (scheduled_end - scheduled_start).total_seconds() / 3600
-            ),
+            duration_hours=int((scheduled_end - scheduled_start).total_seconds() / 3600),
         )
 
         self.db.add(poll)
@@ -166,26 +162,18 @@ class PollRepository:
 
     async def update_status(self, poll_id: str, status: PollStatus) -> bool:
         """Update poll status."""
-        result = await self.db.execute(
-            update(Poll).where(Poll.id == poll_id).values(status=status.value)
-        )
+        result = await self.db.execute(update(Poll).where(Poll.id == poll_id).values(status=status.value))
         return self._get_rowcount(result) > 0
 
     async def increment_vote_count(self, poll_id: str, choice_id: str) -> bool:
         """Increment vote count for a poll choice."""
         # Increment choice vote count
         await self.db.execute(
-            update(PollChoice)
-            .where(PollChoice.id == choice_id)
-            .values(vote_count=PollChoice.vote_count + 1)
+            update(PollChoice).where(PollChoice.id == choice_id).values(vote_count=PollChoice.vote_count + 1)
         )
 
         # Increment poll total votes
-        await self.db.execute(
-            update(Poll)
-            .where(Poll.id == poll_id)
-            .values(total_votes=Poll.total_votes + 1)
-        )
+        await self.db.execute(update(Poll).where(Poll.id == poll_id).values(total_votes=Poll.total_votes + 1))
 
         return True
 
@@ -200,9 +188,7 @@ class PollRepository:
 
         # Decrement poll total votes
         await self.db.execute(
-            update(Poll)
-            .where(Poll.id == poll_id)
-            .values(total_votes=func.greatest(0, Poll.total_votes - 1))
+            update(Poll).where(Poll.id == poll_id).values(total_votes=func.greatest(0, Poll.total_votes - 1))
         )
 
         return True
@@ -283,9 +269,7 @@ class PollRepository:
         )
         return result.scalar_one_or_none()
 
-    async def get_upcoming_polls_by_type(
-        self, poll_type: str, limit: int = 5
-    ) -> list[Poll]:
+    async def get_upcoming_polls_by_type(self, poll_type: str, limit: int = 5) -> list[Poll]:
         """Get upcoming scheduled polls of a specific type."""
         now = datetime.now(timezone.utc)
         result = await self.db.execute(

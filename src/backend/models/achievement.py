@@ -37,9 +37,7 @@ class Achievement(Base):
     icon: Mapped[str] = mapped_column(String(10))  # Emoji or icon code
 
     # Requirements
-    action_type: Mapped[str] = mapped_column(
-        String(50)
-    )  # e.g., "vote", "streak", "leaderboard"
+    action_type: Mapped[str] = mapped_column(String(50))  # e.g., "vote", "streak", "leaderboard"
     target_count: Mapped[int] = mapped_column(Integer, default=1)
 
     # Rewards
@@ -51,12 +49,8 @@ class Achievement(Base):
     # Display
     is_secret: Mapped[bool] = mapped_column(Boolean, default=False)
     sort_order: Mapped[int] = mapped_column(Integer, default=0)
-    tier: Mapped[str] = mapped_column(
-        String(20), default="bronze"
-    )  # bronze, silver, gold, platinum
-    category: Mapped[str] = mapped_column(
-        String(50), default="general"
-    )  # voting, streak, leaderboard, profile
+    tier: Mapped[str] = mapped_column(String(20), default="bronze")  # bronze, silver, gold, platinum
+    category: Mapped[str] = mapped_column(String(50), default="general")  # voting, streak, leaderboard, profile
 
     # Relationships
     user_achievements = relationship("UserAchievement", back_populates="achievement")
@@ -92,9 +86,7 @@ class UserAchievement(Base):
     is_unlocked: Mapped[bool] = mapped_column(Boolean, default=False)
 
     # Context for repeatable achievements (e.g., "2025-12-18" for daily, "2025-12" for monthly)
-    period_key: Mapped[Optional[str]] = mapped_column(
-        String(20), nullable=True, index=True
-    )
+    period_key: Mapped[Optional[str]] = mapped_column(String(20), nullable=True, index=True)
 
     # Timestamps
     unlocked_at: Mapped[Optional[datetime]] = mapped_column(
@@ -108,11 +100,7 @@ class UserAchievement(Base):
 
     # Unique constraint: for non-repeatable, one record per user/achievement
     # For repeatable, one record per user/achievement/period
-    __table_args__ = (
-        UniqueConstraint(
-            "user_id", "achievement_id", "period_key", name="uq_user_achievement_period"
-        ),
-    )
+    __table_args__ = (UniqueConstraint("user_id", "achievement_id", "period_key", name="uq_user_achievement_period"),)
 
 
 class PointsTransaction(Base):
@@ -135,12 +123,8 @@ class PointsTransaction(Base):
     )
 
     # Transaction details
-    action: Mapped[str] = mapped_column(
-        String(50)
-    )  # e.g., "vote", "achievement", "streak"
-    points: Mapped[int] = mapped_column(
-        Integer
-    )  # Positive for earned, negative for spent
+    action: Mapped[str] = mapped_column(String(50))  # e.g., "vote", "achievement", "streak"
+    points: Mapped[int] = mapped_column(Integer)  # Positive for earned, negative for spent
     description: Mapped[str] = mapped_column(Text)
 
     # Reference (e.g., poll_id, achievement_id)
@@ -168,9 +152,7 @@ class LeaderboardSnapshot(Base):
         default=lambda: str(uuid4()),
     )
 
-    period: Mapped[str] = mapped_column(
-        String(20), index=True
-    )  # daily, weekly, monthly, alltime
+    period: Mapped[str] = mapped_column(String(20), index=True)  # daily, weekly, monthly, alltime
 
     # Snapshot data (JSONB array of {rank, user_id, username, points, level})
     from sqlalchemy.dialects.postgresql import JSONB
@@ -207,9 +189,7 @@ class CommunityAchievement(Base):
     badge_icon: Mapped[str] = mapped_column(String(10))  # Special badge emoji
 
     # Goal type and target
-    goal_type: Mapped[str] = mapped_column(
-        String(50)
-    )  # daily_votes, poll_votes, total_platform_votes, etc.
+    goal_type: Mapped[str] = mapped_column(String(50))  # daily_votes, poll_votes, total_platform_votes, etc.
     target_count: Mapped[int] = mapped_column(Integer)
 
     # Time constraints
@@ -219,17 +199,11 @@ class CommunityAchievement(Base):
 
     # Rewards
     points_reward: Mapped[int] = mapped_column(Integer, default=0)
-    bonus_multiplier: Mapped[float] = mapped_column(
-        Float, default=1.0
-    )  # Multiplier for points during event
+    bonus_multiplier: Mapped[float] = mapped_column(Float, default=1.0)  # Multiplier for points during event
 
     # Recurrence
-    is_recurring: Mapped[bool] = mapped_column(
-        Boolean, default=True
-    )  # Can be earned multiple times
-    cooldown_hours: Mapped[Optional[int]] = mapped_column(
-        Integer, nullable=True
-    )  # Hours before can trigger again
+    is_recurring: Mapped[bool] = mapped_column(Boolean, default=True)  # Can be earned multiple times
+    cooldown_hours: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)  # Hours before can trigger again
 
     # Display
     tier: Mapped[str] = mapped_column(String(20), default="gold")
@@ -270,30 +244,20 @@ class CommunityAchievementEvent(Base):
     )
 
     # Progress tracking
-    final_count: Mapped[int] = mapped_column(
-        Integer
-    )  # Final count when goal was reached
+    final_count: Mapped[int] = mapped_column(Integer)  # Final count when goal was reached
     participant_count: Mapped[int] = mapped_column(Integer, default=0)
 
     # Context (e.g., which poll, which day)
-    context_type: Mapped[Optional[str]] = mapped_column(
-        String(50), nullable=True
-    )  # poll, daily, weekly
-    context_id: Mapped[Optional[str]] = mapped_column(
-        String(100), nullable=True
-    )  # poll_id or date string
+    context_type: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)  # poll, daily, weekly
+    context_id: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)  # poll_id or date string
 
     # Status
     is_completed: Mapped[bool] = mapped_column(Boolean, default=False)
-    completed_at: Mapped[Optional[datetime]] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
+    completed_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
 
     # Relationships
     achievement = relationship("CommunityAchievement", back_populates="events")
-    participants = relationship(
-        "CommunityAchievementParticipant", back_populates="event"
-    )
+    participants = relationship("CommunityAchievementParticipant", back_populates="event")
 
 
 class CommunityAchievementParticipant(Base):
@@ -326,9 +290,7 @@ class CommunityAchievementParticipant(Base):
         DateTime(timezone=True),
         server_default=func.now(),
     )
-    contribution_count: Mapped[int] = mapped_column(
-        Integer, default=1
-    )  # How many actions contributed
+    contribution_count: Mapped[int] = mapped_column(Integer, default=1)  # How many actions contributed
 
     # Reward status
     points_awarded: Mapped[int] = mapped_column(Integer, default=0)
@@ -338,6 +300,4 @@ class CommunityAchievementParticipant(Base):
     event = relationship("CommunityAchievementEvent", back_populates="participants")
 
     # Unique constraint: one participation per user per event
-    __table_args__ = (
-        UniqueConstraint("event_id", "user_id", name="uq_community_participant"),
-    )
+    __table_args__ = (UniqueConstraint("event_id", "user_id", name="uq_community_participant"),)

@@ -83,10 +83,7 @@ async def check_and_award_ad_achievement(
             pass  # Award it
         elif action_type == "ad_click" and user.ad_clicks == achievement.target_count:
             pass  # Award it
-        elif (
-            action_type == "ad_streak"
-            and user.ad_view_streak == achievement.target_count
-        ):
+        elif action_type == "ad_streak" and user.ad_view_streak == achievement.target_count:
             pass  # Award it
         else:
             continue
@@ -151,9 +148,7 @@ async def track_ad_engagement(
         if user.last_ad_view_at:
             # Check if this is a new day (within 24-48 hours to maintain streak)
             time_since_last = now - user.last_ad_view_at
-            if time_since_last < timedelta(hours=48) and time_since_last >= timedelta(
-                hours=12
-            ):
+            if time_since_last < timedelta(hours=48) and time_since_last >= timedelta(hours=12):
                 # New day, extend streak
                 user.ad_view_streak += 1
             elif time_since_last >= timedelta(hours=48):
@@ -166,23 +161,17 @@ async def track_ad_engagement(
         user.last_ad_view_at = now
 
         # Check for view achievements
-        achievement_unlocked = await check_and_award_ad_achievement(
-            db, user, "ad_view", user.ad_views
-        )
+        achievement_unlocked = await check_and_award_ad_achievement(db, user, "ad_view", user.ad_views)
 
         # Check for streak achievement if not already unlocked
         if not achievement_unlocked:
-            achievement_unlocked = await check_and_award_ad_achievement(
-                db, user, "ad_streak", user.ad_view_streak
-            )
+            achievement_unlocked = await check_and_award_ad_achievement(db, user, "ad_streak", user.ad_view_streak)
 
     elif request.event_type == "click":
         user.ad_clicks += 1
 
         # Check for click achievements
-        achievement_unlocked = await check_and_award_ad_achievement(
-            db, user, "ad_click", user.ad_clicks
-        )
+        achievement_unlocked = await check_and_award_ad_achievement(db, user, "ad_click", user.ad_clicks)
 
     await db.commit()
 

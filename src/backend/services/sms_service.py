@@ -45,17 +45,12 @@ class SMSService:
         try:
             from azure.communication.sms import SmsClient
 
-            self._client = SmsClient.from_connection_string(
-                settings.AZURE_COMMUNICATION_CONNECTION_STRING
-            )
+            self._client = SmsClient.from_connection_string(settings.AZURE_COMMUNICATION_CONNECTION_STRING)
             self._initialized = True
             logger.info("SMS service initialized successfully")
 
         except ImportError:
-            logger.warning(
-                "azure-communication-sms not installed. Install with: "
-                "pip install azure-communication-sms"
-            )
+            logger.warning("azure-communication-sms not installed. Install with: pip install azure-communication-sms")
             self._initialized = True
         except Exception as e:
             logger.error(f"Failed to initialize SMS service: {e}")
@@ -70,9 +65,7 @@ class SMSService:
         if not sent_at:
             return True
 
-        expiry = sent_at + timedelta(
-            minutes=settings.SMS_VERIFICATION_CODE_EXPIRY_MINUTES
-        )
+        expiry = sent_at + timedelta(minutes=settings.SMS_VERIFICATION_CODE_EXPIRY_MINUTES)
         return datetime.now(timezone.utc) > expiry
 
     async def send_verification_code(
@@ -158,10 +151,7 @@ class SMSService:
         poll_url = f"{base_url}/polls/{poll_id}"
 
         message = (
-            f"📊 Today's TruePulse Poll:\n\n"
-            f'"{poll_question}"\n\n'
-            f"Vote now: {poll_url}\n\n"
-            f"Reply STOP to unsubscribe"
+            f'📊 Today\'s TruePulse Poll:\n\n"{poll_question}"\n\nVote now: {poll_url}\n\nReply STOP to unsubscribe'
         )
 
         sender = settings.AZURE_COMMUNICATION_SENDER_NUMBER
@@ -226,9 +216,7 @@ class SMSService:
                 results["failed"] += 1
                 results["failed_user_ids"].append(recipient["user_id"])
 
-        logger.info(
-            f"Bulk SMS complete: {results['sent']} sent, {results['failed']} failed"
-        )
+        logger.info(f"Bulk SMS complete: {results['sent']} sent, {results['failed']} failed")
 
         return results
 

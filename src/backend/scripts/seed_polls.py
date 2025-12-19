@@ -93,9 +93,7 @@ SEED_POLLS = [
 async def seed_polls():
     """Create seed polls in the database."""
     engine = create_async_engine(settings.POSTGRES_URL, echo=False)
-    async_session = async_sessionmaker(
-        engine, class_=AsyncSession, expire_on_commit=False
-    )
+    async_session = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 
     async with async_session() as session:
         # Check if polls already exist
@@ -119,9 +117,7 @@ async def seed_polls():
                 status = PollStatus.SCHEDULED
                 # Schedule subsequent polls
                 scheduled_start = now + timedelta(hours=i * poll_data["duration_hours"])
-                scheduled_end = scheduled_start + timedelta(
-                    hours=poll_data["duration_hours"]
-                )
+                scheduled_end = scheduled_start + timedelta(hours=poll_data["duration_hours"])
                 expires_at = scheduled_end
 
             poll = Poll(

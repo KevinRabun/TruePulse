@@ -152,9 +152,7 @@ async def get_active_community_achievements(
 
             # Calculate time remaining if there's a window
             if ach.time_window_hours:
-                end_time = event.triggered_at.replace(tzinfo=timezone.utc) + timedelta(
-                    hours=ach.time_window_hours
-                )
+                end_time = event.triggered_at.replace(tzinfo=timezone.utc) + timedelta(hours=ach.time_window_hours)
                 remaining = (end_time - now).total_seconds() / 3600
                 time_remaining = max(0, remaining)
 
@@ -177,9 +175,7 @@ async def get_active_community_achievements(
             CommunityAchievementProgress(
                 achievement=CommunityAchievementSchema.model_validate(ach),
                 current_count=current_count,
-                progress_percentage=min(100, (current_count / ach.target_count * 100))
-                if ach.target_count > 0
-                else 0,
+                progress_percentage=min(100, (current_count / ach.target_count * 100)) if ach.target_count > 0 else 0,
                 participant_count=participant_count,
                 time_remaining_hours=time_remaining,
                 started_at=started_at,
@@ -263,9 +259,7 @@ async def get_user_community_badges(
     result = await db.execute(
         select(CommunityAchievementParticipant)
         .options(
-            selectinload(CommunityAchievementParticipant.event).selectinload(
-                CommunityAchievementEvent.achievement
-            )
+            selectinload(CommunityAchievementParticipant.event).selectinload(CommunityAchievementEvent.achievement)
         )
         .where(
             and_(
@@ -310,15 +304,9 @@ async def get_community_leaderboard(
     result = await db.execute(
         select(
             CommunityAchievementParticipant.user_id,
-            func.sum(CommunityAchievementParticipant.contribution_count).label(
-                "total_contributions"
-            ),
-            func.count(CommunityAchievementParticipant.id).label(
-                "achievements_participated"
-            ),
-            func.sum(
-                func.cast(CommunityAchievementParticipant.badge_awarded, Integer)
-            ).label("badges_earned"),
+            func.sum(CommunityAchievementParticipant.contribution_count).label("total_contributions"),
+            func.count(CommunityAchievementParticipant.id).label("achievements_participated"),
+            func.sum(func.cast(CommunityAchievementParticipant.badge_awarded, Integer)).label("badges_earned"),
         )
         .group_by(CommunityAchievementParticipant.user_id)
         .order_by(func.sum(CommunityAchievementParticipant.contribution_count).desc())
@@ -358,9 +346,7 @@ async def get_community_achievement(
     """
     from datetime import timedelta
 
-    result = await db.execute(
-        select(CommunityAchievement).where(CommunityAchievement.id == achievement_id)
-    )
+    result = await db.execute(select(CommunityAchievement).where(CommunityAchievement.id == achievement_id))
     achievement = result.scalar_one_or_none()
 
     if not achievement:
@@ -397,9 +383,7 @@ async def get_community_achievement(
         started_at = event.triggered_at
 
         if achievement.time_window_hours:
-            end_time = event.triggered_at.replace(tzinfo=timezone.utc) + timedelta(
-                hours=achievement.time_window_hours
-            )
+            end_time = event.triggered_at.replace(tzinfo=timezone.utc) + timedelta(hours=achievement.time_window_hours)
             remaining = (end_time - now).total_seconds() / 3600
             time_remaining = max(0, remaining)
 

@@ -47,9 +47,7 @@ class PollBase(BaseModel):
     question: str = Field(..., min_length=10, max_length=500)
     choices: list[PollChoice] = Field(..., min_length=2, max_length=10)
     category: str
-    source_event: Optional[str] = Field(
-        None, description="The current event that inspired this poll"
-    )
+    source_event: Optional[str] = Field(None, description="The current event that inspired this poll")
 
 
 class PollCreate(PollBase):
@@ -60,9 +58,7 @@ class PollCreate(PollBase):
         None, description="When to start the poll (defaults to next available slot)"
     )
     is_featured: bool = False
-    is_special: bool = Field(
-        False, description="Special polls can have custom durations beyond the standard"
-    )
+    is_special: bool = Field(False, description="Special polls can have custom durations beyond the standard")
     poll_type: PollTypeEnum = Field(
         PollTypeEnum.STANDARD,
         description="Type of poll: pulse (12hr), flash (1hr), or standard",
@@ -85,9 +81,7 @@ class Poll(PollBase):
     is_featured: bool = False
     ai_generated: bool = False
     poll_type: PollTypeEnum = PollTypeEnum.STANDARD
-    time_remaining_seconds: Optional[int] = Field(
-        None, description="Seconds remaining until poll closes"
-    )
+    time_remaining_seconds: Optional[int] = Field(None, description="Seconds remaining until poll closes")
 
     model_config = {"from_attributes": True}
 
@@ -116,9 +110,7 @@ class PollWithResults(BaseModel):
     demographic_breakdown: Optional[dict] = Field(
         None, description="Aggregated results by demographic (if sufficient data)"
     )
-    confidence_interval: Optional[float] = Field(
-        None, description="Statistical confidence interval for results"
-    )
+    confidence_interval: Optional[float] = Field(None, description="Statistical confidence interval for results")
 
     model_config = {"from_attributes": True}
 

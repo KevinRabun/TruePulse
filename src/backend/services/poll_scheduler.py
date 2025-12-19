@@ -315,10 +315,7 @@ class PollScheduler:
             poll.status = PollStatus.CLOSED.value
             poll.is_active = False
             poll.closed_at = now
-            logger.info(
-                f"Closed poll: {poll.id} - '{poll.question[:50]}...' "
-                f"(total votes: {poll.total_votes})"
-            )
+            logger.info(f"Closed poll: {poll.id} - '{poll.question[:50]}...' (total votes: {poll.total_votes})")
 
         if polls_to_close:
             await self.db.commit()
@@ -420,9 +417,7 @@ class PollScheduler:
                 scheduled_start=window_start,
                 scheduled_end=window_end,
                 ai_generated=True,
-                source_event=poll_data.source_event
-                if hasattr(poll_data, "source_event")
-                else None,
+                source_event=poll_data.source_event if hasattr(poll_data, "source_event") else None,
             )
 
             # Add choices
@@ -496,24 +491,16 @@ def get_pulse_poll_window() -> tuple[datetime, datetime]:
     # Check if we're currently in the pulse window
     if pulse_start_hour <= now_et.hour < pulse_end_hour:
         # We're in the window, get today's start time
-        start_et = now_et.replace(
-            hour=pulse_start_hour, minute=0, second=0, microsecond=0
-        )
+        start_et = now_et.replace(hour=pulse_start_hour, minute=0, second=0, microsecond=0)
         end_et = now_et.replace(hour=pulse_end_hour, minute=0, second=0, microsecond=0)
     elif now_et.hour >= pulse_end_hour:
         # After today's window, get tomorrow's
         tomorrow = now_et + timedelta(days=1)
-        start_et = tomorrow.replace(
-            hour=pulse_start_hour, minute=0, second=0, microsecond=0
-        )
-        end_et = tomorrow.replace(
-            hour=pulse_end_hour, minute=0, second=0, microsecond=0
-        )
+        start_et = tomorrow.replace(hour=pulse_start_hour, minute=0, second=0, microsecond=0)
+        end_et = tomorrow.replace(hour=pulse_end_hour, minute=0, second=0, microsecond=0)
     else:
         # Before today's window
-        start_et = now_et.replace(
-            hour=pulse_start_hour, minute=0, second=0, microsecond=0
-        )
+        start_et = now_et.replace(hour=pulse_start_hour, minute=0, second=0, microsecond=0)
         end_et = now_et.replace(hour=pulse_end_hour, minute=0, second=0, microsecond=0)
 
     # Convert to UTC
@@ -571,9 +558,7 @@ async def schedule_daily_pulse_poll(
     await db_session.commit()
     await db_session.refresh(poll)
 
-    logger.info(
-        f"Scheduled Pulse Poll: '{question[:50]}...' for {start_utc} - {end_utc}"
-    )
+    logger.info(f"Scheduled Pulse Poll: '{question[:50]}...' for {start_utc} - {end_utc}")
 
     return poll
 
@@ -600,9 +585,7 @@ def get_flash_poll_schedule() -> list[tuple[datetime, datetime]]:
 
     for day_offset in range(2):  # Today and tomorrow
         for hour in flash_hours:
-            start = now.replace(
-                hour=hour, minute=0, second=0, microsecond=0
-            ) + timedelta(days=day_offset)
+            start = now.replace(hour=hour, minute=0, second=0, microsecond=0) + timedelta(days=day_offset)
 
             # Skip past times
             if start <= now:
