@@ -28,6 +28,9 @@ param secrets array = []
 @description('Create CMK encryption keys for data services')
 param createEncryptionKeys bool = true
 
+@description('Shared Key Vault DNS zone resource ID')
+param keyVaultDnsZoneId string = ''
+
 // ============================================================================
 // Resources
 // ============================================================================
@@ -67,7 +70,20 @@ module keyVault 'br/public:avm/res/key-vault/vault:0.11.1' = {
         ]
       }
     ]
-    privateEndpoints: [
+    privateEndpoints: !empty(keyVaultDnsZoneId) ? [
+      {
+        name: '${name}-pe'
+        subnetResourceId: subnetId
+        service: 'vault'
+        privateDnsZoneGroup: {
+          privateDnsZoneGroupConfigs: [
+            {
+              privateDnsZoneResourceId: keyVaultDnsZoneId
+            }
+          ]
+        }
+      }
+    ] : [
       {
         name: '${name}-pe'
         subnetResourceId: subnetId

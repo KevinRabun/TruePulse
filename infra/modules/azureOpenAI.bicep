@@ -23,33 +23,11 @@ param keyVaultResourceId string
 @allowed(['dev', 'staging', 'prod'])
 param environmentName string = 'dev'
 
+@description('Shared OpenAI DNS zone resource ID')
+param openaiDnsZoneId string
+
 // Capacity based on environment (GPT-4o-mini supports higher capacity at lower cost)
 var modelCapacity = environmentName == 'prod' ? 50 : 20
-
-// Extract VNet ID from subnet ID
-var vnetId = substring(subnetId, 0, lastIndexOf(subnetId, '/subnets/'))
-
-// ============================================================================
-// Private DNS Zone for OpenAI (created first for AVM to reference)
-// ============================================================================
-resource privateDnsZone 'Microsoft.Network/privateDnsZones@2020-06-01' = {
-  name: 'privatelink.openai.azure.com'
-  location: 'global'
-  tags: tags
-}
-
-// Link DNS zone to VNet
-resource privateDnsZoneLink 'Microsoft.Network/privateDnsZones/virtualNetworkLinks@2020-06-01' = {
-  parent: privateDnsZone
-  name: '${name}-link'
-  location: 'global'
-  properties: {
-    registrationEnabled: false
-    virtualNetwork: {
-      id: vnetId
-    }
-  }
-}
 
 // ============================================================================
 // Azure OpenAI using Azure Verified Module
@@ -95,7 +73,7 @@ module openAI 'br/public:avm/res/cognitive-services/account:0.10.1' = {
         privateDnsZoneGroup: {
           privateDnsZoneGroupConfigs: [
             {
-              privateDnsZoneResourceId: privateDnsZone.id
+              privateDnsZoneResourceId: openaiDnsZoneId
             }
           ]
         }

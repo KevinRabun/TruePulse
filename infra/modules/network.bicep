@@ -58,6 +58,7 @@ module virtualNetwork 'br/public:avm/res/network/virtual-network:0.6.1' = {
 // ============================================================================
 
 output resourceId string = virtualNetwork.outputs.resourceId
+output vnetId string = virtualNetwork.outputs.resourceId
 output name string = virtualNetwork.outputs.name
 output containerAppsSubnetId string = virtualNetwork.outputs.subnetResourceIds[0]
 output privateEndpointsSubnetId string = virtualNetwork.outputs.subnetResourceIds[1]

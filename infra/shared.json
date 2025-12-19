@@ -5,7 +5,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.28.1.47646",
-      "templateHash": "13998373737572597174"
+      "templateHash": "2391498171006628490"
     }
   },
   "parameters": {
@@ -3172,7 +3172,7 @@
             "_generator": {
               "name": "bicep",
               "version": "0.28.1.47646",
-              "templateHash": "1021207214463086273"
+              "templateHash": "11537802810639502993"
             }
           },
           "parameters": {
@@ -3257,9 +3257,7 @@
                   "retentionPolicyDays": {
                     "value": 30
                   },
-                  "exportPolicyStatus": {
-                    "value": "disabled"
-                  },
+                  "exportPolicyStatus": "[if(empty(parameters('subnetId')), createObject('value', 'enabled'), createObject('value', 'disabled'))]",
                   "managedIdentities": {
                     "value": {
                       "systemAssigned": true
@@ -11425,6 +11423,124 @@
       "dependsOn": [
         "[subscriptionResourceId('Microsoft.Resources/resourceGroups', variables('resourceGroupName'))]"
       ]
+    },
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2022-09-01",
+      "name": "shared-private-dns-zones",
+      "resourceGroup": "[variables('resourceGroupName')]",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "tags": {
+            "value": "[parameters('tags')]"
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.28.1.47646",
+              "templateHash": "3830120004737737636"
+            }
+          },
+          "parameters": {
+            "tags": {
+              "type": "object",
+              "metadata": {
+                "description": "Tags to apply to resources"
+              }
+            }
+          },
+          "resources": [
+            {
+              "type": "Microsoft.Network/privateDnsZones",
+              "apiVersion": "2020-06-01",
+              "name": "[format('privatelink.blob.{0}', environment().suffixes.storage)]",
+              "location": "global",
+              "tags": "[parameters('tags')]"
+            },
+            {
+              "type": "Microsoft.Network/privateDnsZones",
+              "apiVersion": "2020-06-01",
+              "name": "[format('privatelink.table.{0}', environment().suffixes.storage)]",
+              "location": "global",
+              "tags": "[parameters('tags')]"
+            },
+            {
+              "type": "Microsoft.Network/privateDnsZones",
+              "apiVersion": "2020-06-01",
+              "name": "privatelink.openai.azure.com",
+              "location": "global",
+              "tags": "[parameters('tags')]"
+            },
+            {
+              "type": "Microsoft.Network/privateDnsZones",
+              "apiVersion": "2020-06-01",
+              "name": "privatelink.postgres.database.azure.com",
+              "location": "global",
+              "tags": "[parameters('tags')]"
+            },
+            {
+              "type": "Microsoft.Network/privateDnsZones",
+              "apiVersion": "2020-06-01",
+              "name": "privatelink.vaultcore.azure.net",
+              "location": "global",
+              "tags": "[parameters('tags')]"
+            }
+          ],
+          "outputs": {
+            "blobDnsZoneId": {
+              "type": "string",
+              "value": "[resourceId('Microsoft.Network/privateDnsZones', format('privatelink.blob.{0}', environment().suffixes.storage))]"
+            },
+            "blobDnsZoneName": {
+              "type": "string",
+              "value": "[format('privatelink.blob.{0}', environment().suffixes.storage)]"
+            },
+            "tableDnsZoneId": {
+              "type": "string",
+              "value": "[resourceId('Microsoft.Network/privateDnsZones', format('privatelink.table.{0}', environment().suffixes.storage))]"
+            },
+            "tableDnsZoneName": {
+              "type": "string",
+              "value": "[format('privatelink.table.{0}', environment().suffixes.storage)]"
+            },
+            "openaiDnsZoneId": {
+              "type": "string",
+              "value": "[resourceId('Microsoft.Network/privateDnsZones', 'privatelink.openai.azure.com')]"
+            },
+            "openaiDnsZoneName": {
+              "type": "string",
+              "value": "privatelink.openai.azure.com"
+            },
+            "postgresDnsZoneId": {
+              "type": "string",
+              "value": "[resourceId('Microsoft.Network/privateDnsZones', 'privatelink.postgres.database.azure.com')]"
+            },
+            "postgresDnsZoneName": {
+              "type": "string",
+              "value": "privatelink.postgres.database.azure.com"
+            },
+            "keyVaultDnsZoneId": {
+              "type": "string",
+              "value": "[resourceId('Microsoft.Network/privateDnsZones', 'privatelink.vaultcore.azure.net')]"
+            },
+            "keyVaultDnsZoneName": {
+              "type": "string",
+              "value": "privatelink.vaultcore.azure.net"
+            }
+          }
+        }
+      },
+      "dependsOn": [
+        "[subscriptionResourceId('Microsoft.Resources/resourceGroups', variables('resourceGroupName'))]"
+      ]
     }
   ],
   "outputs": {
@@ -11471,6 +11587,26 @@
     "dnsZoneResourceId": {
       "type": "string",
       "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('resourceGroupName')), 'Microsoft.Resources/deployments', 'shared-dns-zone'), '2022-09-01').outputs.resourceId.value]"
+    },
+    "blobDnsZoneId": {
+      "type": "string",
+      "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('resourceGroupName')), 'Microsoft.Resources/deployments', 'shared-private-dns-zones'), '2022-09-01').outputs.blobDnsZoneId.value]"
+    },
+    "tableDnsZoneId": {
+      "type": "string",
+      "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('resourceGroupName')), 'Microsoft.Resources/deployments', 'shared-private-dns-zones'), '2022-09-01').outputs.tableDnsZoneId.value]"
+    },
+    "openaiDnsZoneId": {
+      "type": "string",
+      "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('resourceGroupName')), 'Microsoft.Resources/deployments', 'shared-private-dns-zones'), '2022-09-01').outputs.openaiDnsZoneId.value]"
+    },
+    "postgresDnsZoneId": {
+      "type": "string",
+      "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('resourceGroupName')), 'Microsoft.Resources/deployments', 'shared-private-dns-zones'), '2022-09-01').outputs.postgresDnsZoneId.value]"
+    },
+    "keyVaultDnsZoneId": {
+      "type": "string",
+      "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('resourceGroupName')), 'Microsoft.Resources/deployments', 'shared-private-dns-zones'), '2022-09-01').outputs.keyVaultDnsZoneId.value]"
     }
   }
 }

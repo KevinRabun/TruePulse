@@ -44,6 +44,9 @@ param cmkKeyUri string = ''
 @description('Enable Customer Managed Keys (CMK) for encryption')
 param enableCMK bool = true
 
+@description('Shared PostgreSQL DNS zone resource ID')
+param postgresDnsZoneId string = ''
+
 // ============================================================================
 // Variables
 // ============================================================================
@@ -167,7 +170,20 @@ module postgres 'br/public:avm/res/db-for-postgre-sql/flexible-server:0.5.0' = {
         ]
       }
     ]
-    privateEndpoints: [
+    privateEndpoints: !empty(postgresDnsZoneId) ? [
+      {
+        name: '${name}-pe'
+        subnetResourceId: subnetId
+        service: 'postgresqlServer'
+        privateDnsZoneGroup: {
+          privateDnsZoneGroupConfigs: [
+            {
+              privateDnsZoneResourceId: postgresDnsZoneId
+            }
+          ]
+        }
+      }
+    ] : [
       {
         name: '${name}-pe'
         subnetResourceId: subnetId

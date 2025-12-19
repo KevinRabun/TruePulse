@@ -121,6 +121,16 @@ module dnsZone 'modules/dnsZone.bicep' = {
   }
 }
 
+// Private DNS Zones - centralized for all private endpoint resolution
+// VNet links are created per environment when those environments deploy
+module privateDnsZones 'modules/privateDnsZones.bicep' = {
+  scope: resourceGroup
+  name: 'shared-private-dns-zones'
+  params: {
+    tags: tags
+  }
+}
+
 // ============================================================================
 // Outputs - Used by environment-specific deployments
 // ============================================================================
@@ -140,3 +150,10 @@ output emailServiceName string = emailServices.outputs.name
 
 output dnsZoneName string = dnsZone.outputs.name
 output dnsZoneResourceId string = dnsZone.outputs.resourceId
+
+// Private DNS Zone outputs for environment deployments
+output blobDnsZoneId string = privateDnsZones.outputs.blobDnsZoneId
+output tableDnsZoneId string = privateDnsZones.outputs.tableDnsZoneId
+output openaiDnsZoneId string = privateDnsZones.outputs.openaiDnsZoneId
+output postgresDnsZoneId string = privateDnsZones.outputs.postgresDnsZoneId
+output keyVaultDnsZoneId string = privateDnsZones.outputs.keyVaultDnsZoneId

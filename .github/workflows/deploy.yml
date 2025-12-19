@@ -73,6 +73,12 @@ jobs:
       containerRegistryLoginServer: ${{ steps.deploy-shared.outputs.containerRegistryLoginServer }}
       communicationServiceName: ${{ steps.deploy-shared.outputs.communicationServiceName }}
       communicationServiceConnectionString: ${{ steps.deploy-shared.outputs.communicationServiceConnectionString }}
+      # DNS zone names (IDs are reconstructed in infrastructure job to avoid masking)
+      blobDnsZoneName: ${{ steps.deploy-shared.outputs.blobDnsZoneName }}
+      tableDnsZoneName: ${{ steps.deploy-shared.outputs.tableDnsZoneName }}
+      openaiDnsZoneName: ${{ steps.deploy-shared.outputs.openaiDnsZoneName }}
+      postgresDnsZoneName: ${{ steps.deploy-shared.outputs.postgresDnsZoneName }}
+      keyVaultDnsZoneName: ${{ steps.deploy-shared.outputs.keyVaultDnsZoneName }}
     steps:
       - uses: actions/checkout@v4
 
@@ -107,11 +113,30 @@ jobs:
           ACR_LOGIN=$(jq -r '.containerRegistryLoginServer.value' /tmp/deployment-outputs.json)
           ACS_NAME=$(jq -r '.communicationServiceName.value' /tmp/deployment-outputs.json)
           
+          # DNS zone IDs - extract just the zone names (last segment of the ID path)
+          BLOB_DNS_ID=$(jq -r '.blobDnsZoneId.value' /tmp/deployment-outputs.json)
+          TABLE_DNS_ID=$(jq -r '.tableDnsZoneId.value' /tmp/deployment-outputs.json)
+          OPENAI_DNS_ID=$(jq -r '.openaiDnsZoneId.value' /tmp/deployment-outputs.json)
+          POSTGRES_DNS_ID=$(jq -r '.postgresDnsZoneId.value' /tmp/deployment-outputs.json)
+          KEYVAULT_DNS_ID=$(jq -r '.keyVaultDnsZoneId.value' /tmp/deployment-outputs.json)
+          
+          # Extract zone names from IDs (e.g., ".../privateDnsZones/privatelink.blob.core.windows.net")
+          BLOB_DNS_NAME=$(basename "$BLOB_DNS_ID")
+          TABLE_DNS_NAME=$(basename "$TABLE_DNS_ID")
+          OPENAI_DNS_NAME=$(basename "$OPENAI_DNS_ID")
+          POSTGRES_DNS_NAME=$(basename "$POSTGRES_DNS_ID")
+          KEYVAULT_DNS_NAME=$(basename "$KEYVAULT_DNS_ID")
+          
           echo "=== Extracted Values ==="
           echo "Log Analytics Name: [$LOG_ANALYTICS_NAME]"
           echo "ACR Name: [$ACR_NAME]"
           echo "ACR Login: [$ACR_LOGIN]"
           echo "ACS Name: [$ACS_NAME]"
+          echo "Blob DNS Zone: [$BLOB_DNS_NAME]"
+          echo "Table DNS Zone: [$TABLE_DNS_NAME]"
+          echo "OpenAI DNS Zone: [$OPENAI_DNS_NAME]"
+          echo "Postgres DNS Zone: [$POSTGRES_DNS_NAME]"
+          echo "KeyVault DNS Zone: [$KEYVAULT_DNS_NAME]"
           echo "========================="
           
           # Validate Log Analytics Name
@@ -125,6 +150,13 @@ jobs:
           echo "containerRegistryName=$ACR_NAME" >> $GITHUB_OUTPUT
           echo "containerRegistryLoginServer=$ACR_LOGIN" >> $GITHUB_OUTPUT
           echo "communicationServiceName=$ACS_NAME" >> $GITHUB_OUTPUT
+          
+          # DNS zone names (IDs will be reconstructed in infrastructure job)
+          echo "blobDnsZoneName=$BLOB_DNS_NAME" >> $GITHUB_OUTPUT
+          echo "tableDnsZoneName=$TABLE_DNS_NAME" >> $GITHUB_OUTPUT
+          echo "openaiDnsZoneName=$OPENAI_DNS_NAME" >> $GITHUB_OUTPUT
+          echo "postgresDnsZoneName=$POSTGRES_DNS_NAME" >> $GITHUB_OUTPUT
+          echo "keyVaultDnsZoneName=$KEYVAULT_DNS_NAME" >> $GITHUB_OUTPUT
           
           # Get Communication Service connection string (not in Bicep outputs)
           ACS_CONN=$(az communication list-key --name "$ACS_NAME" --resource-group rg-truepulse-shared --query 'primaryConnectionString' -o tsv)
@@ -170,16 +202,28 @@ jobs:
           ACS_NAME="${{ needs.shared-infrastructure.outputs.communicationServiceName }}"
           ACS_CONN="${{ needs.shared-infrastructure.outputs.communicationServiceConnectionString }}"
           
-          # Reconstruct the full Log Analytics Workspace ID from the name
+          # DNS zone names
+          BLOB_DNS_NAME="${{ needs.shared-infrastructure.outputs.blobDnsZoneName }}"
+          TABLE_DNS_NAME="${{ needs.shared-infrastructure.outputs.tableDnsZoneName }}"
+          OPENAI_DNS_NAME="${{ needs.shared-infrastructure.outputs.openaiDnsZoneName }}"
+          POSTGRES_DNS_NAME="${{ needs.shared-infrastructure.outputs.postgresDnsZoneName }}"
+          KEYVAULT_DNS_NAME="${{ needs.shared-infrastructure.outputs.keyVaultDnsZoneName }}"
+          
+          # Reconstruct full resource IDs from names (avoids GitHub secret masking)
           LOG_ANALYTICS_ID="/subscriptions/${{ secrets.AZURE_SUBSCRIPTION_ID }}/resourceGroups/rg-truepulse-shared/providers/Microsoft.OperationalInsights/workspaces/${LOG_ANALYTICS_NAME}"
+          BLOB_DNS_ID="/subscriptions/${{ secrets.AZURE_SUBSCRIPTION_ID }}/resourceGroups/rg-truepulse-shared/providers/Microsoft.Network/privateDnsZones/${BLOB_DNS_NAME}"
+          TABLE_DNS_ID="/subscriptions/${{ secrets.AZURE_SUBSCRIPTION_ID }}/resourceGroups/rg-truepulse-shared/providers/Microsoft.Network/privateDnsZones/${TABLE_DNS_NAME}"
+          OPENAI_DNS_ID="/subscriptions/${{ secrets.AZURE_SUBSCRIPTION_ID }}/resourceGroups/rg-truepulse-shared/providers/Microsoft.Network/privateDnsZones/${OPENAI_DNS_NAME}"
+          POSTGRES_DNS_ID="/subscriptions/${{ secrets.AZURE_SUBSCRIPTION_ID }}/resourceGroups/rg-truepulse-shared/providers/Microsoft.Network/privateDnsZones/${POSTGRES_DNS_NAME}"
+          KEYVAULT_DNS_ID="/subscriptions/${{ secrets.AZURE_SUBSCRIPTION_ID }}/resourceGroups/rg-truepulse-shared/providers/Microsoft.Network/privateDnsZones/${KEYVAULT_DNS_NAME}"
           
           # Debug output
           echo "=== Shared Resource Values ==="
           echo "Log Analytics Name: $LOG_ANALYTICS_NAME"
-          echo "Log Analytics ID (reconstructed): $LOG_ANALYTICS_ID"
           echo "ACR Name: $ACR_NAME"
           echo "ACR Login: $ACR_LOGIN"
           echo "ACS Name: $ACS_NAME"
+          echo "DNS Zones: blob=$BLOB_DNS_NAME table=$TABLE_DNS_NAME openai=$OPENAI_DNS_NAME postgres=$POSTGRES_DNS_NAME keyvault=$KEYVAULT_DNS_NAME"
           echo "==============================="
           
           # Validate required values
@@ -188,11 +232,17 @@ jobs:
             exit 1
           fi
           
+          # Write step outputs
           echo "logAnalyticsWorkspaceId=$LOG_ANALYTICS_ID" >> $GITHUB_OUTPUT
           echo "containerRegistryName=$ACR_NAME" >> $GITHUB_OUTPUT
           echo "containerRegistryLoginServer=$ACR_LOGIN" >> $GITHUB_OUTPUT
           echo "communicationServiceName=$ACS_NAME" >> $GITHUB_OUTPUT
           echo "communicationServiceConnectionString=$ACS_CONN" >> $GITHUB_OUTPUT
+          echo "blobDnsZoneId=$BLOB_DNS_ID" >> $GITHUB_OUTPUT
+          echo "tableDnsZoneId=$TABLE_DNS_ID" >> $GITHUB_OUTPUT
+          echo "openaiDnsZoneId=$OPENAI_DNS_ID" >> $GITHUB_OUTPUT
+          echo "postgresDnsZoneId=$POSTGRES_DNS_ID" >> $GITHUB_OUTPUT
+          echo "keyVaultDnsZoneId=$KEYVAULT_DNS_ID" >> $GITHUB_OUTPUT
 
       - name: Deploy Environment Bicep
         id: deploy
@@ -220,6 +270,11 @@ jobs:
             --parameters sharedContainerRegistryLoginServer='${{ steps.shared.outputs.containerRegistryLoginServer }}' \
             --parameters sharedCommunicationServiceConnectionString='${{ steps.shared.outputs.communicationServiceConnectionString }}' \
             --parameters sharedCommunicationServiceName='${{ steps.shared.outputs.communicationServiceName }}' \
+            --parameters sharedBlobDnsZoneId='${{ steps.shared.outputs.blobDnsZoneId }}' \
+            --parameters sharedTableDnsZoneId='${{ steps.shared.outputs.tableDnsZoneId }}' \
+            --parameters sharedOpenaiDnsZoneId='${{ steps.shared.outputs.openaiDnsZoneId }}' \
+            --parameters sharedPostgresDnsZoneId='${{ steps.shared.outputs.postgresDnsZoneId }}' \
+            --parameters sharedKeyVaultDnsZoneId='${{ steps.shared.outputs.keyVaultDnsZoneId }}' \
             --query 'properties.outputs' \
             --output json)
           

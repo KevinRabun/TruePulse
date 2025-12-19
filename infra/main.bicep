@@ -88,6 +88,22 @@ param sharedCommunicationServiceConnectionString string
 @description('Name of shared Communication Services')
 param sharedCommunicationServiceName string
 
+// Shared Private DNS Zone IDs
+@description('Resource ID of shared blob storage DNS zone')
+param sharedBlobDnsZoneId string
+
+@description('Resource ID of shared table storage DNS zone')
+param sharedTableDnsZoneId string
+
+@description('Resource ID of shared OpenAI DNS zone')
+param sharedOpenaiDnsZoneId string
+
+@description('Resource ID of shared PostgreSQL DNS zone')
+param sharedPostgresDnsZoneId string
+
+@description('Resource ID of shared Key Vault DNS zone')
+param sharedKeyVaultDnsZoneId string
+
 // ============================================================================
 // Variables
 // ============================================================================
@@ -146,6 +162,19 @@ module vnet 'modules/network.bicep' = {
   }
 }
 
+// Link environment VNet to shared Private DNS Zones
+// This enables private endpoint resolution from the environment's VNet
+// Deployed to shared resource group where DNS zones exist
+module privateDnsZoneLinks 'modules/privateDnsZoneLinks.bicep' = {
+  scope: az.resourceGroup(subscription().subscriptionId, 'rg-truepulse-shared')
+  name: 'dns-zone-links-${environmentName}'
+  params: {
+    environmentName: environmentName
+    vnetId: vnet.outputs.vnetId
+  }
+  dependsOn: [vnet]
+}
+
 // Key Vault - isolated secrets per environment
 module keyVault 'modules/keyVault.bicep' = {
   scope: resourceGroup
@@ -157,6 +186,7 @@ module keyVault 'modules/keyVault.bicep' = {
     logAnalyticsWorkspaceId: sharedLogAnalyticsWorkspaceId
     subnetId: vnet.outputs.privateEndpointsSubnetId
     createEncryptionKeys: enableCMK
+    keyVaultDnsZoneId: sharedKeyVaultDnsZoneId
     secrets: [
       {
         name: 'jwt-secret-key'
@@ -203,6 +233,7 @@ module postgres 'modules/postgres.bicep' = {
     keyVaultName: enableCMK ? keyVault.outputs.name : ''
     keyVaultResourceId: enableCMK ? keyVault.outputs.resourceId : ''
     cmkKeyUri: enableCMK ? keyVault.outputs.postgresEncryptionKeyUri : ''
+    postgresDnsZoneId: sharedPostgresDnsZoneId
   }
 }
 
@@ -220,6 +251,8 @@ module storageAccount 'modules/storageAccount.bicep' = {
     enableCMK: enableCMK
     keyVaultResourceId: enableCMK ? keyVault.outputs.resourceId : ''
     cmkKeyName: enableCMK ? 'storage-encryption-key' : ''
+    blobDnsZoneId: sharedBlobDnsZoneId
+    tableDnsZoneId: sharedTableDnsZoneId
   }
 }
 
@@ -235,6 +268,7 @@ module azureOpenAI 'modules/azureOpenAI.bicep' = {
     subnetId: vnet.outputs.privateEndpointsSubnetId
     keyVaultResourceId: keyVault.outputs.resourceId
     environmentName: environmentName
+    openaiDnsZoneId: sharedOpenaiDnsZoneId
   }
 }
 

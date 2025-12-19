@@ -30,11 +30,14 @@ param cmkKeyName string = ''
 @description('Enable Customer Managed Keys (CMK) for encryption')
 param enableCMK bool = true
 
+@description('Shared blob DNS zone resource ID')
+param blobDnsZoneId string
+
+@description('Shared table DNS zone resource ID')
+param tableDnsZoneId string
+
 // SKU selection based on environment
 var skuName = environmentName == 'prod' ? 'Standard_ZRS' : 'Standard_LRS'
-
-// Extract VNet ID from subnet ID
-var vnetId = substring(subnetId, 0, lastIndexOf(subnetId, '/subnets/'))
 
 // ============================================================================
 // User-assigned managed identity for CMK access (when CMK is enabled)
@@ -53,46 +56,6 @@ resource keyVaultCryptoUserRole 'Microsoft.Authorization/roleAssignments@2022-04
     roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', 'e147488a-f6f5-4113-8e2d-b22465e65bf6')
     principalId: storageIdentity!.properties.principalId
     principalType: 'ServicePrincipal'
-  }
-}
-
-// ============================================================================
-// Private DNS Zones (created first for AVM to reference)
-// ============================================================================
-resource blobDnsZone 'Microsoft.Network/privateDnsZones@2020-06-01' = {
-  name: 'privatelink.blob.${environment().suffixes.storage}'
-  location: 'global'
-  tags: tags
-}
-
-resource tableDnsZone 'Microsoft.Network/privateDnsZones@2020-06-01' = {
-  name: 'privatelink.table.${environment().suffixes.storage}'
-  location: 'global'
-  tags: tags
-}
-
-// Link DNS zones to VNet
-resource blobDnsZoneLink 'Microsoft.Network/privateDnsZones/virtualNetworkLinks@2020-06-01' = {
-  parent: blobDnsZone
-  name: '${name}-blob-link'
-  location: 'global'
-  properties: {
-    registrationEnabled: false
-    virtualNetwork: {
-      id: vnetId
-    }
-  }
-}
-
-resource tableDnsZoneLink 'Microsoft.Network/privateDnsZones/virtualNetworkLinks@2020-06-01' = {
-  parent: tableDnsZone
-  name: '${name}-table-link'
-  location: 'global'
-  properties: {
-    registrationEnabled: false
-    virtualNetwork: {
-      id: vnetId
-    }
   }
 }
 
@@ -178,7 +141,7 @@ module storageAccount 'br/public:avm/res/storage/storage-account:0.18.0' = {
         { name: 'ratelimits' }
       ]
     }
-    // Private endpoints configuration
+    // Private endpoints configuration (uses shared DNS zones)
     privateEndpoints: [
       {
         name: 'pe-${name}-blob'
@@ -187,7 +150,7 @@ module storageAccount 'br/public:avm/res/storage/storage-account:0.18.0' = {
         privateDnsZoneGroup: {
           privateDnsZoneGroupConfigs: [
             {
-              privateDnsZoneResourceId: blobDnsZone.id
+              privateDnsZoneResourceId: blobDnsZoneId
             }
           ]
         }
@@ -200,7 +163,7 @@ module storageAccount 'br/public:avm/res/storage/storage-account:0.18.0' = {
         privateDnsZoneGroup: {
           privateDnsZoneGroupConfigs: [
             {
-              privateDnsZoneResourceId: tableDnsZone.id
+              privateDnsZoneResourceId: tableDnsZoneId
             }
           ]
         }
