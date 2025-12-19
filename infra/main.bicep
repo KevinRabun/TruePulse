@@ -1,5 +1,6 @@
-// TruePulse Infrastructure - Main Deployment
-// Uses Azure Verified Modules (AVM) following Well-Architected Framework (WAF) best practices
+// TruePulse Infrastructure - Environment-Specific Deployment
+// Deploys environment-specific resources and references shared services
+// Requires shared.bicep to be deployed first
 
 targetScope = 'subscription'
 
@@ -24,6 +25,7 @@ param tags object = {
   managedBy: 'bicep'
 }
 
+// Database credentials
 @description('Administrator username for PostgreSQL')
 param postgresAdminUsername string
 
@@ -31,6 +33,7 @@ param postgresAdminUsername string
 @secure()
 param postgresAdminPassword string
 
+// Secrets
 @description('JWT secret key for API authentication')
 @secure()
 param jwtSecretKey string
@@ -38,9 +41,6 @@ param jwtSecretKey string
 @description('Vote hash secret for privacy')
 @secure()
 param voteHashSecret string
-
-@description('Deploy Azure OpenAI service (set to false if using external AI Foundry)')
-param deployAzureOpenAI bool = true
 
 @description('NewsData.io API key for news aggregation')
 @secure()
@@ -50,20 +50,46 @@ param newsDataApiKey string = ''
 @secure()
 param newsApiOrgKey string = ''
 
-@description('Azure Communication Services sender phone number (obtained after deployment)')
+// Communication settings
+@description('Azure Communication Services sender phone number')
 param communicationSenderNumber string = ''
 
-@description('Email sender address for verification emails (obtained after deployment)')
+@description('Email sender address for verification emails')
 param emailSenderAddress string = ''
 
+// Domain settings
 @description('Custom domain name for the application')
 param customDomain string = 'truepulse.net'
 
-@description('Enable custom domain configuration (requires domain to be registered)')
+@description('Enable custom domain configuration')
 param enableCustomDomain bool = true
 
-@description('Enable Customer Managed Keys (CMK) for data encryption - recommended for voting data protection')
+// Security settings
+@description('Enable Customer Managed Keys (CMK) for data encryption')
 param enableCMK bool = true
+
+// ============================================================================
+// Shared Resources References (from shared.bicep outputs)
+// ============================================================================
+
+@description('Resource ID of shared Log Analytics Workspace')
+param sharedLogAnalyticsWorkspaceId string
+
+@description('Name of shared Container Registry')
+param sharedContainerRegistryName string
+
+@description('Login server of shared Container Registry')
+param sharedContainerRegistryLoginServer string
+
+@description('Connection string for shared Communication Services')
+@secure()
+param sharedCommunicationServiceConnectionString string
+
+@description('Name of shared Communication Services')
+param sharedCommunicationServiceName string
+
+@description('Resource ID of shared DNS Zone')
+param sharedDnsZoneResourceId string = ''
 
 // ============================================================================
 // Variables
@@ -74,30 +100,26 @@ var uniqueSuffix = uniqueString(subscription().subscriptionId, resourceGroupName
 var shortUniqueSuffix = substring(uniqueSuffix, 0, 6)
 
 // Networking
-var vnetAddressPrefix = '10.0.0.0/16'
-var containerAppsSubnetPrefix = '10.0.0.0/23'   // /23 required for Container Apps
-var privateEndpointsSubnetPrefix = '10.0.4.0/24'
-var platformReservedCidr = '10.0.16.0/24'
-var platformReservedDnsIP = '10.0.16.10'
+var vnetAddressPrefix = environmentName == 'prod' ? '10.2.0.0/16' : (environmentName == 'staging' ? '10.1.0.0/16' : '10.0.0.0/16')
+var containerAppsSubnetPrefix = environmentName == 'prod' ? '10.2.0.0/23' : (environmentName == 'staging' ? '10.1.0.0/23' : '10.0.0.0/23')
+var privateEndpointsSubnetPrefix = environmentName == 'prod' ? '10.2.4.0/24' : (environmentName == 'staging' ? '10.1.4.0/24' : '10.0.4.0/24')
+var platformReservedCidr = environmentName == 'prod' ? '10.2.16.0/24' : (environmentName == 'staging' ? '10.1.16.0/24' : '10.0.16.0/24')
+var platformReservedDnsIP = environmentName == 'prod' ? '10.2.16.10' : (environmentName == 'staging' ? '10.1.16.10' : '10.0.16.10')
 var dockerBridgeCidr = '172.17.0.1/16'
 
-// Resource names
-var logAnalyticsName = 'log-${prefix}-${shortUniqueSuffix}'
-var keyVaultName = 'kv-${prefix}-${shortUniqueSuffix}'
-var containerRegistryName = 'cr${prefix}${shortUniqueSuffix}'
+// Environment-specific resource names
+var keyVaultName = 'kv-${prefix}-${environmentName}-${shortUniqueSuffix}'
 var containerAppsEnvName = 'cae-${prefix}-${environmentName}'
-var containerAppApiName = 'ca-${prefix}-api'
+var containerAppApiName = 'ca-${prefix}-api-${environmentName}'
 var staticWebAppName = 'swa-${prefix}-${environmentName}'
-var postgresServerName = 'psql-${prefix}-${shortUniqueSuffix}'
+var postgresServerName = 'psql-${prefix}-${environmentName}-${shortUniqueSuffix}'
 var vnetName = 'vnet-${prefix}-${environmentName}'
-var communicationServiceName = 'acs-${prefix}-${shortUniqueSuffix}'
-var emailServiceName = 'ecs-${prefix}-${shortUniqueSuffix}'
-var storageAccountName = 'st${prefix}${shortUniqueSuffix}'
-var azureOpenAIName = 'aoai-${prefix}-${shortUniqueSuffix}'
+var storageAccountName = 'st${prefix}${environmentName}${shortUniqueSuffix}'
+var azureOpenAIName = 'aoai-${prefix}-${environmentName}-${shortUniqueSuffix}'
 
-// Custom domain URLs
-var frontendUrl = enableCustomDomain ? 'https://${customDomain}' : 'https://${staticWebAppName}.azurestaticapps.net'
-var apiUrl = enableCustomDomain ? 'https://api.${customDomain}' : 'https://${containerAppApiName}.${location}.azurecontainerapps.io'
+// URLs
+var frontendUrl = enableCustomDomain ? 'https://${environmentName == 'prod' ? '' : '${environmentName}.'}${customDomain}' : 'https://${staticWebAppName}.azurestaticapps.net'
+var apiUrl = enableCustomDomain ? 'https://api${environmentName == 'prod' ? '' : '-${environmentName}'}.${customDomain}' : 'https://${containerAppApiName}.${location}.azurecontainerapps.io'
 
 // ============================================================================
 // Resource Group
@@ -109,11 +131,16 @@ resource resourceGroup 'Microsoft.Resources/resourceGroups@2023-07-01' = {
   tags: tags
 }
 
+// Reference to shared resource group for DNS updates
+resource sharedResourceGroup 'Microsoft.Resources/resourceGroups@2023-07-01' existing = {
+  name: 'rg-${prefix}-shared'
+}
+
 // ============================================================================
-// Modules
+// Environment-Specific Modules
 // ============================================================================
 
-// Virtual Network for internal resources
+// Virtual Network - isolated per environment
 module vnet 'modules/network.bicep' = {
   scope: resourceGroup
   name: 'vnet-deployment'
@@ -127,18 +154,7 @@ module vnet 'modules/network.bicep' = {
   }
 }
 
-// Log Analytics Workspace for centralized logging
-module logAnalytics 'modules/logAnalytics.bicep' = {
-  scope: resourceGroup
-  name: 'log-analytics-deployment'
-  params: {
-    name: logAnalyticsName
-    location: location
-    tags: tags
-  }
-}
-
-// Key Vault for secrets management (with CMK encryption keys)
+// Key Vault - isolated secrets per environment
 module keyVault 'modules/keyVault.bicep' = {
   scope: resourceGroup
   name: 'keyvault-deployment'
@@ -146,7 +162,7 @@ module keyVault 'modules/keyVault.bicep' = {
     name: keyVaultName
     location: location
     tags: tags
-    logAnalyticsWorkspaceId: logAnalytics.outputs.resourceId
+    logAnalyticsWorkspaceId: sharedLogAnalyticsWorkspaceId
     subnetId: vnet.outputs.privateEndpointsSubnetId
     createEncryptionKeys: enableCMK
     secrets: [
@@ -170,24 +186,15 @@ module keyVault 'modules/keyVault.bicep' = {
         name: 'newsapi-org-key'
         value: newsApiOrgKey
       }
+      {
+        name: 'communication-services-connection-string'
+        value: sharedCommunicationServiceConnectionString
+      }
     ]
   }
 }
 
-// Container Registry for API images
-module containerRegistry 'modules/containerRegistry.bicep' = {
-  scope: resourceGroup
-  name: 'acr-deployment'
-  params: {
-    name: containerRegistryName
-    location: location
-    tags: tags
-    logAnalyticsWorkspaceId: logAnalytics.outputs.resourceId
-    subnetId: vnet.outputs.privateEndpointsSubnetId
-  }
-}
-
-// PostgreSQL Flexible Server for user data (with CMK encryption)
+// PostgreSQL - isolated database per environment
 module postgres 'modules/postgres.bicep' = {
   scope: resourceGroup
   name: 'postgres-deployment'
@@ -197,10 +204,9 @@ module postgres 'modules/postgres.bicep' = {
     tags: tags
     administratorLogin: postgresAdminUsername
     administratorLoginPassword: postgresAdminPassword
-    logAnalyticsWorkspaceId: logAnalytics.outputs.resourceId
+    logAnalyticsWorkspaceId: sharedLogAnalyticsWorkspaceId
     subnetId: vnet.outputs.privateEndpointsSubnetId
     environmentName: environmentName
-    // CMK configuration for user data protection
     enableCMK: enableCMK
     keyVaultName: enableCMK ? keyVault.outputs.name : ''
     keyVaultResourceId: enableCMK ? keyVault.outputs.resourceId : ''
@@ -208,7 +214,7 @@ module postgres 'modules/postgres.bicep' = {
   }
 }
 
-// Azure Storage Account for assets, exports, votes, and token storage (with CMK encryption)
+// Storage Account - isolated vote storage per environment
 module storageAccount 'modules/storageAccount.bicep' = {
   scope: resourceGroup
   name: 'storage-account-deployment'
@@ -216,69 +222,31 @@ module storageAccount 'modules/storageAccount.bicep' = {
     name: storageAccountName
     location: location
     tags: tags
-    logAnalyticsWorkspaceId: logAnalytics.outputs.resourceId
+    logAnalyticsWorkspaceId: sharedLogAnalyticsWorkspaceId
     subnetId: vnet.outputs.privateEndpointsSubnetId
     environmentName: environmentName
-    // CMK configuration for vote data protection
     enableCMK: enableCMK
     keyVaultResourceId: enableCMK ? keyVault.outputs.resourceId : ''
     cmkKeyName: enableCMK ? 'storage-encryption-key' : ''
   }
 }
 
-// Azure OpenAI for AI-powered poll generation
-module azureOpenAI 'modules/azureOpenAI.bicep' = if (deployAzureOpenAI) {
+// Azure OpenAI - isolated per environment with private endpoint
+module azureOpenAI 'modules/azureOpenAI.bicep' = {
   scope: resourceGroup
   name: 'azure-openai-deployment'
   params: {
     name: azureOpenAIName
     location: location
     tags: tags
-    logAnalyticsWorkspaceId: logAnalytics.outputs.resourceId
+    logAnalyticsWorkspaceId: sharedLogAnalyticsWorkspaceId
     subnetId: vnet.outputs.privateEndpointsSubnetId
     keyVaultResourceId: keyVault.outputs.resourceId
     environmentName: environmentName
   }
 }
 
-// Azure Communication Services for SMS notifications
-module communicationServices 'modules/communicationServices.bicep' = {
-  scope: resourceGroup
-  name: 'communication-services-deployment'
-  params: {
-    name: communicationServiceName
-    tags: tags
-    dataLocation: 'United States'
-    logAnalyticsWorkspaceId: logAnalytics.outputs.resourceId
-  }
-}
-
-// Azure Email Communication Services for email verification
-module emailServices 'modules/emailServices.bicep' = {
-  scope: resourceGroup
-  name: 'email-services-deployment'
-  params: {
-    name: emailServiceName
-    tags: tags
-    dataLocation: 'United States'
-    enableUserEngagementTracking: environmentName == 'prod'
-  }
-}
-
-// Azure DNS Zone for custom domain
-module dnsZone 'modules/dnsZone.bicep' = if (enableCustomDomain) {
-  scope: resourceGroup
-  name: 'dns-zone-deployment'
-  params: {
-    name: customDomain
-    tags: tags
-    staticWebAppHostname: staticWebApp.outputs.defaultHostname
-    containerAppApiFqdn: containerAppApi.outputs.fqdn
-    staticWebAppResourceId: staticWebApp.outputs.resourceId
-  }
-}
-
-// Container Apps Environment
+// Container Apps Environment - isolated compute per environment
 module containerAppsEnv 'modules/containerAppsEnv.bicep' = {
   scope: resourceGroup
   name: 'container-apps-env-deployment'
@@ -286,7 +254,7 @@ module containerAppsEnv 'modules/containerAppsEnv.bicep' = {
     name: containerAppsEnvName
     location: location
     tags: tags
-    logAnalyticsWorkspaceResourceId: logAnalytics.outputs.resourceId
+    logAnalyticsWorkspaceResourceId: sharedLogAnalyticsWorkspaceId
     infrastructureSubnetId: vnet.outputs.containerAppsSubnetId
     platformReservedCidr: platformReservedCidr
     platformReservedDnsIP: platformReservedDnsIP
@@ -294,7 +262,7 @@ module containerAppsEnv 'modules/containerAppsEnv.bicep' = {
   }
 }
 
-// Container App - API
+// Container App - API (uses shared ACR)
 module containerAppApi 'modules/containerAppApi.bicep' = {
   scope: resourceGroup
   name: 'container-app-api-deployment'
@@ -303,8 +271,8 @@ module containerAppApi 'modules/containerAppApi.bicep' = {
     location: location
     tags: tags
     containerAppsEnvId: containerAppsEnv.outputs.resourceId
-    containerRegistryName: containerRegistry.outputs.name
-    containerRegistryLoginServer: containerRegistry.outputs.loginServer
+    containerRegistryName: sharedContainerRegistryName
+    containerRegistryLoginServer: sharedContainerRegistryLoginServer
     keyVaultName: keyVault.outputs.name
     keyVaultUri: keyVault.outputs.uri
     postgresHost: postgres.outputs.fqdn
@@ -312,19 +280,19 @@ module containerAppApi 'modules/containerAppApi.bicep' = {
     postgresUsername: postgresAdminUsername
     storageAccountName: storageAccount.outputs.name
     storageAccountTableEndpoint: storageAccount.outputs.primaryTableEndpoint
-    azureOpenAIEndpoint: deployAzureOpenAI ? azureOpenAI!.outputs.endpoint : ''
-    azureOpenAIDeployment: deployAzureOpenAI ? azureOpenAI!.outputs.deploymentName : ''
+    azureOpenAIEndpoint: azureOpenAI.outputs.endpoint
+    azureOpenAIDeployment: azureOpenAI.outputs.deploymentName
     storageAccountUrl: storageAccount.outputs.primaryBlobEndpoint
     environmentName: environmentName
-    communicationServicesName: communicationServices.outputs.name
+    communicationServicesName: sharedCommunicationServiceName
     communicationSenderNumber: communicationSenderNumber
-    emailServiceName: emailServices.outputs.name
+    emailServiceName: ''  // Email handled via shared services
     emailSenderAddress: emailSenderAddress
     customDomain: enableCustomDomain ? customDomain : ''
   }
 }
 
-// Static Web App for Frontend
+// Static Web App - can use slots for staging, but separate instance is cleaner
 module staticWebApp 'modules/staticWebApp.bicep' = {
   scope: resourceGroup
   name: 'swa-deployment'
@@ -332,8 +300,8 @@ module staticWebApp 'modules/staticWebApp.bicep' = {
     name: staticWebAppName
     location: location
     tags: tags
-    apiUrl: enableCustomDomain ? 'https://api.${customDomain}' : 'https://${containerAppApi.outputs.fqdn}'
-    customDomain: enableCustomDomain ? customDomain : ''
+    apiUrl: apiUrl
+    customDomain: enableCustomDomain ? (environmentName == 'prod' ? customDomain : '${environmentName}.${customDomain}') : ''
   }
 }
 
@@ -342,19 +310,16 @@ module staticWebApp 'modules/staticWebApp.bicep' = {
 // ============================================================================
 
 output resourceGroupName string = resourceGroup.name
-output containerRegistryLoginServer string = containerRegistry.outputs.loginServer
 output containerAppApiFqdn string = containerAppApi.outputs.fqdn
 output staticWebAppHostname string = staticWebApp.outputs.defaultHostname
 output staticWebAppDeploymentTokenInfo string = staticWebApp.outputs.deploymentTokenInfo
 output keyVaultUri string = keyVault.outputs.uri
-output communicationServicesName string = communicationServices.outputs.name
-output emailServicesName string = emailServices.outputs.name
-output emailDomainNames array = emailServices.outputs.domainNames
-output dnsZoneNameServers array = dnsZone.?outputs.nameServers ?? []
 output frontendUrl string = frontendUrl
 output apiUrl string = apiUrl
-output customDomain string = customDomain
 output storageAccountName string = storageAccount.outputs.name
 output storageAccountBlobEndpoint string = storageAccount.outputs.primaryBlobEndpoint
-output azureOpenAIEndpoint string = deployAzureOpenAI ? azureOpenAI!.outputs.endpoint : ''
-output azureOpenAIDeploymentName string = deployAzureOpenAI ? azureOpenAI!.outputs.deploymentName : ''
+output postgresServerFqdn string = postgres.outputs.fqdn
+
+// Shared resource references (for convenience)
+output sharedContainerRegistryLoginServer string = sharedContainerRegistryLoginServer
+output azureOpenAIEndpoint string = azureOpenAI.outputs.endpoint
