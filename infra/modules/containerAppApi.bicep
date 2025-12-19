@@ -68,11 +68,18 @@ param emailSenderAddress string = ''
 @description('Custom domain name (for CORS configuration)')
 param customDomain string = ''
 
+@description('Use placeholder image (for initial deployment before ACR has images)')
+param usePlaceholderImage bool = true
+
 // ============================================================================
 // Variables
 // ============================================================================
 
-var containerImage = '${containerRegistryLoginServer}/truepulse-api:latest'
+// Use a placeholder image from MCR for initial deployment (doesn't require ACR auth)
+// The actual image will be deployed via GitHub Actions after ACR push
+var containerImage = usePlaceholderImage 
+  ? 'mcr.microsoft.com/azuredocs/containerapps-helloworld:latest'
+  : '${containerRegistryLoginServer}/truepulse-api:latest'
 // Dev: scale to 0 when idle to save costs. Staging: keep 1 warm. Prod: min 2 for HA
 var minReplicas = environmentName == 'prod' ? 2 : (environmentName == 'staging' ? 1 : 0)
 var maxReplicas = environmentName == 'prod' ? 10 : 3
