@@ -87,55 +87,50 @@ jobs:
         run: |
           echo "Deploying shared resources..."
           
-          # Deploy and capture outputs directly from deployment
-          DEPLOYMENT_OUTPUT=$(az deployment sub create \
+          # Deploy and save outputs to a temp file (more reliable than variable capture)
+          az deployment sub create \
             --name "shared-$(date +%Y%m%d%H%M%S)" \
             --location ${{ env.AZURE_LOCATION }} \
             --template-file infra/shared.bicep \
             --parameters location=${{ env.AZURE_LOCATION }} \
             --query 'properties.outputs' \
-            --output json)
+            --output json > /tmp/deployment-outputs.json
           
-          echo "Deployment outputs:"
-          echo "$DEPLOYMENT_OUTPUT" | jq .
+          echo "Deployment outputs saved to file:"
+          cat /tmp/deployment-outputs.json
           
-          # Extract values from deployment outputs
-          LOG_ANALYTICS_ID=$(echo "$DEPLOYMENT_OUTPUT" | jq -r '.logAnalyticsWorkspaceId.value // empty')
-          ACR_NAME=$(echo "$DEPLOYMENT_OUTPUT" | jq -r '.containerRegistryName.value // empty')
-          ACR_LOGIN=$(echo "$DEPLOYMENT_OUTPUT" | jq -r '.containerRegistryLoginServer.value // empty')
-          ACS_NAME=$(echo "$DEPLOYMENT_OUTPUT" | jq -r '.communicationServiceName.value // empty')
+          # Extract values from deployment outputs file
+          LOG_ANALYTICS_ID=$(jq -r '.logAnalyticsWorkspaceId.value' /tmp/deployment-outputs.json)
+          ACR_NAME=$(jq -r '.containerRegistryName.value' /tmp/deployment-outputs.json)
+          ACR_LOGIN=$(jq -r '.containerRegistryLoginServer.value' /tmp/deployment-outputs.json)
+          ACS_NAME=$(jq -r '.communicationServiceName.value' /tmp/deployment-outputs.json)
           
           echo "=== Extracted Values ==="
-          echo "Log Analytics ID: $LOG_ANALYTICS_ID"
-          echo "ACR Name: $ACR_NAME"
-          echo "ACR Login: $ACR_LOGIN"
-          echo "ACS Name: $ACS_NAME"
+          echo "Log Analytics ID: [$LOG_ANALYTICS_ID]"
+          echo "ACR Name: [$ACR_NAME]"
+          echo "ACR Login: [$ACR_LOGIN]"
+          echo "ACS Name: [$ACS_NAME]"
           echo "========================="
           
           # Validate Log Analytics ID
-          if [ -z "$LOG_ANALYTICS_ID" ]; then
+          if [ -z "$LOG_ANALYTICS_ID" ] || [ "$LOG_ANALYTICS_ID" == "null" ]; then
             echo "ERROR: Failed to get Log Analytics Workspace ID from deployment outputs!"
-            echo "Trying to fetch from Azure directly..."
-            LOG_ANALYTICS_ID=$(az monitor log-analytics workspace list \
-              --resource-group rg-truepulse-shared \
-              --query '[0].id' -o tsv 2>/dev/null || echo "")
-            echo "Fetched Log Analytics ID: $LOG_ANALYTICS_ID"
+            exit 1
           fi
           
-          # Write outputs using proper escaping for multiline/special chars
-          {
-            echo "logAnalyticsWorkspaceId=$LOG_ANALYTICS_ID"
-            echo "containerRegistryName=$ACR_NAME"
-            echo "containerRegistryLoginServer=$ACR_LOGIN"
-            echo "communicationServiceName=$ACS_NAME"
-          } >> $GITHUB_OUTPUT
+          # Write outputs
+          echo "logAnalyticsWorkspaceId=$LOG_ANALYTICS_ID" >> $GITHUB_OUTPUT
+          echo "containerRegistryName=$ACR_NAME" >> $GITHUB_OUTPUT
+          echo "containerRegistryLoginServer=$ACR_LOGIN" >> $GITHUB_OUTPUT
+          echo "communicationServiceName=$ACS_NAME" >> $GITHUB_OUTPUT
           
           # Get Communication Service connection string (not in Bicep outputs)
           ACS_CONN=$(az communication list-key --name "$ACS_NAME" --resource-group rg-truepulse-shared --query 'primaryConnectionString' -o tsv)
           echo "communicationServiceConnectionString=$ACS_CONN" >> $GITHUB_OUTPUT
           
-          echo "=== Final outputs written ==="
+          echo "=== GITHUB_OUTPUT contents ==="
           cat $GITHUB_OUTPUT
+          echo "==============================="
 
   # ============================================================================
   # Deploy Environment Infrastructure
