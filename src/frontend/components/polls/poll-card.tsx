@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Clock, Users, CheckCircle, ChevronRight, Lock, Loader2, Sparkles, Globe, Zap, Heart } from 'lucide-react';
+import { Clock, Users, CheckCircle, ChevronRight, Lock, Loader2, Sparkles, Zap, Heart } from 'lucide-react';
 import Link from 'next/link';
 import { useAuth } from '@/lib/auth';
 import { api } from '@/lib/api';
@@ -81,7 +81,7 @@ export function PollCard({ poll, showVoteButton = true }: PollCardProps) {
   const { isAuthenticated } = useAuth();
   const [selectedChoice, setSelectedChoice] = useState<string | null>(null);
   const [hasVoted, setHasVoted] = useState(false);
-  const [isCheckingVoteStatus, setIsCheckingVoteStatus] = useState(true);
+  const [, setIsCheckingVoteStatus] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [timeLeft, setTimeLeft] = useState<string>('');

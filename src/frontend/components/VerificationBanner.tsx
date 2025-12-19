@@ -19,7 +19,7 @@ interface VerificationBannerProps {
  * Displays clear CTAs to verify email and/or phone
  */
 export function VerificationBanner({
-  onVerificationComplete,
+  onVerificationComplete: _onVerificationComplete,
   className = "",
 }: VerificationBannerProps) {
   const [status, setStatus] = useState<VerificationStatus | null>(null);

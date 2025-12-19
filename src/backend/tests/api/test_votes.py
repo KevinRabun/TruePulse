@@ -2,9 +2,8 @@
 Tests for vote API endpoints.
 """
 
-from typing import Any
-from unittest.mock import AsyncMock, MagicMock, patch
 import uuid
+from unittest.mock import MagicMock
 
 import pytest
 from httpx import AsyncClient
@@ -156,23 +155,23 @@ class TestVoteHashPrivacy:
     def test_vote_hash_deterministic(self) -> None:
         """Test that vote hash is deterministic."""
         from core.security import generate_vote_hash
-        
+
         user_id = "user-123"
         poll_id = "poll-456"
-        
+
         hash1 = generate_vote_hash(user_id, poll_id)
         hash2 = generate_vote_hash(user_id, poll_id)
-        
+
         assert hash1 == hash2
 
     def test_vote_hash_unique_per_combination(self) -> None:
         """Test that different user/poll combos have different hashes."""
         from core.security import generate_vote_hash
-        
+
         hash1 = generate_vote_hash("user-1", "poll-1")
         hash2 = generate_vote_hash("user-2", "poll-1")
         hash3 = generate_vote_hash("user-1", "poll-2")
-        
+
         assert hash1 != hash2
         assert hash1 != hash3
         assert hash2 != hash3
@@ -180,9 +179,9 @@ class TestVoteHashPrivacy:
     def test_vote_hash_format(self) -> None:
         """Test that vote hash is proper SHA-256 format."""
         from core.security import generate_vote_hash
-        
+
         vote_hash = generate_vote_hash("user-123", "poll-456")
-        
+
         # SHA-256 produces 64 character hex string
         assert len(vote_hash) == 64
         assert all(c in "0123456789abcdef" for c in vote_hash)

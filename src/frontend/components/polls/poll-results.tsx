@@ -1,9 +1,9 @@
 'use client';
 
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useQuery } from '@tanstack/react-query';
-import { api, DemographicBreakdown as APIDemographicBreakdown } from '@/lib/api';
+import { api } from '@/lib/api';
 import {
   ChartBarIcon,
   ChartPieIcon,
@@ -79,7 +79,7 @@ const choiceColors = [
   { bg: 'bg-indigo-500', text: 'text-indigo-400', bar: 'from-indigo-600 to-indigo-400' },
 ];
 
-export function PollResults({ pollId, question, choices, totalVotes, demographicBreakdowns }: PollResultsProps) {
+export function PollResults({ pollId, question: _question, choices, totalVotes, demographicBreakdowns }: PollResultsProps) {
   const [selectedDemographic, setSelectedDemographic] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<'bars' | 'comparison'>('bars');
   
@@ -424,8 +424,7 @@ export function PollResults({ pollId, question, choices, totalVotes, demographic
                       {selectedDemo?.segments.map(segment => (
                         <tr key={segment.name} className="border-b border-gray-100 dark:border-slate-700/30 hover:bg-gray-50 dark:hover:bg-slate-700/20">
                           <td className="py-3 px-4 text-gray-900 dark:text-white">{segment.name}</td>
-                          {segment.choices.map((choice, index) => {
-                            const trend = getTrend(choice.choice_id, choice.percentage);
+                          {segment.choices.map((choice, _index) => {
                             const overall = choices.find(c => c.id === choice.choice_id);
                             const diff = overall ? choice.percentage - overall.percentage : 0;
                             
@@ -502,7 +501,6 @@ export function PollResults({ pollId, question, choices, totalVotes, demographic
               {(() => {
                 const sortedChoices = [...choices].sort((a, b) => b.percentage - a.percentage);
                 const topDiff = sortedChoices[0].percentage - (sortedChoices[1]?.percentage || 0);
-                const totalDiff = sortedChoices[0].percentage - (sortedChoices[sortedChoices.length - 1]?.percentage || 0);
                 
                 if (totalVotes < 10) {
                   return 'Not enough votes yet to determine consensus';

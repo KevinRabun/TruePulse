@@ -2,8 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { api, type FormattedStats } from '@/lib/api';
-import { Globe2, Users, BarChart3, Vote, MapPin, TrendingUp } from 'lucide-react';
+import { api } from '@/lib/api';
+import { Globe2, Users, BarChart3, Vote, MapPin } from 'lucide-react';
 
 interface StatItem {
   label: string;

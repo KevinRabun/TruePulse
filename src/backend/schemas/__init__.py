@@ -1,9 +1,9 @@
 """Schemas module initialization."""
 
-from schemas.user import UserCreate, UserResponse, UserInDB, UserProfileUpdate
+from schemas.auth import RefreshTokenRequest, TokenResponse
 from schemas.poll import Poll, PollCreate, PollWithResults
+from schemas.user import UserCreate, UserInDB, UserProfileUpdate, UserResponse
 from schemas.vote import VoteCreate, VoteResponse, VoteStatus
-from schemas.auth import TokenResponse, RefreshTokenRequest
 
 __all__ = [
     "UserCreate",

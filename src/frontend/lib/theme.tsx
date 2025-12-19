@@ -41,7 +41,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       api.setToken(token);
       const settings = await api.getSettings();
       return settings.theme_preference;
-    } catch (error) {
+    } catch (_error) {
       // User not logged in or error fetching settings
       setIsLoggedIn(false);
       return null;

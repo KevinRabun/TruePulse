@@ -3,7 +3,6 @@ Tests for poll API endpoints.
 """
 
 from typing import Any
-from unittest.mock import AsyncMock, patch
 
 import pytest
 from httpx import AsyncClient

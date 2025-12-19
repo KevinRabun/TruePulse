@@ -13,7 +13,7 @@ import {
   CodeBracketIcon,
   HeartIcon,
 } from '@heroicons/react/24/outline';
-import { api, type FormattedStats } from '@/lib/api';
+import { api } from '@/lib/api';
 
 const values = [
   {
@@ -48,14 +48,6 @@ const defaultStats = [
   { label: 'Polls Generated', value: '—' },
   { label: 'Countries Reached', value: '—' },
   { label: 'Votes Cast', value: '—' },
-];
-
-const team = [
-  {
-    name: 'Open Source Community',
-    role: 'Contributors',
-    description: 'TruePulse is built and maintained by a passionate community of developers, designers, and democracy advocates.',
-  },
 ];
 
 export default function AboutPage() {

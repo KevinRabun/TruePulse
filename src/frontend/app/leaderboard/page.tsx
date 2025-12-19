@@ -37,19 +37,6 @@ const getRankIcon = (rank: number) => {
   }
 };
 
-const getRankBadgeColor = (rank: number) => {
-  switch (rank) {
-    case 1:
-      return 'from-yellow-500/20 to-amber-500/20 border-yellow-500/30';
-    case 2:
-      return 'from-slate-500/20 to-slate-400/20 border-slate-500/30';
-    case 3:
-      return 'from-amber-600/20 to-orange-600/20 border-amber-600/30';
-    default:
-      return 'from-gray-100 to-gray-100 border-gray-200 dark:from-slate-800/50 dark:to-slate-800/50 dark:border-slate-700/50';
-  }
-};
-
 export default function LeaderboardPage() {
   const [timeFrame, setTimeFrame] = useState<TimeFrame>('weekly');
   const { user, isAuthenticated } = useAuth();

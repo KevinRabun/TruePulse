@@ -29,7 +29,7 @@ export default function PollDetailPage({ params }: PageProps) {
   const resolvedParams = use(params);
   const pollId = resolvedParams.id;
   const queryClient = useQueryClient();
-  const { user, isAuthenticated, refreshUser } = useAuth();
+  const { isAuthenticated, refreshUser } = useAuth();
   const { success } = useToast();
   const [selectedChoice, setSelectedChoice] = useState<string | null>(null);
   const [showResults, setShowResults] = useState(false);
@@ -78,7 +78,7 @@ export default function PollDetailPage({ params }: PageProps) {
             setShowResults(true);
             setShowDetailedResults(true); // Show detailed results automatically for returning voters
           }
-        } catch (error) {
+        } catch {
           // Fallback to localStorage if API fails
           const votedPolls = JSON.parse(localStorage.getItem('votedPolls') || '[]');
           if (votedPolls.includes(pollId)) {
@@ -91,6 +91,17 @@ export default function PollDetailPage({ params }: PageProps) {
     };
     checkVoteStatus();
   }, [poll, isAuthenticated, pollId]);
+
+  // For closed polls, always show results
+  const isPollActive = poll?.is_active && poll?.status === 'active';
+  const isPollClosed = poll ? (!isPollActive || new Date(poll.expires_at) < new Date()) : false;
+  
+  useEffect(() => {
+    if (isPollClosed) {
+      setShowResults(true);
+      setShowDetailedResults(true);
+    }
+  }, [isPollClosed]);
 
   const handleVote = () => {
     if (!selectedChoice || !isAuthenticated) return;
@@ -151,16 +162,6 @@ export default function PollDetailPage({ params }: PageProps) {
   // Use pollResults for vote counts when available, otherwise fall back to poll
   const displayChoices = pollResults?.choices || poll.choices;
   const totalVotes = pollResults?.total_votes || displayChoices.reduce((sum, choice) => sum + (choice.vote_count || 0), 0);
-  const isPollActive = poll.is_active && poll.status === 'active';
-  const isPollClosed = !isPollActive || new Date(poll.expires_at) < new Date();
-
-  // For closed polls, always show results and fetch poll results
-  useEffect(() => {
-    if (isPollClosed) {
-      setShowResults(true);
-      setShowDetailedResults(true);
-    }
-  }, [isPollClosed]);
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gradient-to-br dark:from-slate-900 dark:via-purple-900 dark:to-slate-900 py-12 px-4">

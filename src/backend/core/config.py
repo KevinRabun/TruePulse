@@ -82,7 +82,7 @@ class Settings(BaseSettings):
 
     # CORS
     CORS_ORIGINS: list[str] = ["http://localhost:3000"]
-    
+
     # Frontend-only API access
     # Secret shared between frontend and backend to prevent unauthorized API access
     FRONTEND_API_SECRET: str = ""  # Required - loaded from environment
@@ -97,6 +97,7 @@ class Settings(BaseSettings):
         """Parse CORS origins from string or list."""
         if isinstance(v, str):
             import json
+
             try:
                 return json.loads(v)
             except json.JSONDecodeError:
@@ -112,11 +113,15 @@ class Settings(BaseSettings):
 
     # Poll Configuration
     POLL_DURATION_HOURS: int = 1  # Duration of each poll in hours (default: 1 hour)
-    POLL_AUTO_GENERATE: bool = True  # Automatically generate polls at the start of each period
+    POLL_AUTO_GENERATE: bool = (
+        True  # Automatically generate polls at the start of each period
+    )
     POLL_TIMEZONE: str = "UTC"  # Timezone for poll scheduling
 
     # Platform Statistics Cache
-    STATS_CACHE_TTL_HOURS: int = 24  # How often to refresh platform stats (default: 24 hours)
+    STATS_CACHE_TTL_HOURS: int = (
+        24  # How often to refresh platform stats (default: 24 hours)
+    )
 
     # Feature Flags
     ENABLE_AI_POLL_GENERATION: bool = True

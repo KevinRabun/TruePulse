@@ -10,6 +10,7 @@ from pydantic import BaseModel
 
 class UserProgress(BaseModel):
     """User's gamification progress."""
+
     user_id: str
     total_points: int
     level: int
@@ -23,6 +24,7 @@ class UserProgress(BaseModel):
 
 class Achievement(BaseModel):
     """A gamification achievement/badge."""
+
     id: str
     name: str
     description: str
@@ -36,12 +38,16 @@ class Achievement(BaseModel):
 
 class AchievementEarnedDate(BaseModel):
     """Record of when a repeatable achievement was earned."""
+
     earned_at: datetime
-    period_key: Optional[str] = None  # e.g., "2025-01-15" for daily, "2025-01" for monthly
+    period_key: Optional[str] = (
+        None  # e.g., "2025-01-15" for daily, "2025-01" for monthly
+    )
 
 
 class AchievementWithHistory(BaseModel):
     """Achievement with full earn history for repeatable achievements."""
+
     id: str
     name: str
     description: str
@@ -60,6 +66,7 @@ class AchievementWithHistory(BaseModel):
 
 class LeaderboardEntry(BaseModel):
     """A single entry on the leaderboard."""
+
     rank: int
     username: str
     avatar_url: Optional[str]
@@ -70,6 +77,7 @@ class LeaderboardEntry(BaseModel):
 
 class LeaderboardResponse(BaseModel):
     """Paginated leaderboard response."""
+
     entries: list[LeaderboardEntry]
     period: str
     total_participants: int
@@ -80,6 +88,7 @@ class LeaderboardResponse(BaseModel):
 
 class PointsTransaction(BaseModel):
     """A record of points earned or spent."""
+
     id: str
     action: str
     points: int
@@ -89,12 +98,16 @@ class PointsTransaction(BaseModel):
 
 class ShareTrackRequest(BaseModel):
     """Request to track a share action."""
+
     poll_id: str
-    platform: str  # twitter, facebook, linkedin, reddit, whatsapp, telegram, copy, native
+    platform: (
+        str  # twitter, facebook, linkedin, reddit, whatsapp, telegram, copy, native
+    )
 
 
 class ShareTrackResponse(BaseModel):
     """Response from tracking a share action."""
+
     points_earned: int
     total_shares: int
     new_achievements: list[AchievementWithHistory]

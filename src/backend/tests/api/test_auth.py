@@ -2,8 +2,6 @@
 Tests for authentication API endpoints.
 """
 
-from typing import Any
-
 import pytest
 from httpx import AsyncClient
 
@@ -28,13 +26,14 @@ class TestAuthEndpoints:
     @pytest.mark.integration
     async def test_register_valid_user(self, client: AsyncClient) -> None:
         """Test registration with valid data.
-        
+
         Note: This test requires a running PostgreSQL database.
         Mark as integration test to skip in unit test runs.
         """
         import uuid
+
         unique_email = f"test-{uuid.uuid4().hex[:8]}@example.com"
-        
+
         response = await client.post(
             "/api/v1/auth/register",
             json={
@@ -59,7 +58,7 @@ class TestAuthEndpoints:
 
     async def test_logout_endpoint_exists(self, client: AsyncClient) -> None:
         """Test that logout endpoint exists and returns success.
-        
+
         Note: In stateless JWT, logout is primarily client-side.
         The server just acknowledges the request.
         """

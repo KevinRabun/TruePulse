@@ -26,7 +26,7 @@ const AD_ENGAGEMENT_KEY = 'truepulse_ad_engagement';
 
 export function AdProvider({ children }: { children: React.ReactNode }) {
   const { isAuthenticated } = useAuth();
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading] = useState(false);
   const [showPersonalizedAds, setShowPersonalizedAds] = useState(false);
   const [engagement, setEngagement] = useState<AdEngagement>({
     totalViews: 0,

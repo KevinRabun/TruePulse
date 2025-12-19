@@ -2,10 +2,6 @@
 Tests for gamification API endpoints.
 """
 
-from typing import Any
-from unittest.mock import AsyncMock, MagicMock, patch
-import uuid
-
 import pytest
 from httpx import AsyncClient
 
@@ -124,7 +120,7 @@ class TestLevelDefinitionsEndpoint:
             data = response.json()
             if len(data) > 1:
                 for i in range(1, len(data)):
-                    assert data[i]["points_required"] >= data[i-1]["points_required"]
+                    assert data[i]["points_required"] >= data[i - 1]["points_required"]
 
 
 @pytest.mark.unit
@@ -133,7 +129,6 @@ class TestAchievementDefinitions:
 
     def test_achievement_ids_are_unique(self) -> None:
         """Test that achievement IDs are unique."""
-        from api.v1.gamification import get_achievements
         # We can't call async directly, but we can verify the structure
         pass  # Would need async fixture
 

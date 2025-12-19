@@ -5,7 +5,9 @@ Run with: python -m scripts.add_poll_types_and_community
 """
 
 import asyncio
+
 from sqlalchemy import text
+
 from db.session import async_session_maker
 
 
@@ -14,29 +16,29 @@ async def add_poll_type_column():
     async with async_session_maker() as session:
         # Check if column already exists
         check_query = text("""
-            SELECT column_name 
-            FROM information_schema.columns 
-            WHERE table_name = 'polls' 
+            SELECT column_name
+            FROM information_schema.columns
+            WHERE table_name = 'polls'
             AND column_name = 'poll_type'
         """)
         result = await session.execute(check_query)
         if result.fetchone():
             print("poll_type column already exists in polls table")
             return
-        
+
         # Add the column
         alter_query = text("""
-            ALTER TABLE polls 
+            ALTER TABLE polls
             ADD COLUMN poll_type VARCHAR(20) DEFAULT 'standard'
         """)
         await session.execute(alter_query)
-        
+
         # Create index
         index_query = text("""
             CREATE INDEX IF NOT EXISTS ix_polls_poll_type ON polls (poll_type)
         """)
         await session.execute(index_query)
-        
+
         await session.commit()
         print("✓ Added poll_type column to polls table")
 
@@ -56,23 +58,23 @@ async def add_notification_preferences():
             ("longest_pulse_streak", "INTEGER DEFAULT 0"),
             ("last_pulse_vote_date", "TIMESTAMP WITH TIME ZONE"),
         ]
-        
+
         for col_name, col_type in columns_to_add:
             check_query = text(f"""
-                SELECT column_name 
-                FROM information_schema.columns 
-                WHERE table_name = 'users' 
+                SELECT column_name
+                FROM information_schema.columns
+                WHERE table_name = 'users'
                 AND column_name = '{col_name}'
             """)
             result = await session.execute(check_query)
             if result.fetchone():
                 print(f"  {col_name} already exists")
                 continue
-            
+
             alter_query = text(f"ALTER TABLE users ADD COLUMN {col_name} {col_type}")
             await session.execute(alter_query)
             print(f"  Added {col_name}")
-        
+
         await session.commit()
         print("✓ Added notification preference columns to users table")
 
@@ -82,15 +84,15 @@ async def create_community_achievement_tables():
     async with async_session_maker() as session:
         # Check if main table exists
         check_query = text("""
-            SELECT table_name 
-            FROM information_schema.tables 
+            SELECT table_name
+            FROM information_schema.tables
             WHERE table_name = 'community_achievements'
         """)
         result = await session.execute(check_query)
         if result.fetchone():
             print("Community achievement tables already exist")
             return
-        
+
         # Create community_achievements table
         create_community_achievements = text("""
             CREATE TABLE community_achievements (
@@ -114,7 +116,7 @@ async def create_community_achievement_tables():
         """)
         await session.execute(create_community_achievements)
         print("  Created community_achievements table")
-        
+
         # Create community_achievement_events table
         create_events = text("""
             CREATE TABLE community_achievement_events (
@@ -130,18 +132,22 @@ async def create_community_achievement_tables():
             )
         """)
         await session.execute(create_events)
-        
+
         # Create indexes
-        await session.execute(text("""
-            CREATE INDEX IF NOT EXISTS ix_community_events_achievement_id 
+        await session.execute(
+            text("""
+            CREATE INDEX IF NOT EXISTS ix_community_events_achievement_id
             ON community_achievement_events (achievement_id)
-        """))
-        await session.execute(text("""
-            CREATE INDEX IF NOT EXISTS ix_community_events_triggered_at 
+        """)
+        )
+        await session.execute(
+            text("""
+            CREATE INDEX IF NOT EXISTS ix_community_events_triggered_at
             ON community_achievement_events (triggered_at)
-        """))
+        """)
+        )
         print("  Created community_achievement_events table")
-        
+
         # Create community_achievement_participants table
         create_participants = text("""
             CREATE TABLE community_achievement_participants (
@@ -156,18 +162,22 @@ async def create_community_achievement_tables():
             )
         """)
         await session.execute(create_participants)
-        
+
         # Create indexes
-        await session.execute(text("""
-            CREATE INDEX IF NOT EXISTS ix_community_participants_event_id 
+        await session.execute(
+            text("""
+            CREATE INDEX IF NOT EXISTS ix_community_participants_event_id
             ON community_achievement_participants (event_id)
-        """))
-        await session.execute(text("""
-            CREATE INDEX IF NOT EXISTS ix_community_participants_user_id 
+        """)
+        )
+        await session.execute(
+            text("""
+            CREATE INDEX IF NOT EXISTS ix_community_participants_user_id
             ON community_achievement_participants (user_id)
-        """))
+        """)
+        )
         print("  Created community_achievement_participants table")
-        
+
         await session.commit()
         print("✓ Created all community achievement tables")
 
@@ -175,11 +185,11 @@ async def create_community_achievement_tables():
 async def run_migration():
     """Run all migrations."""
     print("Starting migration for poll types and community achievements...\n")
-    
+
     await add_poll_type_column()
     await add_notification_preferences()
     await create_community_achievement_tables()
-    
+
     print("\n✓ All migrations completed successfully!")
 
 

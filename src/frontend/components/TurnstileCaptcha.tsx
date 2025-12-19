@@ -199,22 +199,6 @@ export function TurnstileCaptcha({
     }
   }, []);
 
-  // Get current token
-  const getToken = useCallback(() => {
-    if (widgetIdRef.current && window.turnstile) {
-      return window.turnstile.getResponse(widgetIdRef.current);
-    }
-    return undefined;
-  }, []);
-
-  // Check if expired
-  const isExpired = useCallback(() => {
-    if (widgetIdRef.current && window.turnstile) {
-      return window.turnstile.isExpired(widgetIdRef.current);
-    }
-    return false;
-  }, []);
-
   if (!siteKey) {
     return (
       <div className="text-sm text-amber-600 p-2 bg-amber-50 rounded">

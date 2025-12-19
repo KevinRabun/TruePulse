@@ -2,10 +2,6 @@
 Tests for user API endpoints.
 """
 
-from typing import Any
-from unittest.mock import AsyncMock, MagicMock, patch
-import uuid
-
 import pytest
 from httpx import AsyncClient
 

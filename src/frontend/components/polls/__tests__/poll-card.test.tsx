@@ -15,7 +15,7 @@ jest.mock('@/lib/auth', () => ({
 // Mock framer-motion
 jest.mock('framer-motion', () => ({
   motion: {
-    div: ({ children, ...props }: any) => <div {...props}>{children}</div>,
+    div: ({ children, ...props }: { children?: React.ReactNode; [key: string]: unknown }) => <div {...props}>{children}</div>,
   },
 }));
 
@@ -76,7 +76,8 @@ describe('PollCard', () => {
 describe('PollCard - Unauthenticated', () => {
   beforeEach(() => {
     // Mock unauthenticated state
-    jest.spyOn(require('@/lib/auth'), 'useAuth').mockReturnValue({
+    const authModule = jest.requireActual('@/lib/auth');
+    jest.spyOn(authModule, 'useAuth').mockReturnValue({
       isAuthenticated: false,
       user: null,
     });

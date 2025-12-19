@@ -3,10 +3,10 @@ User repository for database operations.
 """
 
 from datetime import datetime, timezone
-from typing import Optional, Any
+from typing import Any, Optional
 from uuid import uuid4
 
-from sqlalchemy import select, update, func, CursorResult
+from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from models.user import User
@@ -14,35 +14,29 @@ from models.user import User
 
 class UserRepository:
     """Repository for user database operations."""
-    
+
     def __init__(self, db: AsyncSession):
         self.db = db
-    
+
     def _get_rowcount(self, result: Any) -> int:
         """Safely get rowcount from result."""
-        return getattr(result, 'rowcount', 0) or 0
-    
+        return getattr(result, "rowcount", 0) or 0
+
     async def get_by_id(self, user_id: str) -> Optional[User]:
         """Get a user by ID."""
-        result = await self.db.execute(
-            select(User).where(User.id == user_id)
-        )
+        result = await self.db.execute(select(User).where(User.id == user_id))
         return result.scalar_one_or_none()
-    
+
     async def get_by_email(self, email: str) -> Optional[User]:
         """Get a user by email."""
-        result = await self.db.execute(
-            select(User).where(User.email == email.lower())
-        )
+        result = await self.db.execute(select(User).where(User.email == email.lower()))
         return result.scalar_one_or_none()
-    
+
     async def get_by_username(self, username: str) -> Optional[User]:
         """Get a user by username."""
-        result = await self.db.execute(
-            select(User).where(User.username == username)
-        )
+        result = await self.db.execute(select(User).where(User.username == username))
         return result.scalar_one_or_none()
-    
+
     async def email_exists(self, email: str) -> bool:
         """Check if email is already registered."""
         result = await self.db.execute(
@@ -50,7 +44,7 @@ class UserRepository:
         )
         count = result.scalar() or 0
         return count > 0
-    
+
     async def username_exists(self, username: str) -> bool:
         """Check if username is already taken."""
         result = await self.db.execute(
@@ -58,7 +52,7 @@ class UserRepository:
         )
         count = result.scalar() or 0
         return count > 0
-    
+
     async def create(
         self,
         email: str,
@@ -77,13 +71,13 @@ class UserRepository:
             total_points=welcome_points,
             level=1,
         )
-        
+
         self.db.add(user)
         await self.db.flush()
         await self.db.refresh(user)
-        
+
         return user
-    
+
     async def update_last_login(self, user_id: str) -> bool:
         """Update user's last login timestamp."""
         result = await self.db.execute(
@@ -92,7 +86,7 @@ class UserRepository:
             .values(last_login_at=datetime.now(timezone.utc))
         )
         return self._get_rowcount(result) > 0
-    
+
     async def award_points(
         self,
         user_id: str,
@@ -103,23 +97,23 @@ class UserRepository:
         user = await self.get_by_id(user_id)
         if not user:
             return None
-        
+
         new_points = user.total_points + points
         new_level = user.level
-        
+
         if update_level:
             # Level calculation: level up every 500 points
             new_level = max(1, (new_points // 500) + 1)
-        
+
         await self.db.execute(
             update(User)
             .where(User.id == user_id)
             .values(total_points=new_points, level=new_level)
         )
-        
+
         await self.db.refresh(user)
         return user
-    
+
     async def increment_votes_cast(self, user_id: str) -> bool:
         """Increment the user's vote count."""
         result = await self.db.execute(
@@ -131,15 +125,15 @@ class UserRepository:
             )
         )
         return self._get_rowcount(result) > 0
-    
+
     async def update_streak(self, user_id: str, new_streak: int) -> bool:
         """Update user's voting streak."""
         user = await self.get_by_id(user_id)
         if not user:
             return False
-        
+
         longest_streak = max(user.longest_streak, new_streak)
-        
+
         result = await self.db.execute(
             update(User)
             .where(User.id == user_id)
@@ -149,7 +143,7 @@ class UserRepository:
             )
         )
         return self._get_rowcount(result) > 0
-    
+
     async def update_profile(
         self,
         user_id: str,
@@ -165,18 +159,14 @@ class UserRepository:
             updates["avatar_url"] = avatar_url
         if bio is not None:
             updates["bio"] = bio
-        
+
         if not updates:
             return await self.get_by_id(user_id)
-        
-        await self.db.execute(
-            update(User)
-            .where(User.id == user_id)
-            .values(**updates)
-        )
-        
+
+        await self.db.execute(update(User).where(User.id == user_id).values(**updates))
+
         return await self.get_by_id(user_id)
-    
+
     async def update_demographics(
         self,
         user_id: str,
@@ -213,27 +203,21 @@ class UserRepository:
             updates["industry"] = industry
         if political_leaning is not None:
             updates["political_leaning"] = political_leaning
-        
+
         if not updates:
             return await self.get_by_id(user_id)
-        
-        await self.db.execute(
-            update(User)
-            .where(User.id == user_id)
-            .values(**updates)
-        )
-        
+
+        await self.db.execute(update(User).where(User.id == user_id).values(**updates))
+
         return await self.get_by_id(user_id)
-    
+
     async def verify_user(self, user_id: str) -> bool:
         """Mark user as verified."""
         result = await self.db.execute(
-            update(User)
-            .where(User.id == user_id)
-            .values(is_verified=True)
+            update(User).where(User.id == user_id).values(is_verified=True)
         )
         return self._get_rowcount(result) > 0
-    
+
     async def update_password(self, user_id: str, hashed_password: str) -> bool:
         """Update user's password."""
         result = await self.db.execute(
@@ -242,16 +226,14 @@ class UserRepository:
             .values(hashed_password=hashed_password)
         )
         return self._get_rowcount(result) > 0
-    
+
     async def deactivate_user(self, user_id: str) -> bool:
         """Deactivate a user account."""
         result = await self.db.execute(
-            update(User)
-            .where(User.id == user_id)
-            .values(is_active=False)
+            update(User).where(User.id == user_id).values(is_active=False)
         )
         return self._get_rowcount(result) > 0
-    
+
     async def get_leaderboard(
         self,
         limit: int = 100,
@@ -266,13 +248,13 @@ class UserRepository:
             .limit(limit)
         )
         return list(result.scalars().all())
-    
+
     async def get_user_rank(self, user_id: str) -> Optional[int]:
         """Get a user's rank on the leaderboard."""
         user = await self.get_by_id(user_id)
         if not user:
             return None
-        
+
         result = await self.db.execute(
             select(func.count(User.id)).where(
                 User.total_points > user.total_points,
@@ -281,7 +263,7 @@ class UserRepository:
         )
         higher_count = result.scalar() or 0
         return higher_count + 1
-    
+
     async def update_settings(
         self,
         user_id: str,
@@ -315,18 +297,14 @@ class UserRepository:
             updates["flash_poll_notifications"] = flash_poll_notifications
         if flash_polls_per_day is not None:
             updates["flash_polls_per_day"] = flash_polls_per_day
-        
+
         if not updates:
             return await self.get_by_id(user_id)
-        
-        await self.db.execute(
-            update(User)
-            .where(User.id == user_id)
-            .values(**updates)
-        )
-        
+
+        await self.db.execute(update(User).where(User.id == user_id).values(**updates))
+
         return await self.get_by_id(user_id)
-    
+
     async def set_phone_verification(
         self,
         user_id: str,
@@ -345,32 +323,28 @@ class UserRepository:
             )
         )
         return self._get_rowcount(result) > 0
-    
+
     async def verify_phone(self, user_id: str) -> bool:
         """Mark phone as verified and set is_verified if email also verified."""
         # First check if email is already verified
-        user_result = await self.db.execute(
-            select(User).where(User.id == user_id)
-        )
+        user_result = await self.db.execute(select(User).where(User.id == user_id))
         user = user_result.scalar_one_or_none()
-        
+
         # Set phone_verified and potentially is_verified
         update_values = {
             "phone_verified": True,
             "phone_verification_code": None,
         }
-        
+
         # If email is already verified, set is_verified=True
         if user and user.email_verified:
             update_values["is_verified"] = True
-        
+
         result = await self.db.execute(
-            update(User)
-            .where(User.id == user_id)
-            .values(**update_values)
+            update(User).where(User.id == user_id).values(**update_values)
         )
         return self._get_rowcount(result) > 0
-    
+
     async def remove_phone(self, user_id: str) -> bool:
         """Remove phone number and disable SMS notifications."""
         result = await self.db.execute(
@@ -385,7 +359,7 @@ class UserRepository:
             )
         )
         return self._get_rowcount(result) > 0
-    
+
     async def update_sms_preferences(
         self,
         user_id: str,
@@ -398,17 +372,15 @@ class UserRepository:
             updates["sms_notifications"] = sms_notifications
         if daily_poll_sms is not None:
             updates["daily_poll_sms"] = daily_poll_sms
-        
+
         if not updates:
             return True
-        
+
         result = await self.db.execute(
-            update(User)
-            .where(User.id == user_id)
-            .values(**updates)
+            update(User).where(User.id == user_id).values(**updates)
         )
         return self._get_rowcount(result) > 0
-    
+
     async def delete_user(self, user_id: str) -> bool:
         """Soft delete a user by deactivating and clearing personal data."""
         result = await self.db.execute(

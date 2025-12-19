@@ -14,19 +14,18 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.deps import get_current_verified_user
-from core.config import settings
 from db.session import get_db
-from models.poll import Poll as PollModel, PollChoice as PollChoiceModel, PollStatus
+from models.poll import Poll as PollModel
 from repositories.poll_repository import PollRepository
 from schemas.poll import (
     Poll,
-    PollCreate,
-    PollListResponse,
-    PollWithResults,
     PollChoice,
     PollChoiceWithResults,
+    PollCreate,
+    PollListResponse,
     PollStatusEnum,
     PollTypeEnum,
+    PollWithResults,
 )
 from schemas.user import UserInDB
 
@@ -55,7 +54,9 @@ def poll_model_to_schema(poll: PollModel) -> Poll:
         total_votes=poll.total_votes,
         is_featured=poll.is_featured,
         ai_generated=poll.ai_generated,
-        poll_type=PollTypeEnum(poll.poll_type) if poll.poll_type else PollTypeEnum.STANDARD,
+        poll_type=PollTypeEnum(poll.poll_type)
+        if poll.poll_type
+        else PollTypeEnum.STANDARD,
         time_remaining_seconds=poll.time_remaining_seconds,
     )
 
@@ -63,7 +64,7 @@ def poll_model_to_schema(poll: PollModel) -> Poll:
 def poll_model_to_results_schema(poll: PollModel) -> PollWithResults:
     """Convert database model to results schema with vote counts."""
     total = poll.total_votes or 0
-    
+
     return PollWithResults(
         id=str(poll.id),
         question=poll.question,
@@ -90,7 +91,9 @@ def poll_model_to_results_schema(poll: PollModel) -> PollWithResults:
         total_votes=total,
         is_featured=poll.is_featured,
         ai_generated=poll.ai_generated,
-        poll_type=PollTypeEnum(poll.poll_type) if poll.poll_type else PollTypeEnum.STANDARD,
+        poll_type=PollTypeEnum(poll.poll_type)
+        if poll.poll_type
+        else PollTypeEnum.STANDARD,
         time_remaining_seconds=poll.time_remaining_seconds,
         demographic_breakdown=poll.demographic_results,
         confidence_interval=poll.confidence_interval,
@@ -101,29 +104,30 @@ def poll_model_to_results_schema(poll: PollModel) -> PollWithResults:
 # Current/Previous Poll Endpoints (Main Page)
 # ============================================================================
 
+
 @router.get("/current", response_model=Optional[Poll])
 async def get_current_poll(
     db: AsyncSession = Depends(get_db),
 ) -> Optional[Poll]:
     """
     Get the currently active poll.
-    
+
     This is the main poll displayed on the homepage that users can vote on.
     Polls rotate at the top of each hour (configurable via POLL_DURATION_HOURS).
-    
+
     Returns:
         The current active poll, or None if no poll is active
     """
     repo = PollRepository(db)
-    
+
     # Update poll statuses (close expired, activate scheduled)
     await repo.close_expired_polls()
     await repo.activate_scheduled_polls()
-    
+
     poll = await repo.get_current_poll()
     if not poll:
         return None
-    
+
     return poll_model_to_schema(poll)
 
 
@@ -133,18 +137,18 @@ async def get_previous_poll(
 ) -> Optional[PollWithResults]:
     """
     Get the most recently closed poll with its results.
-    
+
     This is displayed on the main page to show what users voted on previously.
-    
+
     Returns:
         The previous poll with aggregated results, or None
     """
     repo = PollRepository(db)
     poll = await repo.get_previous_poll()
-    
+
     if not poll:
         return None
-    
+
     return poll_model_to_results_schema(poll)
 
 
@@ -155,12 +159,12 @@ async def get_upcoming_polls(
 ) -> list[Poll]:
     """
     Get polls scheduled for future time windows.
-    
+
     Shows users what polls are coming up next.
     """
     repo = PollRepository(db)
     polls = await repo.get_upcoming_polls(limit=limit)
-    
+
     return [poll_model_to_schema(p) for p in polls]
 
 
@@ -168,29 +172,30 @@ async def get_upcoming_polls(
 # Pulse Poll Endpoints (Daily 12-hour polls, 8am-8pm ET)
 # ============================================================================
 
+
 @router.get("/pulse/current", response_model=Optional[Poll])
 async def get_current_pulse_poll(
     db: AsyncSession = Depends(get_db),
 ) -> Optional[Poll]:
     """
     Get the current daily Pulse Poll if active.
-    
+
     Pulse Polls run daily from 8am-8pm ET (12 hours).
     They are featured, high-visibility polls on important topics.
-    
+
     Returns:
         The current Pulse Poll, or None if outside the 8am-8pm ET window
     """
     repo = PollRepository(db)
-    
+
     # Update poll statuses
     await repo.close_expired_polls()
     await repo.activate_scheduled_polls()
-    
+
     poll = await repo.get_current_poll_by_type("pulse")
     if not poll:
         return None
-    
+
     return poll_model_to_schema(poll)
 
 
@@ -203,10 +208,10 @@ async def get_previous_pulse_poll(
     """
     repo = PollRepository(db)
     poll = await repo.get_previous_poll_by_type("pulse")
-    
+
     if not poll:
         return None
-    
+
     return poll_model_to_results_schema(poll)
 
 
@@ -226,9 +231,9 @@ async def get_pulse_poll_history(
         per_page=per_page,
         active_only=False,
     )
-    
+
     total_pages = (total + per_page - 1) // per_page if total > 0 else 0
-    
+
     return PollListResponse(
         polls=[poll_model_to_schema(p) for p in polls],
         total=total,
@@ -242,29 +247,30 @@ async def get_pulse_poll_history(
 # Flash Poll Endpoints (Quick 1-hour polls every 2-3 hours)
 # ============================================================================
 
+
 @router.get("/flash/current", response_model=Optional[Poll])
 async def get_current_flash_poll(
     db: AsyncSession = Depends(get_db),
 ) -> Optional[Poll]:
     """
     Get the current Flash Poll if active.
-    
+
     Flash Polls are quick 1-hour polls that run every 2-3 hours, 24/7.
     They cover breaking news and rapid-response topics.
-    
+
     Returns:
         The current Flash Poll, or None if between flash polls
     """
     repo = PollRepository(db)
-    
+
     # Update poll statuses
     await repo.close_expired_polls()
     await repo.activate_scheduled_polls()
-    
+
     poll = await repo.get_current_poll_by_type("flash")
     if not poll:
         return None
-    
+
     return poll_model_to_schema(poll)
 
 
@@ -277,10 +283,10 @@ async def get_previous_flash_poll(
     """
     repo = PollRepository(db)
     poll = await repo.get_previous_poll_by_type("flash")
-    
+
     if not poll:
         return None
-    
+
     return poll_model_to_results_schema(poll)
 
 
@@ -294,7 +300,7 @@ async def get_upcoming_flash_polls(
     """
     repo = PollRepository(db)
     polls = await repo.get_upcoming_polls_by_type("flash", limit=limit)
-    
+
     return [poll_model_to_schema(p) for p in polls]
 
 
@@ -314,9 +320,9 @@ async def get_flash_poll_history(
         per_page=per_page,
         active_only=False,
     )
-    
+
     total_pages = (total + per_page - 1) // per_page if total > 0 else 0
-    
+
     return PollListResponse(
         polls=[poll_model_to_schema(p) for p in polls],
         total=total,
@@ -330,6 +336,7 @@ async def get_flash_poll_history(
 # General Poll Endpoints
 # ============================================================================
 
+
 @router.get("", response_model=PollListResponse)
 async def list_polls(
     page: int = Query(1, ge=1),
@@ -340,7 +347,7 @@ async def list_polls(
 ) -> PollListResponse:
     """
     List available polls.
-    
+
     Public endpoint - no authentication required.
     Returns paginated list of polls with basic information.
     """
@@ -351,9 +358,9 @@ async def list_polls(
         active_only=active_only,
         category=category,
     )
-    
+
     total_pages = (total + per_page - 1) // per_page if total > 0 else 0
-    
+
     return PollListResponse(
         polls=[poll_model_to_schema(p) for p in polls],
         total=total,
@@ -369,24 +376,25 @@ async def get_daily_polls(
 ) -> list[Poll]:
     """
     Get today's featured polls.
-    
+
     Returns the curated set of daily polls generated from current events.
     """
     repo = PollRepository(db)
-    
+
     # Get polls scheduled/active for today
     now = datetime.now(timezone.utc)
     today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
     today_end = today_start + timedelta(days=1)
-    
+
     polls, _ = await repo.list_polls(page=1, per_page=24, active_only=False)
-    
+
     # Filter to today's polls
     daily = [
-        p for p in polls
+        p
+        for p in polls
         if p.scheduled_start and today_start <= p.scheduled_start < today_end
     ]
-    
+
     return [poll_model_to_schema(p) for p in daily]
 
 
@@ -397,18 +405,18 @@ async def get_poll(
 ) -> Poll:
     """
     Get a specific poll by ID.
-    
+
     Public endpoint - returns poll details without revealing individual votes.
     """
     repo = PollRepository(db)
     poll = await repo.get_by_id(poll_id)
-    
+
     if not poll:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Poll not found",
         )
-    
+
     return poll_model_to_schema(poll)
 
 
@@ -419,19 +427,19 @@ async def get_poll_results(
 ) -> PollWithResults:
     """
     Get aggregated results for a poll.
-    
+
     Public endpoint - returns percentage breakdown and total votes.
     Individual votes are never exposed.
     """
     repo = PollRepository(db)
     poll = await repo.get_by_id(poll_id)
-    
+
     if not poll:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Poll not found",
         )
-    
+
     return poll_model_to_results_schema(poll)
 
 
@@ -442,28 +450,28 @@ async def get_poll_demographics(
 ) -> dict:
     """
     Get demographic breakdown of votes for a poll.
-    
+
     Returns aggregated vote counts by demographic categories.
     Privacy-preserving: only returns counts, never individual votes.
     """
     from repositories.vote_repository import VoteRepository
-    
+
     poll_repo = PollRepository(db)
     vote_repo = VoteRepository(db)
-    
+
     poll = await poll_repo.get_by_id(poll_id)
     if not poll:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Poll not found",
         )
-    
+
     # Get raw demographic breakdown from votes
     raw_breakdown = await vote_repo.get_demographic_breakdown(poll_id)
-    
+
     # Create choice lookup
     choice_lookup = {str(c.id): c.text for c in poll.choices}
-    
+
     # Parse and aggregate by category
     demographics = {
         "age_range": {},
@@ -475,11 +483,11 @@ async def get_poll_demographics(
         "employment_status": {},
         "political_leaning": {},
     }
-    
+
     for bucket, choice_counts in raw_breakdown.items():
         if not bucket or bucket == "unknown":
             continue
-            
+
         # Parse bucket: "age_25-34|gender_male|country_US|state_California|city_Los Angeles"
         parts = bucket.split("|")
         for part in parts:
@@ -487,7 +495,7 @@ async def get_poll_demographics(
                 continue
             # Split only on first underscore to handle values like "25-34" or "New York"
             prefix, value = part.split("_", 1)
-            
+
             category_map = {
                 "age": "age_range",
                 "gender": "gender",
@@ -498,29 +506,29 @@ async def get_poll_demographics(
                 "employment": "employment_status",
                 "political": "political_leaning",
             }
-            
+
             category = category_map.get(prefix)
             if not category:
                 continue
-            
+
             if value not in demographics[category]:
                 demographics[category][value] = {
                     "total": 0,
-                    "choices": {text: 0 for text in choice_lookup.values()}
+                    "choices": {text: 0 for text in choice_lookup.values()},
                 }
-            
+
             for choice_id, count in choice_counts.items():
                 choice_text = choice_lookup.get(choice_id, "Unknown")
                 demographics[category][value]["total"] += count
                 demographics[category][value]["choices"][choice_text] += count
-    
+
     # Transform to frontend-friendly format
     result = {
         "poll_id": poll_id,
         "total_votes": poll.total_votes or 0,
-        "breakdowns": []
+        "breakdowns": [],
     }
-    
+
     category_labels = {
         "age_range": "Age Range",
         "gender": "Gender",
@@ -531,17 +539,17 @@ async def get_poll_demographics(
         "employment_status": "Employment",
         "political_leaning": "Political Leaning",
     }
-    
+
     for category, segments in demographics.items():
         if not segments:
             continue
-            
+
         breakdown = {
             "category": category,
             "label": category_labels.get(category, category),
-            "segments": []
+            "segments": [],
         }
-        
+
         for segment_name, data in segments.items():
             segment = {
                 "name": segment_name,
@@ -550,17 +558,19 @@ async def get_poll_demographics(
                     {
                         "choice_text": choice_text,
                         "count": count,
-                        "percentage": round(count / data["total"] * 100, 1) if data["total"] > 0 else 0
+                        "percentage": round(count / data["total"] * 100, 1)
+                        if data["total"] > 0
+                        else 0,
                     }
                     for choice_text, count in data["choices"].items()
                     if count > 0
-                ]
+                ],
             }
             breakdown["segments"].append(segment)
-        
+
         if breakdown["segments"]:
             result["breakdowns"].append(breakdown)
-    
+
     return result
 
 
@@ -572,7 +582,7 @@ async def create_poll(
 ) -> Poll:
     """
     Create a new poll (admin only).
-    
+
     Note: Most polls are auto-generated by AI from current events.
     This endpoint is for manual poll creation by administrators.
     """
@@ -582,14 +592,14 @@ async def create_poll(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Admin access required",
         )
-    
+
     repo = PollRepository(db)
-    
+
     # Calculate scheduling
     now = datetime.now(timezone.utc)
     scheduled_start = poll_data.scheduled_start or now
     scheduled_end = scheduled_start + timedelta(hours=poll_data.duration_hours)
-    
+
     poll = await repo.create(
         question=poll_data.question,
         choices=[c.text for c in poll_data.choices],
@@ -600,7 +610,7 @@ async def create_poll(
         is_featured=poll_data.is_featured,
         ai_generated=False,
     )
-    
+
     return poll_model_to_schema(poll)
 
 

@@ -15,7 +15,6 @@ import {
   ArrowLeftIcon,
   XMarkIcon,
   FireIcon,
-  ChartBarIcon,
   UserCircleIcon,
   StarIcon,
   ShareIcon,

@@ -5,10 +5,11 @@ Run with: python -m scripts.seed_community_achievements
 """
 
 import asyncio
-from db.session import async_session_maker
-from models.achievement import CommunityAchievement
+
 from sqlalchemy import select
 
+from db.session import async_session_maker
+from models.achievement import CommunityAchievement
 
 COMMUNITY_ACHIEVEMENTS = [
     # === DAILY VOTE MILESTONES ===
@@ -84,7 +85,6 @@ COMMUNITY_ACHIEVEMENTS = [
         "sort_order": 4,
         "is_active": True,
     },
-    
     # === SINGLE POLL MILESTONES ===
     {
         "id": "community_poll_500",
@@ -140,7 +140,6 @@ COMMUNITY_ACHIEVEMENTS = [
         "sort_order": 12,
         "is_active": True,
     },
-    
     # === FLASH POLL COMMUNITY ACHIEVEMENTS ===
     {
         "id": "community_flash_100",
@@ -196,7 +195,6 @@ COMMUNITY_ACHIEVEMENTS = [
         "sort_order": 22,
         "is_active": True,
     },
-    
     # === PULSE POLL COMMUNITY ACHIEVEMENTS ===
     {
         "id": "community_pulse_1k",
@@ -252,7 +250,6 @@ COMMUNITY_ACHIEVEMENTS = [
         "sort_order": 32,
         "is_active": True,
     },
-    
     # === PLATFORM MILESTONES (One-time) ===
     {
         "id": "community_platform_100k",
@@ -290,7 +287,6 @@ COMMUNITY_ACHIEVEMENTS = [
         "sort_order": 41,
         "is_active": True,
     },
-    
     # === SPECIAL EVENTS ===
     {
         "id": "community_election_day",
@@ -337,10 +333,12 @@ async def seed_community_achievements():
         for achievement_data in COMMUNITY_ACHIEVEMENTS:
             # Check if achievement already exists
             result = await session.execute(
-                select(CommunityAchievement).where(CommunityAchievement.id == achievement_data["id"])
+                select(CommunityAchievement).where(
+                    CommunityAchievement.id == achievement_data["id"]
+                )
             )
             existing = result.scalar_one_or_none()
-            
+
             if existing:
                 # Update existing achievement
                 for key, value in achievement_data.items():
@@ -351,9 +349,11 @@ async def seed_community_achievements():
                 achievement = CommunityAchievement(**achievement_data)
                 session.add(achievement)
                 print(f"Created community achievement: {achievement_data['id']}")
-        
+
         await session.commit()
-        print(f"\nSeeded {len(COMMUNITY_ACHIEVEMENTS)} community achievements successfully!")
+        print(
+            f"\nSeeded {len(COMMUNITY_ACHIEVEMENTS)} community achievements successfully!"
+        )
 
 
 if __name__ == "__main__":

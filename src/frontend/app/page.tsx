@@ -1,4 +1,3 @@
-import { PollCard } from '@/components/polls/poll-card';
 import { HeroSection } from '@/components/home/hero-section';
 import { StatsSection } from '@/components/home/stats-section';
 import { HowItWorks } from '@/components/home/how-it-works';

@@ -28,7 +28,7 @@ async_session_maker = async_sessionmaker(
 async def get_db() -> AsyncGenerator[AsyncSession, None]:
     """
     Dependency to get database session.
-    
+
     Usage:
         @router.get("/")
         async def endpoint(db: AsyncSession = Depends(get_db)):
@@ -48,12 +48,7 @@ async def get_db() -> AsyncGenerator[AsyncSession, None]:
 async def init_db() -> None:
     """Initialize database tables."""
     from db.base import Base
-    from models import (
-        User, Poll, PollChoice, Achievement, UserAchievement, 
-        Vote, UserVoteHistory, Country, StateProvince, City,
-        CommunityAchievement, CommunityAchievementEvent, CommunityAchievementParticipant
-    )
-    
+
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
 

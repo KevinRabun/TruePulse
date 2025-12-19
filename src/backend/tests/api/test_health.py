@@ -22,7 +22,10 @@ class TestHealthEndpoints:
         response = await client.get("/")
         assert response.status_code == 200
         data = response.json()
-        assert "TruePulse" in data.get("name", "") or "truepulse" in data.get("message", "").lower()
+        assert (
+            "TruePulse" in data.get("name", "")
+            or "truepulse" in data.get("message", "").lower()
+        )
 
 
 @pytest.mark.unit
@@ -32,6 +35,7 @@ class TestAPIDocumentation:
     async def test_openapi_schema_available(self, client: AsyncClient) -> None:
         """Test OpenAPI schema is accessible (only in debug mode)."""
         from core.config import settings
+
         response = await client.get("/openapi.json")
         if settings.DEBUG:
             assert response.status_code == 200
@@ -45,6 +49,7 @@ class TestAPIDocumentation:
     async def test_docs_available(self, client: AsyncClient) -> None:
         """Test Swagger UI docs are accessible (only in debug mode)."""
         from core.config import settings
+
         response = await client.get("/docs")
         if settings.DEBUG:
             assert response.status_code == 200

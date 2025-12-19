@@ -6,23 +6,22 @@ with configurable caching to minimize database load.
 """
 
 from datetime import datetime
-from typing import Optional
 
 from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from db.session import get_db
-from services.stats_service import StatsService, format_stat_value
-from services.redis_service import get_redis_service, RedisService
 from core.config import settings
-
+from db.session import get_db
+from services.redis_service import RedisService, get_redis_service
+from services.stats_service import StatsService, format_stat_value
 
 router = APIRouter()
 
 
 class FormattedStats(BaseModel):
     """Formatted statistics for display."""
+
     polls_created: str
     polls_created_raw: int
     votes_cast: str
@@ -33,7 +32,7 @@ class FormattedStats(BaseModel):
     total_users_raw: int
     countries_represented: str
     countries_represented_raw: int
-    
+
     class Config:
         json_schema_extra = {
             "example": {
@@ -53,11 +52,12 @@ class FormattedStats(BaseModel):
 
 class PlatformStatsResponse(BaseModel):
     """Full platform statistics response."""
+
     stats: FormattedStats
     computed_at: datetime
     cache_ttl_hours: int
     next_refresh_at: datetime
-    
+
     class Config:
         json_schema_extra = {
             "example": {
@@ -81,7 +81,7 @@ class PlatformStatsResponse(BaseModel):
 
 
 # Default cache TTL in hours (configurable via environment)
-DEFAULT_CACHE_TTL_HOURS = getattr(settings, 'STATS_CACHE_TTL_HOURS', 24)
+DEFAULT_CACHE_TTL_HOURS = getattr(settings, "STATS_CACHE_TTL_HOURS", 24)
 
 
 @router.get(
@@ -92,9 +92,9 @@ DEFAULT_CACHE_TTL_HOURS = getattr(settings, 'STATS_CACHE_TTL_HOURS', 24)
     Returns platform-wide statistics including polls created, votes cast,
     and active users. Statistics are cached and refreshed periodically
     (default: every 24 hours) to minimize database load.
-    
+
     **No authentication required** - these are public statistics.
-    
+
     ### Response includes:
     - **stats**: Formatted values for display (e.g., "2.4M") and raw numbers
     - **computed_at**: When the statistics were last computed
@@ -112,7 +112,7 @@ async def get_platform_stats(
 ) -> PlatformStatsResponse:
     """
     Get platform statistics.
-    
+
     Returns cached statistics to minimize database load.
     Stats are automatically refreshed based on cache_ttl_hours setting.
     """
@@ -123,14 +123,15 @@ async def get_platform_stats(
         redis_client=redis if redis.is_available else None,
         cache_ttl_hours=DEFAULT_CACHE_TTL_HOURS,
     )
-    
+
     # Get stats (cached or fresh)
     stats = await stats_service.get_stats(force_refresh=refresh)
-    
+
     # Calculate next refresh time
     from datetime import timedelta
+
     next_refresh = stats.computed_at + timedelta(hours=stats.cache_ttl_hours)
-    
+
     # Format for display
     formatted = FormattedStats(
         polls_created=format_stat_value(stats.polls_created),
@@ -144,7 +145,7 @@ async def get_platform_stats(
         countries_represented=str(stats.countries_represented),
         countries_represented_raw=stats.countries_represented,
     )
-    
+
     return PlatformStatsResponse(
         stats=formatted,
         computed_at=stats.computed_at,

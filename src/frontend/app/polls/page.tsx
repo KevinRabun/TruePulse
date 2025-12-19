@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { PollCard } from '@/components/polls/poll-card';
 import { api, type Poll, type PollType } from '@/lib/api';
-import { NativeAd, ResponsiveAdBanner } from '@/components/ads';
+import { NativeAd } from '@/components/ads';
 import {
   FunnelIcon,
   MagnifyingGlassIcon,

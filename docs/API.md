@@ -38,10 +38,10 @@ Content-Type: application/json
 **Response:**
 ```json
 {
-  "access_token": "eyJhbGciOiJIUzI1NiIs...",
+  "access_token": "<jwt-token>",
   "token_type": "bearer",
   "expires_in": 3600,
-  "refresh_token": "dGhpcyBpcyBhIHJlZnJlc2..."
+  "refresh_token": "<refresh-token>"
 }
 ```
 
@@ -50,7 +50,7 @@ Content-Type: application/json
 Include the token in the Authorization header:
 ```http
 GET /polls/today
-Authorization: Bearer eyJhbGciOiJIUzI1NiIs...
+Authorization: Bearer <jwt-token>
 ```
 
 ---

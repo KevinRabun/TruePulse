@@ -5,10 +5,11 @@ Run with: python -m scripts.seed_achievements
 """
 
 import asyncio
-from db.session import async_session_maker
-from models.achievement import Achievement
+
 from sqlalchemy import select
 
+from db.session import async_session_maker
+from models.achievement import Achievement
 
 ACHIEVEMENTS = [
     # === VOTING ACHIEVEMENTS ===
@@ -77,7 +78,6 @@ ACHIEVEMENTS = [
         "category": "voting",
         "sort_order": 5,
     },
-    
     # === STREAK ACHIEVEMENTS ===
     {
         "id": "streak_3",
@@ -157,7 +157,6 @@ ACHIEVEMENTS = [
         "category": "streak",
         "sort_order": 15,
     },
-    
     # === PROFILE ACHIEVEMENTS ===
     {
         "id": "profile_complete",
@@ -172,7 +171,6 @@ ACHIEVEMENTS = [
         "category": "profile",
         "sort_order": 20,
     },
-    
     # === VERIFICATION ACHIEVEMENTS ===
     {
         "id": "email_verified",
@@ -213,7 +211,6 @@ ACHIEVEMENTS = [
         "category": "verification",
         "sort_order": 23,
     },
-    
     # === DAILY LEADERBOARD ACHIEVEMENTS (Repeatable) ===
     {
         "id": "daily_rank_1",
@@ -254,7 +251,6 @@ ACHIEVEMENTS = [
         "category": "leaderboard",
         "sort_order": 32,
     },
-    
     # === MONTHLY LEADERBOARD ACHIEVEMENTS (Repeatable) ===
     {
         "id": "monthly_rank_1",
@@ -295,7 +291,6 @@ ACHIEVEMENTS = [
         "category": "leaderboard",
         "sort_order": 42,
     },
-    
     # === YEARLY LEADERBOARD ACHIEVEMENTS (Repeatable) ===
     {
         "id": "yearly_rank_1",
@@ -336,7 +331,6 @@ ACHIEVEMENTS = [
         "category": "leaderboard",
         "sort_order": 52,
     },
-    
     # === DEMOGRAPHIC POINT ACHIEVEMENTS ===
     {
         "id": "demo_age",
@@ -521,7 +515,6 @@ ACHIEVEMENTS = [
         "category": "profile",
         "sort_order": 34,
     },
-    
     # === SHARING ACHIEVEMENTS ===
     # Designed to drive viral growth and platform adoption
     {
@@ -668,7 +661,6 @@ ACHIEVEMENTS = [
         "category": "sharing",
         "sort_order": 50,
     },
-    
     # === AD ENGAGEMENT ACHIEVEMENTS (Support TruePulse) ===
     {
         "id": "ad_supporter_first",
@@ -774,7 +766,6 @@ ACHIEVEMENTS = [
         "category": "support",
         "sort_order": 67,
     },
-    
     # === PULSE POLL ACHIEVEMENTS ===
     {
         "id": "pulse_first",
@@ -894,7 +885,6 @@ ACHIEVEMENTS = [
         "category": "pulse",
         "sort_order": 78,
     },
-    
     # === FLASH POLL ACHIEVEMENTS ===
     {
         "id": "flash_first",
@@ -1040,7 +1030,7 @@ async def seed_achievements():
                 select(Achievement).where(Achievement.id == achievement_data["id"])
             )
             existing = result.scalar_one_or_none()
-            
+
             if existing:
                 # Update existing achievement
                 for key, value in achievement_data.items():
@@ -1051,7 +1041,7 @@ async def seed_achievements():
                 achievement = Achievement(**achievement_data)
                 session.add(achievement)
                 print(f"Created achievement: {achievement_data['id']}")
-        
+
         await session.commit()
         print(f"\nSeeded {len(ACHIEVEMENTS)} achievements successfully!")
 

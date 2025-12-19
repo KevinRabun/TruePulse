@@ -68,24 +68,24 @@ def decode_token(token: str) -> dict[str, Any] | None:
 def generate_vote_hash(user_id: str, poll_id: str) -> str:
     """
     Generate a privacy-preserving hash for vote deduplication.
-    
+
     This hash allows us to:
     1. Prevent duplicate votes (same user + poll = same hash)
     2. Cannot reverse to determine which user voted
     3. Cannot link votes across different polls
-    
+
     The hash uses a server-side salt (SECRET_KEY) to prevent rainbow table attacks.
-    
+
     Args:
         user_id: The user's unique identifier
         poll_id: The poll's unique identifier
-        
+
     Returns:
         A SHA-256 hash that uniquely identifies this user+poll combination
     """
     # Combine user_id, poll_id, and secret salt
     data = f"{user_id}:{poll_id}:{settings.SECRET_KEY}"
-    
+
     # Generate SHA-256 hash
     return hashlib.sha256(data.encode()).hexdigest()
 

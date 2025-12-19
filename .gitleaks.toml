@@ -1,0 +1,32 @@
+# Gitleaks Configuration
+# This file configures gitleaks to reduce false positives in our codebase
+
+title = "TruePulse Gitleaks Config"
+
+[allowlist]
+  description = "Global allowlist"
+  
+  # Allow example/placeholder tokens in documentation
+  regexTarget = "match"
+  regexes = [
+    '''<jwt-token>''',
+    '''<refresh-token>''',
+    '''<token>''',
+    '''invalid-token''',
+    '''example_token''',
+    '''test_token''',
+  ]
+  
+  # Allow paths that contain test fixtures or examples
+  paths = [
+    '''docs/API\.md''',
+    '''\.env\.example''',
+    '''tests/.*''',
+  ]
+
+# Ignore common false positives
+[[rules]]
+  id = "generic-api-key"
+  description = "Generic API Key"
+  regex = '''(?i)(api_key|apikey|api-key).*['\"][a-zA-Z0-9]{16,}['\"]'''
+  allowlist = { regexes = ['''test''', '''example''', '''placeholder''', '''<.*>'''] }

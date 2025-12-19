@@ -35,13 +35,6 @@ const customJestConfig = {
     '!**/node_modules/**',
   ],
   
-  // Transform settings
-  transform: {
-    '^.+\\.(ts|tsx)$': ['ts-jest', {
-      tsconfig: 'tsconfig.json',
-    }],
-  },
-  
   // Ignore patterns
   testPathIgnorePatterns: [
     '<rootDir>/node_modules/',

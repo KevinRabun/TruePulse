@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { api, UserDemographics, LocationCountry, LocationState, LocationCity } from '@/lib/api';
+import { api, UserDemographics } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import {
   UserCircleIcon,

@@ -8,11 +8,10 @@ import uuid
 from datetime import datetime, timedelta, timezone
 
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 from core.config import settings
 from models.poll import Poll, PollChoice, PollStatus
-
 
 SEED_POLLS = [
     {
@@ -94,19 +93,21 @@ SEED_POLLS = [
 async def seed_polls():
     """Create seed polls in the database."""
     engine = create_async_engine(settings.POSTGRES_URL, echo=False)
-    async_session = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
+    async_session = async_sessionmaker(
+        engine, class_=AsyncSession, expire_on_commit=False
+    )
 
     async with async_session() as session:
         # Check if polls already exist
         result = await session.execute(select(Poll).limit(1))
         existing = result.scalar_one_or_none()
-        
+
         if existing:
             print("Polls already exist in database. Skipping seed.")
             return
 
         now = datetime.now(timezone.utc)
-        
+
         for i, poll_data in enumerate(SEED_POLLS):
             # First poll is active, rest are scheduled
             if i == 0:
@@ -118,9 +119,11 @@ async def seed_polls():
                 status = PollStatus.SCHEDULED
                 # Schedule subsequent polls
                 scheduled_start = now + timedelta(hours=i * poll_data["duration_hours"])
-                scheduled_end = scheduled_start + timedelta(hours=poll_data["duration_hours"])
+                scheduled_end = scheduled_start + timedelta(
+                    hours=poll_data["duration_hours"]
+                )
                 expires_at = scheduled_end
-            
+
             poll = Poll(
                 id=str(uuid.uuid4()),
                 question=poll_data["question"],
@@ -134,7 +137,7 @@ async def seed_polls():
                 is_featured=(i < 2),  # First two are featured
                 ai_generated=True,
             )
-            
+
             # Add choices
             for order, choice_text in enumerate(poll_data["choices"]):
                 choice = PollChoice(
@@ -145,10 +148,10 @@ async def seed_polls():
                     vote_count=0,
                 )
                 poll.choices.append(choice)
-            
+
             session.add(poll)
             print(f"Created poll: {poll_data['question'][:50]}... ({status})")
-        
+
         await session.commit()
         print(f"\n✅ Created {len(SEED_POLLS)} polls successfully!")
 
