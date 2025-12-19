@@ -1,183 +1,59 @@
-# TruePulse API Documentation
+# TruePulse API - Internal Reference
 
-## Base URL
+> ⚠️ **Not a Public API**: The TruePulse API is designed exclusively for the official frontend application. Direct API access from third-party applications is blocked by middleware.
+
+## Access Restrictions
+
+The backend enforces frontend-only access through multiple layers:
+
+1. **CORS Policy**: Only allows requests from configured origins
+2. **FrontendOnlyMiddleware**: Validates Origin/Referer headers and requires `X-Frontend-Secret` header
+3. **JWT Authentication**: User sessions managed through secure HTTP-only cookies
+
+Attempts to call the API directly (e.g., via curl, Postman, or third-party apps) will receive `403 Forbidden`.
+
+---
+
+## Internal Endpoint Reference
+
+This documentation is for **TruePulse developers only** to understand the frontend-backend contract.
+
+### Health Check
 
 ```
-Development: http://localhost:8000
-Production: https://api.truepulse.net
+GET /health
 ```
 
-## Authentication
+Exempt from authentication. Used for container orchestration health probes.
 
-TruePulse uses JWT (JSON Web Tokens) for authentication. Include the token in the `Authorization` header:
+---
+
+## Authentication Endpoints
+
+### Login
 
 ```
-Authorization: Bearer <your_jwt_token>
-```
-
-### Obtaining a Token
-
-```http
 POST /api/v1/auth/login
-Content-Type: application/json
+```
 
+**Request:**
+```json
 {
   "email": "user@example.com",
-  "password": "your_password"
+  "password": "password"
 }
 ```
 
-**Response (200 OK):**
-```json
-{
-  "access_token": "eyJhbGciOiJIUzI1NiIs...",
-  "token_type": "bearer",
-  "expires_in": 3600
-}
+**Response:** Sets HTTP-only cookie with JWT token.
+
+### Register
+
 ```
-
----
-
-## Polls
-
-### List Active Polls
-
-Returns all currently active polls available for voting.
-
-```http
-GET /api/v1/polls
-```
-
-**Query Parameters:**
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
-| `page` | integer | 1 | Page number |
-| `limit` | integer | 20 | Items per page (max 100) |
-| `category` | string | - | Filter by category |
-
-**Response (200 OK):**
-```json
-{
-  "items": [
-    {
-      "id": "uuid-string",
-      "question": "Should the minimum wage be increased?",
-      "category": "economics",
-      "poll_type": "binary",
-      "options": [
-        { "id": 1, "text": "Yes" },
-        { "id": 2, "text": "No" }
-      ],
-      "created_at": "2025-01-15T10:30:00Z",
-      "expires_at": "2025-01-22T10:30:00Z",
-      "total_votes": 15432
-    }
-  ],
-  "total": 45,
-  "page": 1,
-  "limit": 20
-}
-```
-
-### Get Poll Details
-
-```http
-GET /api/v1/polls/{poll_id}
-```
-
-**Response (200 OK):**
-```json
-{
-  "id": "uuid-string",
-  "question": "Should the minimum wage be increased?",
-  "description": "Context about the minimum wage debate...",
-  "category": "economics",
-  "poll_type": "binary",
-  "options": [
-    { "id": 1, "text": "Yes" },
-    { "id": 2, "text": "No" }
-  ],
-  "source_events": [
-    {
-      "title": "Congress debates minimum wage bill",
-      "source": "Associated Press",
-      "date": "2025-01-14"
-    }
-  ],
-  "created_at": "2025-01-15T10:30:00Z",
-  "expires_at": "2025-01-22T10:30:00Z"
-}
-```
-
-### Get Poll Results
-
-Returns aggregated voting results. Individual votes cannot be traced.
-
-```http
-GET /api/v1/polls/{poll_id}/results
-```
-
-**Response (200 OK):**
-```json
-{
-  "poll_id": "uuid-string",
-  "total_votes": 15432,
-  "results": [
-    { "option_id": 1, "text": "Yes", "votes": 8234, "percentage": 53.4 },
-    { "option_id": 2, "text": "No", "votes": 7198, "percentage": 46.6 }
-  ],
-  "demographics": {
-    "age_groups": {
-      "18-24": { "Yes": 62.1, "No": 37.9 },
-      "25-34": { "Yes": 58.3, "No": 41.7 },
-      "35-44": { "Yes": 51.2, "No": 48.8 },
-      "45-54": { "Yes": 45.6, "No": 54.4 },
-      "55+": { "Yes": 42.1, "No": 57.9 }
-    }
-  },
-  "last_updated": "2025-01-15T14:30:00Z"
-}
-```
-
-### Submit Vote
-
-Submit a vote for a poll. Requires authentication.
-
-```http
-POST /api/v1/polls/{poll_id}/vote
-Authorization: Bearer <token>
-Content-Type: application/json
-
-{
-  "option_id": 1
-}
-```
-
-**Response (201 Created):**
-```json
-{
-  "success": true,
-  "message": "Vote recorded successfully",
-  "points_earned": 10
-}
-```
-
-**Error Responses:**
-- `401 Unauthorized`: Not authenticated
-- `403 Forbidden`: Already voted on this poll
-- `404 Not Found`: Poll not found
-- `410 Gone`: Poll has expired
-
----
-
-## Users
-
-### Register New User
-
-```http
 POST /api/v1/auth/register
-Content-Type: application/json
+```
 
+**Request:**
+```json
 {
   "email": "user@example.com",
   "password": "secure_password",
@@ -186,176 +62,110 @@ Content-Type: application/json
 }
 ```
 
-**Response (201 Created):**
-```json
-{
-  "id": "uuid-string",
-  "email": "user@example.com",
-  "display_name": "JohnDoe",
-  "email_verified": false,
-  "created_at": "2025-01-15T10:00:00Z"
-}
+### Logout
+
+```
+POST /api/v1/auth/logout
 ```
 
-### Get Current User
+Invalidates the current session token.
 
-```http
-GET /api/v1/users/me
-Authorization: Bearer <token>
+### Email Verification
+
 ```
-
-**Response (200 OK):**
-```json
-{
-  "id": "uuid-string",
-  "email": "user@example.com",
-  "display_name": "JohnDoe",
-  "email_verified": true,
-  "phone_verified": false,
-  "created_at": "2025-01-15T10:00:00Z",
-  "total_votes": 47,
-  "current_streak": 5
-}
-```
-
-### Request Email Verification
-
-```http
 POST /api/v1/auth/verify-email/request
-Authorization: Bearer <token>
+POST /api/v1/auth/verify-email/confirm
 ```
 
-**Response (200 OK):**
-```json
-{
-  "message": "Verification email sent"
-}
+### Phone Verification (SMS)
+
 ```
-
-### Request Phone Verification (SMS)
-
-```http
 POST /api/v1/auth/verify-phone/request
-Authorization: Bearer <token>
-Content-Type: application/json
-
-{
-  "phone_number": "+1234567890"
-}
+POST /api/v1/auth/verify-phone/confirm
 ```
 
-**Response (200 OK):**
+---
+
+## Poll Endpoints
+
+### List Active Polls
+
+```
+GET /api/v1/polls
+```
+
+**Query Parameters:**
+- `page` (int): Page number
+- `limit` (int): Items per page
+- `category` (string): Filter by category
+
+### Get Poll Details
+
+```
+GET /api/v1/polls/{poll_id}
+```
+
+### Get Poll Results (Public)
+
+```
+GET /api/v1/polls/{poll_id}/results
+```
+
+Returns aggregated results only. Individual votes cannot be traced.
+
+### Submit Vote (Authenticated)
+
+```
+POST /api/v1/polls/{poll_id}/vote
+```
+
+**Request:**
 ```json
 {
-  "message": "Verification code sent via SMS"
+  "option_id": 1
 }
 ```
 
 ---
 
-## Gamification
+## User Endpoints
 
-### Get User Progress
+### Get Current User
 
-```http
-GET /api/v1/gamification/progress
-Authorization: Bearer <token>
+```
+GET /api/v1/users/me
 ```
 
-**Response (200 OK):**
-```json
-{
-  "user_id": "uuid-string",
-  "level": 5,
-  "current_points": 2450,
-  "points_to_next_level": 550,
-  "total_votes": 47,
-  "current_streak": 5,
-  "longest_streak": 12,
-  "badges": [
-    {
-      "id": "first_vote",
-      "name": "First Vote",
-      "description": "Cast your first vote",
-      "earned_at": "2025-01-10T15:00:00Z"
-    },
-    {
-      "id": "streak_7",
-      "name": "Week Warrior",
-      "description": "Vote 7 days in a row",
-      "earned_at": "2025-01-12T09:00:00Z"
-    }
-  ]
-}
+### Update Profile
+
+```
+PATCH /api/v1/users/me
+```
+
+---
+
+## Gamification Endpoints
+
+### Get Progress
+
+```
+GET /api/v1/gamification/progress
 ```
 
 ### Get Leaderboard
 
-```http
+```
 GET /api/v1/gamification/leaderboard
 ```
 
 **Query Parameters:**
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
-| `period` | string | "weekly" | "daily", "weekly", "monthly", "all_time" |
-| `limit` | integer | 10 | Number of entries (max 100) |
+- `period`: "daily", "weekly", "monthly", "all_time"
+- `limit`: Number of entries
 
-**Response (200 OK):**
-```json
-{
-  "period": "weekly",
-  "entries": [
-    {
-      "rank": 1,
-      "display_name": "TopVoter",
-      "points": 450,
-      "votes": 42
-    },
-    {
-      "rank": 2,
-      "display_name": "PollMaster",
-      "points": 380,
-      "votes": 35
-    }
-  ],
-  "current_user_rank": 156
-}
+### List Achievements
+
 ```
-
-### List All Achievements
-
-```http
 GET /api/v1/gamification/achievements
-```
-
-**Response (200 OK):**
-```json
-{
-  "achievements": [
-    {
-      "id": "first_vote",
-      "name": "First Vote",
-      "description": "Cast your first vote",
-      "points": 10,
-      "icon": "vote"
-    },
-    {
-      "id": "streak_7",
-      "name": "Week Warrior",
-      "description": "Vote 7 days in a row",
-      "points": 50,
-      "icon": "fire"
-    },
-    {
-      "id": "verified_voter",
-      "name": "Verified Voter",
-      "description": "Verify your email and phone",
-      "points": 100,
-      "icon": "shield-check"
-    }
-  ]
-}
 ```
 
 ---
@@ -368,60 +178,45 @@ All errors follow this format:
 {
   "error": {
     "code": "ERROR_CODE",
-    "message": "Human readable error message",
-    "details": {}
+    "message": "Human readable message"
   }
 }
 ```
 
-### Common Error Codes
-
 | Code | HTTP Status | Description |
 |------|-------------|-------------|
-| `UNAUTHORIZED` | 401 | Missing or invalid authentication |
-| `FORBIDDEN` | 403 | Insufficient permissions |
+| `UNAUTHORIZED` | 401 | Not authenticated |
+| `FORBIDDEN` | 403 | Access denied (includes non-frontend requests) |
 | `NOT_FOUND` | 404 | Resource not found |
 | `VALIDATION_ERROR` | 422 | Invalid request data |
-| `RATE_LIMITED` | 429 | Too many requests |
-| `INTERNAL_ERROR` | 500 | Server error |
 
 ---
 
-## Rate Limiting
+## Development Notes
 
-API requests are rate limited per user:
+### Running Locally
 
-| Endpoint Type | Limit |
-|---------------|-------|
-| Authentication | 10 requests/minute |
-| Read (GET) | 100 requests/minute |
-| Write (POST/PUT) | 30 requests/minute |
+During local development, set `APP_ENV=development` to relax frontend validation:
 
-Rate limit headers are included in all responses:
-```
-X-RateLimit-Limit: 100
-X-RateLimit-Remaining: 95
-X-RateLimit-Reset: 1705325400
+```bash
+# Backend will accept requests from localhost origins
+APP_ENV=development uvicorn main:app --reload
 ```
 
----
+### Frontend Integration
 
-## Pagination
+The frontend must include:
 
-List endpoints support cursor-based pagination:
+1. **Credentials**: `credentials: 'include'` for cookie-based auth
+2. **Secret Header**: `X-Frontend-Secret` header with the shared secret
+3. **Origin Header**: Automatically set by browser
 
-```http
-GET /api/v1/polls?page=2&limit=20
-```
-
-Response includes pagination metadata:
-```json
-{
-  "items": [...],
-  "total": 245,
-  "page": 2,
-  "limit": 20,
-  "has_next": true,
-  "has_prev": true
-}
+```typescript
+// Example fetch configuration in frontend
+const response = await fetch(`${API_URL}/api/v1/polls`, {
+  credentials: 'include',
+  headers: {
+    'X-Frontend-Secret': process.env.NEXT_PUBLIC_FRONTEND_SECRET,
+  },
+});
 ```
