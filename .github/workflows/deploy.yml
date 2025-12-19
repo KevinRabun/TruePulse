@@ -67,7 +67,8 @@ jobs:
     runs-on: ubuntu-latest
     needs: setup
     outputs:
-      logAnalyticsWorkspaceId: ${{ steps.deploy-shared.outputs.logAnalyticsWorkspaceId }}
+      # Pass name instead of full ID to avoid GitHub secret masking (subscription ID triggers it)
+      logAnalyticsWorkspaceName: ${{ steps.deploy-shared.outputs.logAnalyticsWorkspaceName }}
       containerRegistryName: ${{ steps.deploy-shared.outputs.containerRegistryName }}
       containerRegistryLoginServer: ${{ steps.deploy-shared.outputs.containerRegistryLoginServer }}
       communicationServiceName: ${{ steps.deploy-shared.outputs.communicationServiceName }}
@@ -100,26 +101,27 @@ jobs:
           cat /tmp/deployment-outputs.json
           
           # Extract values from deployment outputs file
-          LOG_ANALYTICS_ID=$(jq -r '.logAnalyticsWorkspaceId.value' /tmp/deployment-outputs.json)
+          # Use workspace NAME instead of ID to avoid GitHub secret masking
+          LOG_ANALYTICS_NAME=$(jq -r '.logAnalyticsWorkspaceName.value' /tmp/deployment-outputs.json)
           ACR_NAME=$(jq -r '.containerRegistryName.value' /tmp/deployment-outputs.json)
           ACR_LOGIN=$(jq -r '.containerRegistryLoginServer.value' /tmp/deployment-outputs.json)
           ACS_NAME=$(jq -r '.communicationServiceName.value' /tmp/deployment-outputs.json)
           
           echo "=== Extracted Values ==="
-          echo "Log Analytics ID: [$LOG_ANALYTICS_ID]"
+          echo "Log Analytics Name: [$LOG_ANALYTICS_NAME]"
           echo "ACR Name: [$ACR_NAME]"
           echo "ACR Login: [$ACR_LOGIN]"
           echo "ACS Name: [$ACS_NAME]"
           echo "========================="
           
-          # Validate Log Analytics ID
-          if [ -z "$LOG_ANALYTICS_ID" ] || [ "$LOG_ANALYTICS_ID" == "null" ]; then
-            echo "ERROR: Failed to get Log Analytics Workspace ID from deployment outputs!"
+          # Validate Log Analytics Name
+          if [ -z "$LOG_ANALYTICS_NAME" ] || [ "$LOG_ANALYTICS_NAME" == "null" ]; then
+            echo "ERROR: Failed to get Log Analytics Workspace Name from deployment outputs!"
             exit 1
           fi
           
-          # Write outputs
-          echo "logAnalyticsWorkspaceId=$LOG_ANALYTICS_ID" >> $GITHUB_OUTPUT
+          # Write outputs (name, not ID - to avoid secret masking)
+          echo "logAnalyticsWorkspaceName=$LOG_ANALYTICS_NAME" >> $GITHUB_OUTPUT
           echo "containerRegistryName=$ACR_NAME" >> $GITHUB_OUTPUT
           echo "containerRegistryLoginServer=$ACR_LOGIN" >> $GITHUB_OUTPUT
           echo "communicationServiceName=$ACS_NAME" >> $GITHUB_OUTPUT
@@ -160,27 +162,33 @@ jobs:
         id: shared
         run: |
           # Use outputs from shared-infrastructure job
-          LOG_ID="${{ needs.shared-infrastructure.outputs.logAnalyticsWorkspaceId }}"
+          # NOTE: We get workspace NAME (not ID) to avoid GitHub secret masking
+          # The full resource ID contains the subscription ID which GitHub treats as sensitive
+          LOG_ANALYTICS_NAME="${{ needs.shared-infrastructure.outputs.logAnalyticsWorkspaceName }}"
           ACR_NAME="${{ needs.shared-infrastructure.outputs.containerRegistryName }}"
           ACR_LOGIN="${{ needs.shared-infrastructure.outputs.containerRegistryLoginServer }}"
           ACS_NAME="${{ needs.shared-infrastructure.outputs.communicationServiceName }}"
           ACS_CONN="${{ needs.shared-infrastructure.outputs.communicationServiceConnectionString }}"
           
+          # Reconstruct the full Log Analytics Workspace ID from the name
+          LOG_ANALYTICS_ID="/subscriptions/${{ secrets.AZURE_SUBSCRIPTION_ID }}/resourceGroups/rg-truepulse-shared/providers/Microsoft.OperationalInsights/workspaces/${LOG_ANALYTICS_NAME}"
+          
           # Debug output
           echo "=== Shared Resource Values ==="
-          echo "Log Analytics ID: $LOG_ID"
+          echo "Log Analytics Name: $LOG_ANALYTICS_NAME"
+          echo "Log Analytics ID (reconstructed): $LOG_ANALYTICS_ID"
           echo "ACR Name: $ACR_NAME"
           echo "ACR Login: $ACR_LOGIN"
           echo "ACS Name: $ACS_NAME"
           echo "==============================="
           
           # Validate required values
-          if [ -z "$LOG_ID" ]; then
-            echo "ERROR: Log Analytics Workspace ID is empty!"
+          if [ -z "$LOG_ANALYTICS_NAME" ]; then
+            echo "ERROR: Log Analytics Workspace Name is empty!"
             exit 1
           fi
           
-          echo "logAnalyticsWorkspaceId=$LOG_ID" >> $GITHUB_OUTPUT
+          echo "logAnalyticsWorkspaceId=$LOG_ANALYTICS_ID" >> $GITHUB_OUTPUT
           echo "containerRegistryName=$ACR_NAME" >> $GITHUB_OUTPUT
           echo "containerRegistryLoginServer=$ACR_LOGIN" >> $GITHUB_OUTPUT
           echo "communicationServiceName=$ACS_NAME" >> $GITHUB_OUTPUT
