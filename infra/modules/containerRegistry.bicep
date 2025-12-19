@@ -17,8 +17,8 @@ param tags object
 @description('Log Analytics workspace resource ID')
 param logAnalyticsWorkspaceId string
 
-@description('Subnet ID for private endpoint')
-param subnetId string
+@description('Subnet ID for private endpoint (optional for shared ACR)')
+param subnetId string = ''
 
 // ============================================================================
 // Resources
@@ -35,13 +35,20 @@ module acr 'br/public:avm/res/container-registry/registry:0.8.0' = {
     acrAdminUserEnabled: false
     zoneRedundancy: 'Enabled'
     networkRuleBypassOptions: 'AzureServices'
-    networkRuleSetDefaultAction: 'Deny'
+    // Shared ACR: Allow Azure services (Container Apps use managed identity)
+    // Per-env ACR: Deny public, use private endpoint
+    networkRuleSetDefaultAction: empty(subnetId) ? 'Allow' : 'Deny'
+    publicNetworkAccess: empty(subnetId) ? 'Enabled' : 'Disabled'
     azureADAuthenticationAsArmPolicyStatus: 'enabled'
     quarantinePolicyStatus: 'enabled'
     trustPolicyStatus: 'enabled'
     retentionPolicyStatus: 'enabled'
     retentionPolicyDays: 30
     exportPolicyStatus: 'disabled'
+    // Enable managed identity for pull access (more secure than admin credentials)
+    managedIdentities: {
+      systemAssigned: true
+    }
     diagnosticSettings: [
       {
         name: 'send-to-log-analytics'
@@ -60,7 +67,8 @@ module acr 'br/public:avm/res/container-registry/registry:0.8.0' = {
         ]
       }
     ]
-    privateEndpoints: [
+    // Only create private endpoint if subnetId is provided
+    privateEndpoints: empty(subnetId) ? [] : [
       {
         name: '${name}-pe'
         subnetResourceId: subnetId
