@@ -100,10 +100,10 @@ jobs:
           echo "$DEPLOYMENT_OUTPUT" | jq .
           
           # Extract values from deployment outputs
-          LOG_ANALYTICS_ID=$(echo "$DEPLOYMENT_OUTPUT" | jq -r '.logAnalyticsWorkspaceId.value')
-          ACR_NAME=$(echo "$DEPLOYMENT_OUTPUT" | jq -r '.containerRegistryName.value')
-          ACR_LOGIN=$(echo "$DEPLOYMENT_OUTPUT" | jq -r '.containerRegistryLoginServer.value')
-          ACS_NAME=$(echo "$DEPLOYMENT_OUTPUT" | jq -r '.communicationServiceName.value')
+          LOG_ANALYTICS_ID=$(echo "$DEPLOYMENT_OUTPUT" | jq -r '.logAnalyticsWorkspaceId.value // empty')
+          ACR_NAME=$(echo "$DEPLOYMENT_OUTPUT" | jq -r '.containerRegistryName.value // empty')
+          ACR_LOGIN=$(echo "$DEPLOYMENT_OUTPUT" | jq -r '.containerRegistryLoginServer.value // empty')
+          ACS_NAME=$(echo "$DEPLOYMENT_OUTPUT" | jq -r '.communicationServiceName.value // empty')
           
           echo "=== Extracted Values ==="
           echo "Log Analytics ID: $LOG_ANALYTICS_ID"
@@ -113,7 +113,7 @@ jobs:
           echo "========================="
           
           # Validate Log Analytics ID
-          if [ -z "$LOG_ANALYTICS_ID" ] || [ "$LOG_ANALYTICS_ID" == "null" ]; then
+          if [ -z "$LOG_ANALYTICS_ID" ]; then
             echo "ERROR: Failed to get Log Analytics Workspace ID from deployment outputs!"
             echo "Trying to fetch from Azure directly..."
             LOG_ANALYTICS_ID=$(az monitor log-analytics workspace list \
@@ -122,14 +122,20 @@ jobs:
             echo "Fetched Log Analytics ID: $LOG_ANALYTICS_ID"
           fi
           
-          echo "logAnalyticsWorkspaceId=$LOG_ANALYTICS_ID" >> $GITHUB_OUTPUT
-          echo "containerRegistryName=$ACR_NAME" >> $GITHUB_OUTPUT
-          echo "containerRegistryLoginServer=$ACR_LOGIN" >> $GITHUB_OUTPUT
-          echo "communicationServiceName=$ACS_NAME" >> $GITHUB_OUTPUT
+          # Write outputs using proper escaping for multiline/special chars
+          {
+            echo "logAnalyticsWorkspaceId=$LOG_ANALYTICS_ID"
+            echo "containerRegistryName=$ACR_NAME"
+            echo "containerRegistryLoginServer=$ACR_LOGIN"
+            echo "communicationServiceName=$ACS_NAME"
+          } >> $GITHUB_OUTPUT
           
           # Get Communication Service connection string (not in Bicep outputs)
-          ACS_CONN=$(az communication list-key --name $ACS_NAME --resource-group rg-truepulse-shared --query 'primaryConnectionString' -o tsv)
+          ACS_CONN=$(az communication list-key --name "$ACS_NAME" --resource-group rg-truepulse-shared --query 'primaryConnectionString' -o tsv)
           echo "communicationServiceConnectionString=$ACS_CONN" >> $GITHUB_OUTPUT
+          
+          echo "=== Final outputs written ==="
+          cat $GITHUB_OUTPUT
 
   # ============================================================================
   # Deploy Environment Infrastructure
