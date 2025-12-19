@@ -108,3 +108,12 @@ class ShareTrackResponse(BaseModel):
     total_shares: int
     new_achievements: list[AchievementWithHistory]
     message: str
+
+
+class LevelDefinitionResponse(BaseModel):
+    """Level definition for progression system."""
+
+    level: int
+    name: str
+    points_required: int
+    perks: list[str]

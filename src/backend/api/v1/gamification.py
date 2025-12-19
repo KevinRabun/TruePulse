@@ -19,6 +19,7 @@ from schemas.gamification import (
     AchievementWithHistory,
     LeaderboardEntry,
     LeaderboardResponse,
+    LevelDefinitionResponse,
     PointsTransaction,
     ShareTrackRequest,
     ShareTrackResponse,
@@ -553,12 +554,12 @@ async def get_points_history(
     return []
 
 
-@router.get("/levels", response_model=list[LevelDefinition])
-async def get_level_definitions() -> list[LevelDefinition]:
+@router.get("/levels", response_model=list[LevelDefinitionResponse])
+async def get_level_definitions() -> list[LevelDefinitionResponse]:
     """
     Get the level progression definitions.
     """
-    return LEVEL_DEFINITIONS
+    return [LevelDefinitionResponse(**level) for level in LEVEL_DEFINITIONS]
 
 
 @router.post("/share", response_model=ShareTrackResponse)
