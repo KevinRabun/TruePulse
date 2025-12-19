@@ -274,7 +274,7 @@ export default function SecurityPage() {
               </div>
               <div className="mt-8">
                 <a
-                  href="mailto:security@truepulse.io"
+                  href="https://github.com/KevinRabun/TruePulse/security/advisories/new"
                   className="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-lg shadow-sm text-white bg-primary-600 hover:bg-primary-700 transition-colors"
                 >
                   Report a Vulnerability
@@ -317,10 +317,10 @@ export default function SecurityPage() {
           </p>
           <div className="mt-8 flex flex-col sm:flex-row gap-4 justify-center">
             <a
-              href="mailto:security@truepulse.io"
+              href="https://github.com/KevinRabun/TruePulse/security/advisories/new"
               className="inline-flex items-center justify-center px-6 py-3 border border-transparent text-base font-medium rounded-lg shadow-sm text-white bg-primary-600 hover:bg-primary-700 transition-colors"
             >
-              Contact Security Team
+              Report Security Issue
             </a>
             <Link
               href="/privacy"

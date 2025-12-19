@@ -37,7 +37,7 @@ We take security vulnerabilities seriously. If you discover a security issue, pl
 
 ### How to Report
 
-1. **Email**: security@truepulse.io
+1. **GitHub Security Advisories**: [Report a vulnerability](https://github.com/KevinRabun/TruePulse/security/advisories/new)
 2. **PGP Key**: Available at [/security/pgp-key.txt]
 
 ### What to Include
@@ -107,9 +107,8 @@ TruePulse is designed to comply with:
 
 ## Contact
 
-- **Security Team**: security@truepulse.io
-- **Privacy Officer**: privacy@truepulse.io
-- **General Inquiries**: hello@truepulse.io
+- **Security Issues**: [GitHub Security Advisories](https://github.com/KevinRabun/TruePulse/security/advisories/new)
+- **General Inquiries**: [GitHub Discussions](https://github.com/KevinRabun/TruePulse/discussions)
 
 ## Version
 

@@ -164,9 +164,13 @@ export default function PrivacyPolicyPage() {
                 <li><strong>Opt-out:</strong> Unsubscribe from non-essential communications</li>
               </ul>
               <p className="text-gray-600 dark:text-gray-400 mt-4">
-                To exercise any of these rights, contact us at{' '}
-                <a href="mailto:privacy@truepulse.io" className="text-primary-600 hover:text-primary-700">
-                  privacy@truepulse.io
+                To exercise any of these rights, visit your{' '}
+                <a href="/profile" className="text-primary-600 hover:text-primary-700">
+                  profile settings
+                </a>{' '}
+                or contact us through{' '}
+                <a href="https://github.com/KevinRabun/TruePulse/discussions" className="text-primary-600 hover:text-primary-700">
+                  GitHub Discussions
                 </a>
               </p>
             </section>
@@ -246,15 +250,15 @@ export default function PrivacyPolicyPage() {
               </p>
               <div className="mt-4 bg-gray-100 dark:bg-gray-800 rounded-lg p-6">
                 <p className="text-gray-700 dark:text-gray-300">
-                  <strong>Email:</strong>{' '}
-                  <a href="mailto:privacy@truepulse.io" className="text-primary-600 hover:text-primary-700">
-                    privacy@truepulse.io
+                  <strong>GitHub:</strong>{' '}
+                  <a href="https://github.com/KevinRabun/TruePulse/discussions" className="text-primary-600 hover:text-primary-700">
+                    TruePulse Discussions
                   </a>
                 </p>
                 <p className="text-gray-700 dark:text-gray-300 mt-2">
-                  <strong>Data Protection Officer:</strong>{' '}
-                  <a href="mailto:dpo@truepulse.io" className="text-primary-600 hover:text-primary-700">
-                    dpo@truepulse.io
+                  <strong>Website:</strong>{' '}
+                  <a href="https://truepulse.net" className="text-primary-600 hover:text-primary-700">
+                    truepulse.net
                   </a>
                 </p>
               </div>

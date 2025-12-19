@@ -279,13 +279,16 @@ export default function TermsOfServicePage() {
               </p>
               <div className="mt-4 bg-gray-100 dark:bg-gray-800 rounded-lg p-6">
                 <p className="text-gray-700 dark:text-gray-300">
-                  <strong>Email:</strong>{' '}
-                  <a href="mailto:legal@truepulse.io" className="text-primary-600 hover:text-primary-700">
-                    legal@truepulse.io
+                  <strong>GitHub:</strong>{' '}
+                  <a href="https://github.com/KevinRabun/TruePulse/discussions" className="text-primary-600 hover:text-primary-700">
+                    TruePulse Discussions
                   </a>
                 </p>
                 <p className="text-gray-700 dark:text-gray-300 mt-2">
-                  <strong>Address:</strong> TruePulse, Inc., 123 Democracy Lane, Wilmington, DE 19801
+                  <strong>Website:</strong>{' '}
+                  <a href="https://truepulse.net" className="text-primary-600 hover:text-primary-700">
+                    truepulse.net
+                  </a>
                 </p>
               </div>
             </section>
