@@ -87,35 +87,48 @@ jobs:
         run: |
           echo "Deploying shared resources..."
           
-          # Deploy and capture output
-          az deployment sub create \
+          # Deploy and capture outputs directly from deployment
+          DEPLOYMENT_OUTPUT=$(az deployment sub create \
             --name "shared-$(date +%Y%m%d%H%M%S)" \
             --location ${{ env.AZURE_LOCATION }} \
             --template-file infra/shared.bicep \
-            --parameters location=${{ env.AZURE_LOCATION }}
+            --parameters location=${{ env.AZURE_LOCATION }} \
+            --query 'properties.outputs' \
+            --output json)
           
-          # Fetch outputs from the deployment (more reliable than capturing inline)
-          SHARED_RG="rg-truepulse-shared"
+          echo "Deployment outputs:"
+          echo "$DEPLOYMENT_OUTPUT" | jq .
           
-          # Log Analytics - get the resource ID
-          LOG_ANALYTICS_ID=$(az monitor log-analytics workspace list \
-            --resource-group $SHARED_RG \
-            --query '[0].id' -o tsv)
+          # Extract values from deployment outputs
+          LOG_ANALYTICS_ID=$(echo "$DEPLOYMENT_OUTPUT" | jq -r '.logAnalyticsWorkspaceId.value')
+          ACR_NAME=$(echo "$DEPLOYMENT_OUTPUT" | jq -r '.containerRegistryName.value')
+          ACR_LOGIN=$(echo "$DEPLOYMENT_OUTPUT" | jq -r '.containerRegistryLoginServer.value')
+          ACS_NAME=$(echo "$DEPLOYMENT_OUTPUT" | jq -r '.communicationServiceName.value')
+          
+          echo "=== Extracted Values ==="
           echo "Log Analytics ID: $LOG_ANALYTICS_ID"
-          echo "logAnalyticsWorkspaceId=$LOG_ANALYTICS_ID" >> $GITHUB_OUTPUT
+          echo "ACR Name: $ACR_NAME"
+          echo "ACR Login: $ACR_LOGIN"
+          echo "ACS Name: $ACS_NAME"
+          echo "========================="
           
-          # Container Registry
-          ACR_NAME=$(az acr list --resource-group $SHARED_RG --query '[0].name' -o tsv)
-          ACR_LOGIN=$(az acr list --resource-group $SHARED_RG --query '[0].loginServer' -o tsv)
-          echo "ACR: $ACR_NAME ($ACR_LOGIN)"
+          # Validate Log Analytics ID
+          if [ -z "$LOG_ANALYTICS_ID" ] || [ "$LOG_ANALYTICS_ID" == "null" ]; then
+            echo "ERROR: Failed to get Log Analytics Workspace ID from deployment outputs!"
+            echo "Trying to fetch from Azure directly..."
+            LOG_ANALYTICS_ID=$(az monitor log-analytics workspace list \
+              --resource-group rg-truepulse-shared \
+              --query '[0].id' -o tsv 2>/dev/null || echo "")
+            echo "Fetched Log Analytics ID: $LOG_ANALYTICS_ID"
+          fi
+          
+          echo "logAnalyticsWorkspaceId=$LOG_ANALYTICS_ID" >> $GITHUB_OUTPUT
           echo "containerRegistryName=$ACR_NAME" >> $GITHUB_OUTPUT
           echo "containerRegistryLoginServer=$ACR_LOGIN" >> $GITHUB_OUTPUT
-          
-          # Communication Services
-          ACS_NAME=$(az communication list --resource-group $SHARED_RG --query '[0].name' -o tsv)
-          ACS_CONN=$(az communication list-key --name $ACS_NAME --resource-group $SHARED_RG --query 'primaryConnectionString' -o tsv)
-          echo "ACS: $ACS_NAME"
           echo "communicationServiceName=$ACS_NAME" >> $GITHUB_OUTPUT
+          
+          # Get Communication Service connection string (not in Bicep outputs)
+          ACS_CONN=$(az communication list-key --name $ACS_NAME --resource-group rg-truepulse-shared --query 'primaryConnectionString' -o tsv)
           echo "communicationServiceConnectionString=$ACS_CONN" >> $GITHUB_OUTPUT
 
   # ============================================================================
