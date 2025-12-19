@@ -44,7 +44,8 @@ module acr 'br/public:avm/res/container-registry/registry:0.8.0' = {
     trustPolicyStatus: 'enabled'
     retentionPolicyStatus: 'enabled'
     retentionPolicyDays: 30
-    exportPolicyStatus: 'disabled'
+    // Export policy can only be disabled when public network access is disabled
+    exportPolicyStatus: empty(subnetId) ? 'enabled' : 'disabled'
     // Enable managed identity for pull access (more secure than admin credentials)
     managedIdentities: {
       systemAssigned: true

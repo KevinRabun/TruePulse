@@ -88,9 +88,6 @@ param sharedCommunicationServiceConnectionString string
 @description('Name of shared Communication Services')
 param sharedCommunicationServiceName string
 
-@description('Resource ID of shared DNS Zone')
-param sharedDnsZoneResourceId string = ''
-
 // ============================================================================
 // Variables
 // ============================================================================
@@ -129,11 +126,6 @@ resource resourceGroup 'Microsoft.Resources/resourceGroups@2023-07-01' = {
   name: resourceGroupName
   location: location
   tags: tags
-}
-
-// Reference to shared resource group for DNS updates
-resource sharedResourceGroup 'Microsoft.Resources/resourceGroups@2023-07-01' existing = {
-  name: 'rg-${prefix}-shared'
 }
 
 // ============================================================================

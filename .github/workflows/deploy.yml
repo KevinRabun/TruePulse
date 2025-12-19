@@ -81,7 +81,6 @@ jobs:
       containerRegistryLoginServer: ${{ steps.deploy-shared.outputs.containerRegistryLoginServer }}
       communicationServiceName: ${{ steps.deploy-shared.outputs.communicationServiceName }}
       communicationServiceConnectionString: ${{ steps.deploy-shared.outputs.communicationServiceConnectionString }}
-      dnsZoneResourceId: ${{ steps.deploy-shared.outputs.dnsZoneResourceId }}
     steps:
       - uses: actions/checkout@v4
 
@@ -114,8 +113,6 @@ jobs:
           echo "communicationServiceName=$ACS_NAME" >> $GITHUB_OUTPUT
           ACS_CONN=$(az communication list-key --name $ACS_NAME --resource-group rg-truepulse-shared --query 'primaryConnectionString' -o tsv)
           echo "communicationServiceConnectionString=$ACS_CONN" >> $GITHUB_OUTPUT
-          
-          echo "dnsZoneResourceId=$(echo $DEPLOYMENT_OUTPUT | jq -r '.dnsZoneResourceId.value')" >> $GITHUB_OUTPUT
 
   # ============================================================================
   # Get Shared Resource Info (when not deploying shared)
@@ -131,7 +128,6 @@ jobs:
       containerRegistryLoginServer: ${{ steps.get-info.outputs.containerRegistryLoginServer }}
       communicationServiceName: ${{ steps.get-info.outputs.communicationServiceName }}
       communicationServiceConnectionString: ${{ steps.get-info.outputs.communicationServiceConnectionString }}
-      dnsZoneResourceId: ${{ steps.get-info.outputs.dnsZoneResourceId }}
     steps:
       - name: Azure Login
         uses: azure/login@v2
@@ -162,10 +158,6 @@ jobs:
           ACS_CONN=$(az communication list-key --name $ACS_NAME --resource-group $SHARED_RG --query 'primaryConnectionString' -o tsv)
           echo "communicationServiceName=$ACS_NAME" >> $GITHUB_OUTPUT
           echo "communicationServiceConnectionString=$ACS_CONN" >> $GITHUB_OUTPUT
-          
-          # DNS Zone
-          DNS_ID=$(az network dns zone list --resource-group $SHARED_RG --query '[0].id' -o tsv)
-          echo "dnsZoneResourceId=$DNS_ID" >> $GITHUB_OUTPUT
 
   # ============================================================================
   # Deploy Environment Infrastructure
@@ -203,7 +195,6 @@ jobs:
             echo "containerRegistryLoginServer=${{ needs.shared-infrastructure.outputs.containerRegistryLoginServer }}" >> $GITHUB_OUTPUT
             echo "communicationServiceName=${{ needs.shared-infrastructure.outputs.communicationServiceName }}" >> $GITHUB_OUTPUT
             echo "communicationServiceConnectionString=${{ needs.shared-infrastructure.outputs.communicationServiceConnectionString }}" >> $GITHUB_OUTPUT
-            echo "dnsZoneResourceId=${{ needs.shared-infrastructure.outputs.dnsZoneResourceId }}" >> $GITHUB_OUTPUT
           else
             echo "Using outputs from get-shared-info job"
             echo "logAnalyticsWorkspaceId=${{ needs.get-shared-info.outputs.logAnalyticsWorkspaceId }}" >> $GITHUB_OUTPUT
@@ -211,7 +202,6 @@ jobs:
             echo "containerRegistryLoginServer=${{ needs.get-shared-info.outputs.containerRegistryLoginServer }}" >> $GITHUB_OUTPUT
             echo "communicationServiceName=${{ needs.get-shared-info.outputs.communicationServiceName }}" >> $GITHUB_OUTPUT
             echo "communicationServiceConnectionString=${{ needs.get-shared-info.outputs.communicationServiceConnectionString }}" >> $GITHUB_OUTPUT
-            echo "dnsZoneResourceId=${{ needs.get-shared-info.outputs.dnsZoneResourceId }}" >> $GITHUB_OUTPUT
           fi
 
       - name: Deploy Environment Bicep
@@ -238,7 +228,6 @@ jobs:
             --parameters sharedContainerRegistryLoginServer='${{ steps.shared.outputs.containerRegistryLoginServer }}' \
             --parameters sharedCommunicationServiceConnectionString='${{ steps.shared.outputs.communicationServiceConnectionString }}' \
             --parameters sharedCommunicationServiceName='${{ steps.shared.outputs.communicationServiceName }}' \
-            --parameters sharedDnsZoneResourceId='${{ steps.shared.outputs.dnsZoneResourceId }}' \
             --query 'properties.outputs' \
             --output json)
           
