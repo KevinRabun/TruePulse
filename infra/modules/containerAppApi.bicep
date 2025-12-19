@@ -17,9 +17,6 @@ param tags object
 @description('Container Apps Environment resource ID')
 param containerAppsEnvId string
 
-@description('Container Registry name')
-param containerRegistryName string
-
 @description('Container Registry login server')
 param containerRegistryLoginServer string
 
@@ -91,20 +88,8 @@ resource managedIdentity 'Microsoft.ManagedIdentity/userAssignedIdentities@2023-
   tags: tags
 }
 
-// Grant ACR pull permission to the managed identity
-resource acrPullRole 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
-  name: guid(containerRegistryName, managedIdentity.id, 'acrpull')
-  scope: containerRegistry
-  properties: {
-    principalId: managedIdentity.properties.principalId
-    principalType: 'ServicePrincipal'
-    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '7f951dda-4ed3-4680-a7ca-43fe172d538d') // AcrPull
-  }
-}
-
-resource containerRegistry 'Microsoft.ContainerRegistry/registries@2023-06-01-preview' existing = {
-  name: containerRegistryName
-}
+// Note: ACR pull permission is granted via a separate module deployed to the shared resource group
+// See main.bicep's acrRoleAssignment module for the cross-resource-group role assignment
 
 // Grant Key Vault Secrets User role to the managed identity
 resource keyVaultSecretsRole 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
@@ -378,7 +363,7 @@ module containerApp 'br/public:avm/res/app/container-app:0.12.1' = {
     workloadProfileName: 'Consumption'
   }
   dependsOn: [
-    acrPullRole
+    // Note: acrPullRole is now assigned via a separate module in main.bicep
     keyVaultSecretsRole
   ]
 }
@@ -391,3 +376,4 @@ output resourceId string = containerApp.outputs.resourceId
 output name string = containerApp.outputs.name
 output fqdn string = containerApp.outputs.fqdn
 output managedIdentityId string = managedIdentity.id
+output managedIdentityPrincipalId string = managedIdentity.properties.principalId

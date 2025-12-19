@@ -297,7 +297,6 @@ module containerAppApi 'modules/containerAppApi.bicep' = {
     location: location
     tags: tags
     containerAppsEnvId: containerAppsEnv.outputs.resourceId
-    containerRegistryName: sharedContainerRegistryName
     containerRegistryLoginServer: sharedContainerRegistryLoginServer
     keyVaultName: keyVault.outputs.name
     keyVaultUri: keyVault.outputs.uri
@@ -315,6 +314,16 @@ module containerAppApi 'modules/containerAppApi.bicep' = {
     emailServiceName: ''  // Email handled via shared services
     emailSenderAddress: emailSenderAddress
     customDomain: enableCustomDomain ? customDomain : ''
+  }
+}
+
+// Grant ACR pull permission to the Container App's managed identity (cross-resource-group)
+module acrRoleAssignment 'modules/acrRoleAssignment.bicep' = {
+  scope: az.resourceGroup('rg-truepulse-shared')
+  name: 'acr-role-assignment-${environmentName}'
+  params: {
+    containerRegistryName: sharedContainerRegistryName
+    principalId: containerAppApi.outputs.managedIdentityPrincipalId
   }
 }
 
