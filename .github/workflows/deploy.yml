@@ -1,10 +1,13 @@
 # TruePulse Deployment Pipeline
 # Deploys infrastructure and applications to Azure
+# Only runs after CI workflow succeeds
 
 name: Deploy
 
 on:
-  push:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
     branches: [main]
   workflow_dispatch:
     inputs:
@@ -27,11 +30,22 @@ env:
 
 jobs:
   # ============================================================================
+  # Verify CI Success (for workflow_run trigger)
+  # ============================================================================
+  check-ci:
+    name: Verify CI Passed
+    runs-on: ubuntu-latest
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
+    steps:
+      - run: echo "CI workflow succeeded, proceeding with deployment"
+
+  # ============================================================================
   # Determine Environment
   # ============================================================================
   setup:
     name: Setup
     runs-on: ubuntu-latest
+    needs: check-ci
     outputs:
       environment: ${{ steps.set-env.outputs.environment }}
     steps:
