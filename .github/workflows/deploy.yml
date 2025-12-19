@@ -154,10 +154,18 @@ jobs:
         run: |
           SHARED_RG="rg-truepulse-shared"
           
-          # Log Analytics
+          # Ensure correct subscription
+          az account set --subscription ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+          echo "Using subscription: $(az account show --query 'name' -o tsv)"
+          
+          # Log Analytics - list all first to debug
+          echo "Listing Log Analytics workspaces in $SHARED_RG..."
+          az monitor log-analytics workspace list --resource-group $SHARED_RG -o table
+          
           LOG_ANALYTICS_ID=$(az monitor log-analytics workspace list \
             --resource-group $SHARED_RG \
             --query '[0].id' -o tsv)
+          echo "Log Analytics ID: $LOG_ANALYTICS_ID"
           echo "logAnalyticsWorkspaceId=$LOG_ANALYTICS_ID" >> $GITHUB_OUTPUT
           
           # Container Registry
