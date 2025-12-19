@@ -1,122 +1,155 @@
-# TruePulse API Reference
+# TruePulse API Documentation
 
 ## Base URL
 
-- **Development**: `http://localhost:8000/api/v1`
-- **Staging**: `https://api-staging.truepulse.dev/api/v1`
-- **Production**: `https://api.truepulse.dev/api/v1`
+```
+Development: http://localhost:8000
+Production: https://api.truepulse.net
+```
 
 ## Authentication
 
-TruePulse uses JWT (JSON Web Tokens) for authentication.
+TruePulse uses JWT (JSON Web Tokens) for authentication. Include the token in the `Authorization` header:
+
+```
+Authorization: Bearer <your_jwt_token>
+```
 
 ### Obtaining a Token
 
-**Register:**
 ```http
-POST /auth/register
+POST /api/v1/auth/login
 Content-Type: application/json
 
 {
   "email": "user@example.com",
-  "password": "SecurePassword123!",
-  "display_name": "JohnDoe"
+  "password": "your_password"
 }
 ```
 
-**Login:**
-```http
-POST /auth/login
-Content-Type: application/json
-
-{
-  "email": "user@example.com",
-  "password": "SecurePassword123!"
-}
-```
-
-**Response:**
+**Response (200 OK):**
 ```json
 {
-  "access_token": "<jwt-token>",
+  "access_token": "eyJhbGciOiJIUzI1NiIs...",
   "token_type": "bearer",
-  "expires_in": 3600,
-  "refresh_token": "<refresh-token>"
+  "expires_in": 3600
 }
-```
-
-### Using the Token
-
-Include the token in the Authorization header:
-```http
-GET /polls/today
-Authorization: Bearer <jwt-token>
 ```
 
 ---
 
-## Endpoints
+## Polls
 
-### Polls
+### List Active Polls
 
-#### Get Today's Poll
+Returns all currently active polls available for voting.
+
 ```http
-GET /polls/today
-Authorization: Bearer <token>
-```
-
-**Response:**
-```json
-{
-  "id": "550e8400-e29b-41d4-a716-446655440000",
-  "question": "What is your opinion on renewable energy?",
-  "category": "Environment",
-  "choices": [
-    {
-      "id": "choice-1-uuid",
-      "text": "Strongly support",
-      "vote_count": 1234
-    },
-    {
-      "id": "choice-2-uuid",
-      "text": "Somewhat support",
-      "vote_count": 567
-    }
-  ],
-  "start_time": "2024-01-15T00:00:00Z",
-  "end_time": "2024-01-16T00:00:00Z",
-  "total_votes": 2345,
-  "ai_generated": true,
-  "user_has_voted": false
-}
-```
-
-#### Get Poll by ID
-```http
-GET /polls/{poll_id}
-```
-
-#### List Polls
-```http
-GET /polls?limit=10&offset=0&status=active
+GET /api/v1/polls
 ```
 
 **Query Parameters:**
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `limit` | integer | Max results (default: 10, max: 100) |
-| `offset` | integer | Skip N results |
-| `status` | string | Filter by status: `active`, `closed`, `all` |
-| `category` | string | Filter by category |
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `page` | integer | 1 | Page number |
+| `limit` | integer | 20 | Items per page (max 100) |
+| `category` | string | - | Filter by category |
 
-#### Vote on a Poll
+**Response (200 OK):**
+```json
+{
+  "items": [
+    {
+      "id": "uuid-string",
+      "question": "Should the minimum wage be increased?",
+      "category": "economics",
+      "poll_type": "binary",
+      "options": [
+        { "id": 1, "text": "Yes" },
+        { "id": 2, "text": "No" }
+      ],
+      "created_at": "2025-01-15T10:30:00Z",
+      "expires_at": "2025-01-22T10:30:00Z",
+      "total_votes": 15432
+    }
+  ],
+  "total": 45,
+  "page": 1,
+  "limit": 20
+}
+```
+
+### Get Poll Details
+
 ```http
-POST /polls/{poll_id}/vote
+GET /api/v1/polls/{poll_id}
+```
+
+**Response (200 OK):**
+```json
+{
+  "id": "uuid-string",
+  "question": "Should the minimum wage be increased?",
+  "description": "Context about the minimum wage debate...",
+  "category": "economics",
+  "poll_type": "binary",
+  "options": [
+    { "id": 1, "text": "Yes" },
+    { "id": 2, "text": "No" }
+  ],
+  "source_events": [
+    {
+      "title": "Congress debates minimum wage bill",
+      "source": "Associated Press",
+      "date": "2025-01-14"
+    }
+  ],
+  "created_at": "2025-01-15T10:30:00Z",
+  "expires_at": "2025-01-22T10:30:00Z"
+}
+```
+
+### Get Poll Results
+
+Returns aggregated voting results. Individual votes cannot be traced.
+
+```http
+GET /api/v1/polls/{poll_id}/results
+```
+
+**Response (200 OK):**
+```json
+{
+  "poll_id": "uuid-string",
+  "total_votes": 15432,
+  "results": [
+    { "option_id": 1, "text": "Yes", "votes": 8234, "percentage": 53.4 },
+    { "option_id": 2, "text": "No", "votes": 7198, "percentage": 46.6 }
+  ],
+  "demographics": {
+    "age_groups": {
+      "18-24": { "Yes": 62.1, "No": 37.9 },
+      "25-34": { "Yes": 58.3, "No": 41.7 },
+      "35-44": { "Yes": 51.2, "No": 48.8 },
+      "45-54": { "Yes": 45.6, "No": 54.4 },
+      "55+": { "Yes": 42.1, "No": 57.9 }
+    }
+  },
+  "last_updated": "2025-01-15T14:30:00Z"
+}
+```
+
+### Submit Vote
+
+Submit a vote for a poll. Requires authentication.
+
+```http
+POST /api/v1/polls/{poll_id}/vote
 Authorization: Bearer <token>
 Content-Type: application/json
 
 {
-  "choice_id": "choice-1-uuid"
+  "option_id": 1
 }
 ```
 
@@ -125,320 +158,270 @@ Content-Type: application/json
 {
   "success": true,
   "message": "Vote recorded successfully",
-  "points_earned": 10,
-  "new_total_points": 150,
-  "streak_bonus": 5
+  "points_earned": 10
 }
 ```
 
 **Error Responses:**
-- `400`: Already voted on this poll
-- `401`: Not authenticated
-- `404`: Poll or choice not found
-- `410`: Poll has ended
+- `401 Unauthorized`: Not authenticated
+- `403 Forbidden`: Already voted on this poll
+- `404 Not Found`: Poll not found
+- `410 Gone`: Poll has expired
 
-#### Get Poll Results
+---
+
+## Users
+
+### Register New User
+
 ```http
-GET /polls/{poll_id}/results
+POST /api/v1/auth/register
+Content-Type: application/json
+
+{
+  "email": "user@example.com",
+  "password": "secure_password",
+  "display_name": "JohnDoe",
+  "date_of_birth": "1990-05-15"
+}
 ```
 
-**Response:**
+**Response (201 Created):**
 ```json
 {
-  "poll_id": "550e8400-e29b-41d4-a716-446655440000",
-  "question": "What is your opinion on renewable energy?",
-  "total_votes": 5678,
-  "results": [
-    {
-      "choice_id": "choice-1-uuid",
-      "text": "Strongly support",
-      "vote_count": 2500,
-      "percentage": 44.0
-    },
-    {
-      "choice_id": "choice-2-uuid",
-      "text": "Somewhat support",
-      "vote_count": 1800,
-      "percentage": 31.7
-    }
-  ],
-  "demographics": {
-    "age_groups": { ... },
-    "regions": { ... }
-  }
+  "id": "uuid-string",
+  "email": "user@example.com",
+  "display_name": "JohnDoe",
+  "email_verified": false,
+  "created_at": "2025-01-15T10:00:00Z"
+}
+```
+
+### Get Current User
+
+```http
+GET /api/v1/users/me
+Authorization: Bearer <token>
+```
+
+**Response (200 OK):**
+```json
+{
+  "id": "uuid-string",
+  "email": "user@example.com",
+  "display_name": "JohnDoe",
+  "email_verified": true,
+  "phone_verified": false,
+  "created_at": "2025-01-15T10:00:00Z",
+  "total_votes": 47,
+  "current_streak": 5
+}
+```
+
+### Request Email Verification
+
+```http
+POST /api/v1/auth/verify-email/request
+Authorization: Bearer <token>
+```
+
+**Response (200 OK):**
+```json
+{
+  "message": "Verification email sent"
+}
+```
+
+### Request Phone Verification (SMS)
+
+```http
+POST /api/v1/auth/verify-phone/request
+Authorization: Bearer <token>
+Content-Type: application/json
+
+{
+  "phone_number": "+1234567890"
+}
+```
+
+**Response (200 OK):**
+```json
+{
+  "message": "Verification code sent via SMS"
 }
 ```
 
 ---
 
-### User Profile
+## Gamification
 
-#### Get Current User
+### Get User Progress
+
 ```http
-GET /users/me
+GET /api/v1/gamification/progress
 Authorization: Bearer <token>
 ```
 
-**Response:**
+**Response (200 OK):**
 ```json
 {
-  "id": "user-uuid",
-  "email": "user@example.com",
-  "display_name": "JohnDoe",
-  "points": 1250,
-  "total_votes": 125,
-  "current_streak": 7,
-  "longest_streak": 15,
-  "achievements_count": 5,
-  "created_at": "2024-01-01T00:00:00Z"
+  "user_id": "uuid-string",
+  "level": 5,
+  "current_points": 2450,
+  "points_to_next_level": 550,
+  "total_votes": 47,
+  "current_streak": 5,
+  "longest_streak": 12,
+  "badges": [
+    {
+      "id": "first_vote",
+      "name": "First Vote",
+      "description": "Cast your first vote",
+      "earned_at": "2025-01-10T15:00:00Z"
+    },
+    {
+      "id": "streak_7",
+      "name": "Week Warrior",
+      "description": "Vote 7 days in a row",
+      "earned_at": "2025-01-12T09:00:00Z"
+    }
+  ]
 }
 ```
 
-#### Update Profile
-```http
-PATCH /users/me
-Authorization: Bearer <token>
-Content-Type: application/json
+### Get Leaderboard
 
+```http
+GET /api/v1/gamification/leaderboard
+```
+
+**Query Parameters:**
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `period` | string | "weekly" | "daily", "weekly", "monthly", "all_time" |
+| `limit` | integer | 10 | Number of entries (max 100) |
+
+**Response (200 OK):**
+```json
 {
-  "display_name": "NewDisplayName"
+  "period": "weekly",
+  "entries": [
+    {
+      "rank": 1,
+      "display_name": "TopVoter",
+      "points": 450,
+      "votes": 42
+    },
+    {
+      "rank": 2,
+      "display_name": "PollMaster",
+      "points": 380,
+      "votes": 35
+    }
+  ],
+  "current_user_rank": 156
 }
 ```
 
-#### Get User Achievements
+### List All Achievements
+
 ```http
-GET /users/me/achievements
-Authorization: Bearer <token>
+GET /api/v1/gamification/achievements
 ```
 
-**Response:**
+**Response (200 OK):**
 ```json
 {
   "achievements": [
     {
-      "id": "ach-1",
+      "id": "first_vote",
       "name": "First Vote",
       "description": "Cast your first vote",
-      "type": "first_vote",
-      "unlocked": true,
-      "unlocked_at": "2024-01-01T12:00:00Z"
+      "points": 10,
+      "icon": "vote"
     },
     {
-      "id": "ach-2",
+      "id": "streak_7",
       "name": "Week Warrior",
       "description": "Vote 7 days in a row",
-      "type": "streak_7",
-      "unlocked": false,
-      "progress": 5,
-      "target": 7
-    }
-  ]
-}
-```
-
----
-
-### Leaderboard
-
-#### Get Leaderboard
-```http
-GET /leaderboard?timeframe=weekly&limit=50
-```
-
-**Query Parameters:**
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `timeframe` | string | `daily`, `weekly`, `monthly`, `all_time` |
-| `limit` | integer | Max results (default: 50, max: 100) |
-
-**Response:**
-```json
-{
-  "timeframe": "weekly",
-  "period_start": "2024-01-08T00:00:00Z",
-  "period_end": "2024-01-15T00:00:00Z",
-  "entries": [
-    {
-      "rank": 1,
-      "user_id": "user-1-uuid",
-      "display_name": "TopVoter",
-      "points": 500,
-      "total_votes": 50,
-      "streak": 7,
-      "achievements_count": 8
-    }
-  ],
-  "current_user_rank": 42
-}
-```
-
----
-
-### Enterprise API
-
-The Enterprise API requires an API key instead of JWT authentication.
-
-```http
-GET /enterprise/polls
-X-API-Key: your-enterprise-api-key
-```
-
-#### Create Custom Poll
-```http
-POST /enterprise/polls
-X-API-Key: your-enterprise-api-key
-Content-Type: application/json
-
-{
-  "question": "Your custom poll question?",
-  "choices": [
-    "Option A",
-    "Option B",
-    "Option C"
-  ],
-  "duration_hours": 24,
-  "category": "Custom",
-  "target_audience": {
-    "regions": ["US", "CA"],
-    "min_age": 18
-  }
-}
-```
-
-#### Get Poll Analytics
-```http
-GET /enterprise/polls/{poll_id}/analytics
-X-API-Key: your-enterprise-api-key
-```
-
-**Response:**
-```json
-{
-  "poll_id": "poll-uuid",
-  "total_votes": 10000,
-  "unique_voters": 9500,
-  "demographics": {
-    "age_distribution": {
-      "18-24": 2500,
-      "25-34": 3500,
-      "35-44": 2000,
-      "45-54": 1000,
-      "55+": 1000
+      "points": 50,
+      "icon": "fire"
     },
-    "geographic_distribution": {
-      "US": 7000,
-      "CA": 1500,
-      "UK": 1000,
-      "Other": 500
-    }
-  },
-  "time_series": [
     {
-      "timestamp": "2024-01-15T00:00:00Z",
-      "votes": 500
+      "id": "verified_voter",
+      "name": "Verified Voter",
+      "description": "Verify your email and phone",
+      "points": 100,
+      "icon": "shield-check"
     }
   ]
 }
 ```
 
-#### Export Data
-```http
-GET /enterprise/polls/{poll_id}/export?format=csv
-X-API-Key: your-enterprise-api-key
-```
-
 ---
 
-## Error Handling
+## Error Responses
 
 All errors follow this format:
+
 ```json
 {
   "error": {
-    "code": "VALIDATION_ERROR",
-    "message": "Invalid input data",
-    "details": [
-      {
-        "field": "email",
-        "message": "Invalid email format"
-      }
-    ]
+    "code": "ERROR_CODE",
+    "message": "Human readable error message",
+    "details": {}
   }
 }
 ```
 
-### Error Codes
+### Common Error Codes
 
-| HTTP Status | Code | Description |
-|-------------|------|-------------|
-| 400 | `VALIDATION_ERROR` | Invalid request data |
-| 400 | `ALREADY_VOTED` | User has already voted |
-| 401 | `UNAUTHORIZED` | Invalid or missing token |
-| 403 | `FORBIDDEN` | Insufficient permissions |
-| 404 | `NOT_FOUND` | Resource not found |
-| 410 | `POLL_ENDED` | Poll voting period has ended |
-| 429 | `RATE_LIMITED` | Too many requests |
-| 500 | `INTERNAL_ERROR` | Server error |
+| Code | HTTP Status | Description |
+|------|-------------|-------------|
+| `UNAUTHORIZED` | 401 | Missing or invalid authentication |
+| `FORBIDDEN` | 403 | Insufficient permissions |
+| `NOT_FOUND` | 404 | Resource not found |
+| `VALIDATION_ERROR` | 422 | Invalid request data |
+| `RATE_LIMITED` | 429 | Too many requests |
+| `INTERNAL_ERROR` | 500 | Server error |
 
 ---
 
 ## Rate Limiting
 
-| Endpoint Type | Rate Limit |
-|---------------|------------|
-| Authentication | 10 requests/minute |
-| Public endpoints | 100 requests/minute |
-| Authenticated endpoints | 300 requests/minute |
-| Enterprise API | 1000 requests/minute |
+API requests are rate limited per user:
 
-Rate limit headers are included in responses:
-```http
+| Endpoint Type | Limit |
+|---------------|-------|
+| Authentication | 10 requests/minute |
+| Read (GET) | 100 requests/minute |
+| Write (POST/PUT) | 30 requests/minute |
+
+Rate limit headers are included in all responses:
+```
 X-RateLimit-Limit: 100
 X-RateLimit-Remaining: 95
-X-RateLimit-Reset: 1705315200
+X-RateLimit-Reset: 1705325400
 ```
 
 ---
 
-## Webhooks (Enterprise)
+## Pagination
 
-Enterprise customers can configure webhooks for real-time events.
+List endpoints support cursor-based pagination:
 
-### Events
+```http
+GET /api/v1/polls?page=2&limit=20
+```
 
-| Event | Description |
-|-------|-------------|
-| `poll.created` | A new poll was created |
-| `poll.ended` | A poll has ended |
-| `poll.milestone` | Vote count reached milestone |
-
-### Payload Example
+Response includes pagination metadata:
 ```json
 {
-  "event": "poll.ended",
-  "timestamp": "2024-01-15T00:00:00Z",
-  "data": {
-    "poll_id": "poll-uuid",
-    "question": "Poll question?",
-    "total_votes": 5000,
-    "results": [...]
-  }
+  "items": [...],
+  "total": 245,
+  "page": 2,
+  "limit": 20,
+  "has_next": true,
+  "has_prev": true
 }
 ```
-
----
-
-## SDKs
-
-Official SDKs are available for:
-- Python: `pip install truepulse`
-- JavaScript/TypeScript: `npm install @truepulse/sdk`
-- C#: `dotnet add package TruePulse.SDK`
-
----
-
-## Support
-
-- 📧 API Support: api-support@truepulse.dev
-- 📚 Developer Portal: https://developers.truepulse.dev
-- 🐛 Report Issues: https://github.com/yourusername/truepulse/issues

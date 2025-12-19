@@ -1,366 +1,308 @@
 # TruePulse Deployment Guide
 
-This guide covers deploying TruePulse to Azure using the provided Bicep templates and GitHub Actions workflows.
+This guide covers deploying TruePulse to Azure using Infrastructure as Code (Bicep).
 
 ## Prerequisites
 
-### Azure Resources
-- Azure subscription with sufficient permissions
-- Azure CLI installed and configured
-- Owner or Contributor role on the subscription
+- **Azure CLI** (version 2.50+)
+- **Azure Subscription** with Owner or Contributor role
+- **GitHub Account** (for CI/CD)
+- **Domain** (optional, for custom domain setup)
 
-### GitHub
-- GitHub repository with Actions enabled
-- Repository secrets configured
+## Architecture Overview
 
-### Local Tools
-- Azure CLI 2.50+
-- Bicep CLI (or Azure CLI with Bicep extension)
-- Docker (for local testing)
+TruePulse deploys the following Azure resources:
 
-## Deployment Architecture
+| Resource | Purpose |
+|----------|---------|
+| **Container Apps** | Hosts the FastAPI backend |
+| **Static Web App** | Hosts the Next.js frontend |
+| **PostgreSQL Flexible Server** | Primary database for users, polls |
+| **Storage Account (Tables)** | Privacy-preserving vote storage |
+| **Storage Account (Blobs)** | Static assets and exports |
+| **Azure OpenAI** | AI poll generation (GPT-4o-mini) |
+| **Key Vault** | Secrets management |
+| **Communication Services** | SMS verification |
+| **Email Communication Services** | Email verification |
+| **Container Registry** | Docker image storage |
+| **Log Analytics** | Monitoring and diagnostics |
+| **Virtual Network** | Network isolation |
 
-```
-Production Environment
-├── Resource Group: rg-truepulse-prod
-│   ├── Virtual Network (Private networking)
-│   ├── Log Analytics Workspace (Centralized logging)
-│   ├── Key Vault (Secrets management)
-│   ├── Container Registry (Docker images)
-│   ├── Container Apps Environment
-│   │   └── Container App: API
-│   ├── PostgreSQL Flexible Server
-│   ├── Cosmos DB Account
-│   ├── Redis Cache
-│   └── Static Web App (Frontend)
-```
+## Deployment Methods
 
-## Step-by-Step Deployment
+### Option 1: GitHub Actions (Recommended)
 
-### 1. Configure Azure Service Principal
+The repository includes CI/CD workflows that automatically deploy on push to `main`.
 
-Create a service principal for GitHub Actions:
+#### 1. Configure GitHub Secrets
+
+Add the following secrets to your GitHub repository:
+
+| Secret | Description |
+|--------|-------------|
+| `AZURE_CREDENTIALS` | Service principal JSON for Azure auth |
+| `AZURE_SUBSCRIPTION_ID` | Your Azure subscription ID |
+| `AZURE_RESOURCE_GROUP` | Target resource group name |
+| `JWT_SECRET` | Secret for JWT token signing |
+| `API_SECRET_KEY` | Backend API secret |
+| `POSTGRES_ADMIN_PASSWORD` | PostgreSQL admin password |
+| `OPENAI_API_KEY` | Azure OpenAI API key |
+
+#### 2. Create Azure Service Principal
 
 ```bash
-# Create service principal
+# Create service principal with Contributor role
 az ad sp create-for-rbac \
-  --name "sp-truepulse-cicd" \
-  --role contributor \
+  --name "truepulse-github" \
+  --role Contributor \
   --scopes /subscriptions/<subscription-id> \
   --sdk-auth
+
+# Copy the JSON output to AZURE_CREDENTIALS secret
 ```
 
-Save the JSON output for GitHub secrets.
+#### 3. Trigger Deployment
 
-### 2. Configure GitHub Secrets
-
-Navigate to your repository → Settings → Secrets and variables → Actions.
-
-Add the following secrets:
-
-| Secret Name | Description |
-|-------------|-------------|
-| `AZURE_CLIENT_ID` | Service principal client ID |
-| `AZURE_CLIENT_SECRET` | Service principal secret |
-| `AZURE_TENANT_ID` | Azure AD tenant ID |
-| `AZURE_SUBSCRIPTION_ID` | Azure subscription ID |
-| `POSTGRES_PASSWORD` | PostgreSQL admin password |
-| `JWT_SECRET_KEY` | JWT signing secret (32+ chars) |
-| `VOTE_HASH_SECRET` | Vote anonymization secret |
-| `AI_FOUNDRY_API_KEY` | Azure AI Foundry API key |
-| `AI_FOUNDRY_ENDPOINT` | Azure AI Foundry endpoint URL |
-
-### 3. Configure GitHub Environments
-
-Create the following environments in GitHub:
-
-1. **dev** - Development environment
-2. **staging** - Staging environment  
-3. **prod** - Production environment (with required reviewers)
-
-### 4. Initial Infrastructure Deployment
-
-For the first deployment, run manually:
+Push to `main` branch or manually trigger the workflow:
 
 ```bash
-# Login to Azure
+git push origin main
+```
+
+### Option 2: Azure CLI Deployment
+
+#### 1. Login to Azure
+
+```bash
 az login
-
-# Set subscription
 az account set --subscription <subscription-id>
-
-# Deploy infrastructure
-az deployment sub create \
-  --location eastus2 \
-  --template-file infra/main.bicep \
-  --parameters environmentName=dev \
-  --parameters postgresAdminPassword='<your-password>' \
-  --parameters jwtSecretKey='<your-jwt-secret>' \
-  --parameters voteHashSecret='<your-vote-secret>' \
-  --parameters aiFoundryApiKey='<your-ai-key>' \
-  --parameters aiFoundryEndpoint='<your-ai-endpoint>'
 ```
 
-### 5. Build and Push Initial Container Image
+#### 2. Create Resource Group
 
 ```bash
-# Get ACR login server
-ACR_SERVER=$(az acr list -g rg-truepulse-dev --query '[0].loginServer' -o tsv)
+az group create \
+  --name truepulse-rg \
+  --location eastus2
+```
 
-# Login to ACR
-az acr login --name ${ACR_SERVER%.azurecr.io}
+#### 3. Deploy Infrastructure
 
-# Build and push
+```bash
+cd infra
+
+# Deploy with parameter file
+az deployment group create \
+  --resource-group truepulse-rg \
+  --template-file main.bicep \
+  --parameters main.parameters.dev.json \
+  --parameters postgresAdminPassword='<secure-password>'
+```
+
+#### 4. Build and Push Container Image
+
+```bash
+# Get ACR credentials
+ACR_NAME=$(az acr list -g truepulse-rg --query "[0].name" -o tsv)
+az acr login --name $ACR_NAME
+
+# Build and push backend
 cd src/backend
-docker build -t $ACR_SERVER/truepulse-api:latest .
-docker push $ACR_SERVER/truepulse-api:latest
+docker build -t $ACR_NAME.azurecr.io/truepulse-api:latest .
+docker push $ACR_NAME.azurecr.io/truepulse-api:latest
 ```
 
-### 6. Run Database Migrations
+#### 5. Deploy Frontend to Static Web App
 
 ```bash
-# Get Container App name
-CA_NAME=$(az containerapp list -g rg-truepulse-dev --query '[0].name' -o tsv)
-
-# Execute migrations
-az containerapp exec \
-  --name $CA_NAME \
-  --resource-group rg-truepulse-dev \
-  --command "alembic upgrade head"
-```
-
-### 7. Deploy Frontend
-
-```bash
-# Get Static Web App deployment token
-SWA_TOKEN=$(az staticwebapp secrets list \
-  --name <swa-name> \
-  --resource-group rg-truepulse-dev \
-  --query 'properties.apiKey' -o tsv)
-
-# Build frontend
 cd src/frontend
-npm ci
 npm run build
 
-# Deploy using SWA CLI
-npx @azure/static-web-apps-cli deploy out \
-  --deployment-token $SWA_TOKEN
+# Use SWA CLI
+npx @azure/static-web-apps-cli deploy \
+  --deployment-token <swa-deployment-token> \
+  --app-location ./out
 ```
 
 ## Environment Configuration
 
-### Development (`dev`)
+### Backend Environment Variables
 
-| Resource | SKU/Config |
-|----------|------------|
-| PostgreSQL | B2s (Burstable) |
-| Redis | Basic C0 |
-| Container App | Min: 1, Max: 3 |
-| Cosmos DB | Serverless |
+| Variable | Description | Required |
+|----------|-------------|----------|
+| `DATABASE_URL` | PostgreSQL connection string | Yes |
+| `AZURE_STORAGE_CONNECTION_STRING` | Storage account connection | Yes |
+| `AZURE_OPENAI_ENDPOINT` | OpenAI endpoint URL | Yes |
+| `AZURE_OPENAI_API_KEY` | OpenAI API key | Yes |
+| `AZURE_OPENAI_DEPLOYMENT_NAME` | Model deployment name | Yes |
+| `JWT_SECRET` | JWT signing secret | Yes |
+| `API_SECRET_KEY` | API secret key | Yes |
+| `AZURE_KEY_VAULT_URL` | Key Vault URL | Yes |
+| `COMMUNICATION_SERVICES_CONNECTION_STRING` | SMS service connection | Yes |
+| `EMAIL_CONNECTION_STRING` | Email service connection | Yes |
+| `CORS_ORIGINS` | Allowed CORS origins | Yes |
 
-### Staging (`staging`)
+### Frontend Environment Variables
 
-| Resource | SKU/Config |
-|----------|------------|
-| PostgreSQL | D2ds_v5 |
-| Redis | Standard C1 |
-| Container App | Min: 1, Max: 5 |
-| Cosmos DB | Provisioned 400 RU/s |
+| Variable | Description | Required |
+|----------|-------------|----------|
+| `NEXT_PUBLIC_API_URL` | Backend API URL | Yes |
+| `NEXT_PUBLIC_APP_URL` | Frontend URL | Yes |
 
-### Production (`prod`)
+## Infrastructure Customization
 
-| Resource | SKU/Config |
-|----------|------------|
-| PostgreSQL | D4ds_v5 + Zone-redundant HA |
-| Redis | Premium P1 + Zone-redundant |
-| Container App | Min: 2, Max: 10 |
-| Cosmos DB | Provisioned autoscale |
+### Parameter File Structure
 
-## CI/CD Pipeline
-
-### Workflow: `ci.yml`
-
-Triggers on pull requests:
-- Backend linting (Ruff)
-- Backend type checking (MyPy)
-- Backend tests (Pytest)
-- Frontend linting (ESLint)
-- Frontend type checking (TypeScript)
-- Frontend tests (Jest)
-- Infrastructure validation (Bicep)
-- Security scanning (Trivy, Gitleaks)
-
-### Workflow: `deploy.yml`
-
-Triggers on push to `main` or manual dispatch:
-
-1. **Infrastructure** - Deploys/updates Bicep templates
-2. **Build Backend** - Builds and pushes Docker image
-3. **Deploy Backend** - Updates Container App
-4. **Deploy Frontend** - Builds and deploys to SWA
-5. **Run Migrations** - Executes Alembic migrations
-6. **Integration Tests** - Validates deployment
-
-## Monitoring & Observability
-
-### Log Analytics Queries
-
-**API Errors:**
-```kusto
-ContainerAppConsoleLogs_CL
-| where Log_s contains "ERROR"
-| project TimeGenerated, ContainerName_s, Log_s
-| order by TimeGenerated desc
-| take 100
-```
-
-**Request Latency:**
-```kusto
-ContainerAppConsoleLogs_CL
-| where Log_s contains "request completed"
-| extend latency = extract("latency=([0-9.]+)", 1, Log_s)
-| summarize avg(todouble(latency)), percentile(todouble(latency), 95) by bin(TimeGenerated, 5m)
-```
-
-### Alerts
-
-Configure Azure Monitor alerts for:
-- Container App restart count > 3
-- Response latency P95 > 2s
-- Error rate > 5%
-- Database connection failures
-
-### Application Insights (Optional)
-
-Enable Application Insights integration:
-
-```python
-# In backend main.py
-from azure.monitor.opentelemetry import configure_azure_monitor
-
-configure_azure_monitor(
-    connection_string=os.getenv("APPLICATIONINSIGHTS_CONNECTION_STRING")
-)
-```
-
-## Scaling
-
-### Horizontal Scaling
-
-Container Apps auto-scaling is configured based on:
-- HTTP concurrency: 100 concurrent requests per replica
-- Memory usage: 80% threshold
-- Custom metrics via KEDA
-
-Adjust in `containerAppApi.bicep`:
-```bicep
-scale: {
-  minReplicas: environmentName == 'prod' ? 2 : 1
-  maxReplicas: environmentName == 'prod' ? 10 : 3
-  rules: [
-    {
-      name: 'http-scaling'
-      http: {
-        metadata: {
-          concurrentRequests: '100'
-        }
-      }
-    }
-  ]
+```json
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "environmentName": { "value": "dev" },
+    "location": { "value": "eastus2" },
+    "postgresSkuName": { "value": "Standard_B1ms" },
+    "containerAppCpu": { "value": "0.5" },
+    "containerAppMemory": { "value": "1Gi" }
+  }
 }
 ```
 
-### Vertical Scaling
+### Scaling Configuration
 
-Upgrade PostgreSQL:
-```bash
-az postgres flexible-server update \
-  --resource-group rg-truepulse-prod \
-  --name <server-name> \
-  --sku-name Standard_D8ds_v5
+Adjust Container Apps scaling in `main.bicep`:
+
+```bicep
+minReplicas: 1      // Minimum instances
+maxReplicas: 10     // Maximum instances
 ```
 
-## Disaster Recovery
+### Database Sizing
 
-### Backup Strategy
+| Environment | SKU | vCores | Storage |
+|-------------|-----|--------|---------|
+| Development | Standard_B1ms | 1 | 32 GB |
+| Staging | Standard_B2s | 2 | 64 GB |
+| Production | Standard_D4s_v3 | 4 | 256 GB |
 
-| Resource | Backup | Retention |
-|----------|--------|-----------|
-| PostgreSQL | Geo-redundant automatic | 35 days |
-| Cosmos DB | Continuous backup | 7 days |
-| Key Vault | Soft-delete + purge protection | 90 days |
+## Post-Deployment Tasks
 
-### Recovery Procedures
+### 1. Initialize Database
 
-**PostgreSQL Point-in-Time Restore:**
 ```bash
-az postgres flexible-server restore \
-  --resource-group rg-truepulse-prod \
-  --name <new-server-name> \
-  --source-server <source-server-name> \
-  --restore-time "2024-01-15T00:00:00Z"
+# Connect to PostgreSQL
+psql "host=<server>.postgres.database.azure.com dbname=truepulse user=truepulseadmin"
+
+# Run initialization script
+\i scripts/init-db.sql
 ```
 
-**Cosmos DB Restore:**
+### 2. Seed Initial Data
+
 ```bash
-az cosmosdb restore \
-  --account-name <new-account-name> \
-  --resource-group rg-truepulse-prod \
-  --target-database-account-name <source-account> \
-  --restore-timestamp "2024-01-15T00:00:00Z"
+# From backend directory with proper environment
+python -m scripts.seed_achievements
+python -m scripts.seed_locations
 ```
+
+### 3. Configure Custom Domain (Optional)
+
+```bash
+# Add custom domain to Static Web App
+az staticwebapp hostname set \
+  --name truepulse-swa \
+  --resource-group truepulse-rg \
+  --hostname app.truepulse.net
+
+# Add custom domain to Container App
+az containerapp hostname add \
+  --name truepulse-api \
+  --resource-group truepulse-rg \
+  --hostname api.truepulse.net
+```
+
+### 4. Configure DNS
+
+Add the following DNS records:
+
+| Type | Name | Value |
+|------|------|-------|
+| CNAME | app | `<swa-hostname>.azurestaticapps.net` |
+| CNAME | api | `<container-app>.azurecontainerapps.io` |
+| TXT | _dnsauth.app | `<validation-token>` |
+
+## Monitoring
+
+### Log Analytics Queries
+
+View backend logs:
+```kusto
+ContainerAppConsoleLogs_CL
+| where ContainerAppName_s == "truepulse-api"
+| project TimeGenerated, Log_s
+| order by TimeGenerated desc
+```
+
+View error rates:
+```kusto
+ContainerAppConsoleLogs_CL
+| where Log_s contains "ERROR"
+| summarize count() by bin(TimeGenerated, 1h)
+```
+
+### Health Checks
+
+- Backend: `GET /health`
+- Database: Check connection in Container App logs
+
+## Troubleshooting
+
+### Container App Not Starting
+
+1. Check container logs:
+   ```bash
+   az containerapp logs show -n truepulse-api -g truepulse-rg
+   ```
+
+2. Verify environment variables:
+   ```bash
+   az containerapp show -n truepulse-api -g truepulse-rg --query "properties.template.containers[0].env"
+   ```
+
+### Database Connection Issues
+
+1. Verify firewall rules allow Container App subnet
+2. Check connection string format
+3. Verify PostgreSQL is running:
+   ```bash
+   az postgres flexible-server show -n truepulse-pg -g truepulse-rg --query "state"
+   ```
+
+### Static Web App Build Failures
+
+1. Check build logs in GitHub Actions
+2. Verify `next.config.js` output settings
+3. Ensure all environment variables are set
+
+## Cost Optimization
+
+### Development Environment
+
+- Use B-series VMs for PostgreSQL
+- Set Container Apps to scale to 0
+- Use consumption plan where possible
+
+### Production Considerations
+
+- Enable autoscaling based on load
+- Consider reserved capacity for predictable workloads
+- Use Azure Hybrid Benefit if applicable
 
 ## Security Checklist
 
 - [ ] All secrets stored in Key Vault
-- [ ] Managed identities used for Azure service auth
-- [ ] Private endpoints enabled for data services
-- [ ] Network isolation via VNet
-- [ ] TLS 1.2+ enforced everywhere
-- [ ] WAF enabled for public endpoints
-- [ ] Security scanning in CI pipeline
-- [ ] Dependency updates automated (Dependabot)
-- [ ] Access logs enabled and monitored
-- [ ] Incident response plan documented
-
-## Troubleshooting
-
-### Common Issues
-
-**Container App won't start:**
-```bash
-# Check logs
-az containerapp logs show \
-  --name <app-name> \
-  --resource-group <rg-name> \
-  --follow
-```
-
-**Database connection errors:**
-```bash
-# Verify firewall rules
-az postgres flexible-server firewall-rule list \
-  --resource-group <rg-name> \
-  --name <server-name>
-
-# Test connectivity
-az postgres flexible-server connect \
-  --name <server-name> \
-  --admin-user <admin>
-```
-
-**Static Web App deployment fails:**
-```bash
-# Check deployment logs
-az staticwebapp show \
-  --name <swa-name> \
-  --resource-group <rg-name>
-```
-
-## Support
-
-For deployment issues:
-- 📧 devops@truepulse.dev
-- 📚 [Azure Documentation](https://docs.microsoft.com/azure)
-- 🐛 [GitHub Issues](https://github.com/yourusername/truepulse/issues)
+- [ ] PostgreSQL SSL enforced
+- [ ] Container App ingress restricted
+- [ ] CORS properly configured
+- [ ] Rate limiting enabled
+- [ ] Audit logging enabled
+- [ ] Managed identities used where possible
