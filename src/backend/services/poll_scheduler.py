@@ -405,15 +405,24 @@ class PollScheduler:
 
             poll_data = generated_polls[0]
 
-            # Get next poll window times
-            window_start, window_end = self.get_next_poll_window()
+            # Check if there's currently an active poll
+            current_poll = await self.get_current_poll()
+
+            if current_poll:
+                # There's an active poll, schedule for next window
+                window_start, window_end = self.get_next_poll_window()
+                initial_status = PollStatus.SCHEDULED
+            else:
+                # No active poll, schedule for current window and activate immediately
+                window_start, window_end = self.get_current_poll_window()
+                initial_status = PollStatus.ACTIVE
 
             # Create the poll in database
             new_poll = Poll(
                 id=str(uuid4()),
                 question=poll_data.question,
                 category=poll_data.category,
-                status=PollStatus.SCHEDULED,
+                status=initial_status,
                 scheduled_start=window_start,
                 scheduled_end=window_end,
                 expires_at=window_end,  # Required: expires when window ends
