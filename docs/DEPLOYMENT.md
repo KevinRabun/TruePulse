@@ -32,7 +32,40 @@ TruePulse deploys the following Azure resources:
 
 ### Option 1: GitHub Actions (Recommended)
 
-The repository includes CI/CD workflows that automatically deploy on push to `main`.
+The repository includes CI/CD workflows that automatically deploy based on these rules:
+
+| Trigger | Target Environment | Requirements |
+|---------|-------------------|--------------|
+| Push to `main` branch | **dev** | All CI tests must pass |
+| Release published | **prod** | All CI tests must pass |
+| Manual dispatch | Selected environment | N/A (can force deploy) |
+
+#### Deployment Flow
+
+```
+┌─────────────┐     ┌─────────┐     ┌─────────────────┐
+│ Push to     │────▶│ CI      │────▶│ Deploy to DEV   │
+│ main        │     │ Passes  │     │ (automatic)     │
+└─────────────┘     └─────────┘     └─────────────────┘
+
+┌─────────────┐     ┌─────────┐     ┌─────────────────┐
+│ Create      │────▶│ CI      │────▶│ Deploy to PROD  │
+│ Release     │     │ Passes  │     │ (automatic)     │
+└─────────────┘     └─────────┘     └─────────────────┘
+```
+
+#### Creating a Production Release
+
+To deploy to production, create a GitHub release:
+
+```bash
+# Tag the release
+git tag -a v1.0.0 -m "Release v1.0.0"
+git push origin v1.0.0
+
+# Then create a release in GitHub UI or CLI:
+gh release create v1.0.0 --title "v1.0.0" --notes "Release notes here"
+```
 
 #### 1. Configure GitHub Secrets
 
