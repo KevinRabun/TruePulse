@@ -104,7 +104,8 @@ Output format:
                 )
 
                 # Get OpenAI client for chat completions
-                self._openai_client = await self._client.get_openai_client()
+                # Note: get_openai_client() is not a coroutine, it returns AsyncOpenAI directly
+                self._openai_client = self._client.get_openai_client()  # type: ignore[misc]
 
                 self._initialized = True
                 logger.info("Poll generator initialized with Azure AI Foundry")
@@ -337,6 +338,10 @@ Respond in JSON format:
                 )
 
                 result_text = response.choices[0].message.content
+                if result_text is None:
+                    logger.warning("Empty response from AI for bias validation")
+                    return self._heuristic_bias_check(poll)
+
                 # Extract JSON from response
                 if "```json" in result_text:
                     result_text = result_text.split("```json")[1].split("```")[0]
