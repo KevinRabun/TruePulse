@@ -104,6 +104,12 @@ param sharedPostgresDnsZoneId string
 @description('Resource ID of shared Key Vault DNS zone')
 param sharedKeyVaultDnsZoneId string
 
+@description('Resource ID of shared ACR DNS zone')
+param sharedAcrDnsZoneId string
+
+@description('Resource ID of shared Container Registry')
+param sharedContainerRegistryResourceId string
+
 // ============================================================================
 // Variables
 // ============================================================================
@@ -173,6 +179,21 @@ module privateDnsZoneLinks 'modules/privateDnsZoneLinks.bicep' = {
     vnetId: vnet.outputs.vnetId
   }
   dependsOn: [vnet]
+}
+
+// ACR Private Endpoint - enables Container Apps to pull images from shared ACR via private network
+module acrPrivateEndpoint 'modules/acrPrivateEndpoint.bicep' = {
+  scope: resourceGroup
+  name: 'acr-private-endpoint-deployment'
+  params: {
+    name: 'pe-${sharedContainerRegistryName}'
+    location: location
+    tags: tags
+    subnetId: vnet.outputs.privateEndpointsSubnetId
+    containerRegistryResourceId: sharedContainerRegistryResourceId
+    acrDnsZoneId: sharedAcrDnsZoneId
+  }
+  dependsOn: [privateDnsZoneLinks]
 }
 
 // Key Vault - isolated secrets per environment

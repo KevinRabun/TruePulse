@@ -79,6 +79,7 @@ jobs:
       openaiDnsZoneName: ${{ steps.deploy-shared.outputs.openaiDnsZoneName }}
       postgresDnsZoneName: ${{ steps.deploy-shared.outputs.postgresDnsZoneName }}
       keyVaultDnsZoneName: ${{ steps.deploy-shared.outputs.keyVaultDnsZoneName }}
+      acrDnsZoneName: ${{ steps.deploy-shared.outputs.acrDnsZoneName }}
     steps:
       - uses: actions/checkout@v4
 
@@ -119,6 +120,7 @@ jobs:
           OPENAI_DNS_ID=$(jq -r '.openaiDnsZoneId.value' /tmp/deployment-outputs.json)
           POSTGRES_DNS_ID=$(jq -r '.postgresDnsZoneId.value' /tmp/deployment-outputs.json)
           KEYVAULT_DNS_ID=$(jq -r '.keyVaultDnsZoneId.value' /tmp/deployment-outputs.json)
+          ACR_DNS_ID=$(jq -r '.acrDnsZoneId.value' /tmp/deployment-outputs.json)
           
           # Extract zone names from IDs (e.g., ".../privateDnsZones/privatelink.blob.core.windows.net")
           BLOB_DNS_NAME=$(basename "$BLOB_DNS_ID")
@@ -126,6 +128,7 @@ jobs:
           OPENAI_DNS_NAME=$(basename "$OPENAI_DNS_ID")
           POSTGRES_DNS_NAME=$(basename "$POSTGRES_DNS_ID")
           KEYVAULT_DNS_NAME=$(basename "$KEYVAULT_DNS_ID")
+          ACR_DNS_NAME=$(basename "$ACR_DNS_ID")
           
           echo "=== Extracted Values ==="
           echo "Log Analytics Name: [$LOG_ANALYTICS_NAME]"
@@ -137,6 +140,7 @@ jobs:
           echo "OpenAI DNS Zone: [$OPENAI_DNS_NAME]"
           echo "Postgres DNS Zone: [$POSTGRES_DNS_NAME]"
           echo "KeyVault DNS Zone: [$KEYVAULT_DNS_NAME]"
+          echo "ACR DNS Zone: [$ACR_DNS_NAME]"
           echo "========================="
           
           # Validate Log Analytics Name
@@ -157,6 +161,7 @@ jobs:
           echo "openaiDnsZoneName=$OPENAI_DNS_NAME" >> $GITHUB_OUTPUT
           echo "postgresDnsZoneName=$POSTGRES_DNS_NAME" >> $GITHUB_OUTPUT
           echo "keyVaultDnsZoneName=$KEYVAULT_DNS_NAME" >> $GITHUB_OUTPUT
+          echo "acrDnsZoneName=$ACR_DNS_NAME" >> $GITHUB_OUTPUT
           
           # Get Communication Service connection string (not in Bicep outputs)
           ACS_CONN=$(az communication list-key --name "$ACS_NAME" --resource-group rg-truepulse-shared --query 'primaryConnectionString' -o tsv)
@@ -208,14 +213,17 @@ jobs:
           OPENAI_DNS_NAME="${{ needs.shared-infrastructure.outputs.openaiDnsZoneName }}"
           POSTGRES_DNS_NAME="${{ needs.shared-infrastructure.outputs.postgresDnsZoneName }}"
           KEYVAULT_DNS_NAME="${{ needs.shared-infrastructure.outputs.keyVaultDnsZoneName }}"
+          ACR_DNS_NAME="${{ needs.shared-infrastructure.outputs.acrDnsZoneName }}"
           
           # Reconstruct full resource IDs from names (avoids GitHub secret masking)
           LOG_ANALYTICS_ID="/subscriptions/${{ secrets.AZURE_SUBSCRIPTION_ID }}/resourceGroups/rg-truepulse-shared/providers/Microsoft.OperationalInsights/workspaces/${LOG_ANALYTICS_NAME}"
+          ACR_RESOURCE_ID="/subscriptions/${{ secrets.AZURE_SUBSCRIPTION_ID }}/resourceGroups/rg-truepulse-shared/providers/Microsoft.ContainerRegistry/registries/${ACR_NAME}"
           BLOB_DNS_ID="/subscriptions/${{ secrets.AZURE_SUBSCRIPTION_ID }}/resourceGroups/rg-truepulse-shared/providers/Microsoft.Network/privateDnsZones/${BLOB_DNS_NAME}"
           TABLE_DNS_ID="/subscriptions/${{ secrets.AZURE_SUBSCRIPTION_ID }}/resourceGroups/rg-truepulse-shared/providers/Microsoft.Network/privateDnsZones/${TABLE_DNS_NAME}"
           OPENAI_DNS_ID="/subscriptions/${{ secrets.AZURE_SUBSCRIPTION_ID }}/resourceGroups/rg-truepulse-shared/providers/Microsoft.Network/privateDnsZones/${OPENAI_DNS_NAME}"
           POSTGRES_DNS_ID="/subscriptions/${{ secrets.AZURE_SUBSCRIPTION_ID }}/resourceGroups/rg-truepulse-shared/providers/Microsoft.Network/privateDnsZones/${POSTGRES_DNS_NAME}"
           KEYVAULT_DNS_ID="/subscriptions/${{ secrets.AZURE_SUBSCRIPTION_ID }}/resourceGroups/rg-truepulse-shared/providers/Microsoft.Network/privateDnsZones/${KEYVAULT_DNS_NAME}"
+          ACR_DNS_ID="/subscriptions/${{ secrets.AZURE_SUBSCRIPTION_ID }}/resourceGroups/rg-truepulse-shared/providers/Microsoft.Network/privateDnsZones/${ACR_DNS_NAME}"
           
           # Debug output
           echo "=== Shared Resource Values ==="
@@ -223,7 +231,7 @@ jobs:
           echo "ACR Name: $ACR_NAME"
           echo "ACR Login: $ACR_LOGIN"
           echo "ACS Name: $ACS_NAME"
-          echo "DNS Zones: blob=$BLOB_DNS_NAME table=$TABLE_DNS_NAME openai=$OPENAI_DNS_NAME postgres=$POSTGRES_DNS_NAME keyvault=$KEYVAULT_DNS_NAME"
+          echo "DNS Zones: blob=$BLOB_DNS_NAME table=$TABLE_DNS_NAME openai=$OPENAI_DNS_NAME postgres=$POSTGRES_DNS_NAME keyvault=$KEYVAULT_DNS_NAME acr=$ACR_DNS_NAME"
           echo "==============================="
           
           # Validate required values
@@ -236,6 +244,7 @@ jobs:
           echo "logAnalyticsWorkspaceId=$LOG_ANALYTICS_ID" >> $GITHUB_OUTPUT
           echo "containerRegistryName=$ACR_NAME" >> $GITHUB_OUTPUT
           echo "containerRegistryLoginServer=$ACR_LOGIN" >> $GITHUB_OUTPUT
+          echo "containerRegistryResourceId=$ACR_RESOURCE_ID" >> $GITHUB_OUTPUT
           echo "communicationServiceName=$ACS_NAME" >> $GITHUB_OUTPUT
           echo "communicationServiceConnectionString=$ACS_CONN" >> $GITHUB_OUTPUT
           echo "blobDnsZoneId=$BLOB_DNS_ID" >> $GITHUB_OUTPUT
@@ -243,6 +252,7 @@ jobs:
           echo "openaiDnsZoneId=$OPENAI_DNS_ID" >> $GITHUB_OUTPUT
           echo "postgresDnsZoneId=$POSTGRES_DNS_ID" >> $GITHUB_OUTPUT
           echo "keyVaultDnsZoneId=$KEYVAULT_DNS_ID" >> $GITHUB_OUTPUT
+          echo "acrDnsZoneId=$ACR_DNS_ID" >> $GITHUB_OUTPUT
 
       - name: Deploy Environment Bicep
         id: deploy
@@ -275,6 +285,8 @@ jobs:
             --parameters sharedOpenaiDnsZoneId='${{ steps.shared.outputs.openaiDnsZoneId }}' \
             --parameters sharedPostgresDnsZoneId='${{ steps.shared.outputs.postgresDnsZoneId }}' \
             --parameters sharedKeyVaultDnsZoneId='${{ steps.shared.outputs.keyVaultDnsZoneId }}' \
+            --parameters sharedAcrDnsZoneId='${{ steps.shared.outputs.acrDnsZoneId }}' \
+            --parameters sharedContainerRegistryResourceId='${{ steps.shared.outputs.containerRegistryResourceId }}' \
             --query 'properties.outputs' \
             --output json)
           

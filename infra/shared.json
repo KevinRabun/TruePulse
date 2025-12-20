@@ -5,7 +5,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.28.1.47646",
-      "templateHash": "2391498171006628490"
+      "templateHash": "10571916804463499869"
     }
   },
   "parameters": {
@@ -11446,7 +11446,7 @@
             "_generator": {
               "name": "bicep",
               "version": "0.28.1.47646",
-              "templateHash": "3830120004737737636"
+              "templateHash": "4094197703423171621"
             }
           },
           "parameters": {
@@ -11492,6 +11492,13 @@
               "name": "privatelink.vaultcore.azure.net",
               "location": "global",
               "tags": "[parameters('tags')]"
+            },
+            {
+              "type": "Microsoft.Network/privateDnsZones",
+              "apiVersion": "2020-06-01",
+              "name": "privatelink.azurecr.io",
+              "location": "global",
+              "tags": "[parameters('tags')]"
             }
           ],
           "outputs": {
@@ -11534,6 +11541,14 @@
             "keyVaultDnsZoneName": {
               "type": "string",
               "value": "privatelink.vaultcore.azure.net"
+            },
+            "acrDnsZoneId": {
+              "type": "string",
+              "value": "[resourceId('Microsoft.Network/privateDnsZones', 'privatelink.azurecr.io')]"
+            },
+            "acrDnsZoneName": {
+              "type": "string",
+              "value": "privatelink.azurecr.io"
             }
           }
         }
@@ -11607,6 +11622,10 @@
     "keyVaultDnsZoneId": {
       "type": "string",
       "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('resourceGroupName')), 'Microsoft.Resources/deployments', 'shared-private-dns-zones'), '2022-09-01').outputs.keyVaultDnsZoneId.value]"
+    },
+    "acrDnsZoneId": {
+      "type": "string",
+      "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('resourceGroupName')), 'Microsoft.Resources/deployments', 'shared-private-dns-zones'), '2022-09-01').outputs.acrDnsZoneId.value]"
     }
   }
 }

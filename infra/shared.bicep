@@ -157,3 +157,4 @@ output tableDnsZoneId string = privateDnsZones.outputs.tableDnsZoneId
 output openaiDnsZoneId string = privateDnsZones.outputs.openaiDnsZoneId
 output postgresDnsZoneId string = privateDnsZones.outputs.postgresDnsZoneId
 output keyVaultDnsZoneId string = privateDnsZones.outputs.keyVaultDnsZoneId
+output acrDnsZoneId string = privateDnsZones.outputs.acrDnsZoneId

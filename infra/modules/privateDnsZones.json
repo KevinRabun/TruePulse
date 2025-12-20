@@ -1,0 +1,113 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "metadata": {
+    "_generator": {
+      "name": "bicep",
+      "version": "0.28.1.47646",
+      "templateHash": "4094197703423171621"
+    }
+  },
+  "parameters": {
+    "tags": {
+      "type": "object",
+      "metadata": {
+        "description": "Tags to apply to resources"
+      }
+    }
+  },
+  "resources": [
+    {
+      "type": "Microsoft.Network/privateDnsZones",
+      "apiVersion": "2020-06-01",
+      "name": "[format('privatelink.blob.{0}', environment().suffixes.storage)]",
+      "location": "global",
+      "tags": "[parameters('tags')]"
+    },
+    {
+      "type": "Microsoft.Network/privateDnsZones",
+      "apiVersion": "2020-06-01",
+      "name": "[format('privatelink.table.{0}', environment().suffixes.storage)]",
+      "location": "global",
+      "tags": "[parameters('tags')]"
+    },
+    {
+      "type": "Microsoft.Network/privateDnsZones",
+      "apiVersion": "2020-06-01",
+      "name": "privatelink.openai.azure.com",
+      "location": "global",
+      "tags": "[parameters('tags')]"
+    },
+    {
+      "type": "Microsoft.Network/privateDnsZones",
+      "apiVersion": "2020-06-01",
+      "name": "privatelink.postgres.database.azure.com",
+      "location": "global",
+      "tags": "[parameters('tags')]"
+    },
+    {
+      "type": "Microsoft.Network/privateDnsZones",
+      "apiVersion": "2020-06-01",
+      "name": "privatelink.vaultcore.azure.net",
+      "location": "global",
+      "tags": "[parameters('tags')]"
+    },
+    {
+      "type": "Microsoft.Network/privateDnsZones",
+      "apiVersion": "2020-06-01",
+      "name": "privatelink.azurecr.io",
+      "location": "global",
+      "tags": "[parameters('tags')]"
+    }
+  ],
+  "outputs": {
+    "blobDnsZoneId": {
+      "type": "string",
+      "value": "[resourceId('Microsoft.Network/privateDnsZones', format('privatelink.blob.{0}', environment().suffixes.storage))]"
+    },
+    "blobDnsZoneName": {
+      "type": "string",
+      "value": "[format('privatelink.blob.{0}', environment().suffixes.storage)]"
+    },
+    "tableDnsZoneId": {
+      "type": "string",
+      "value": "[resourceId('Microsoft.Network/privateDnsZones', format('privatelink.table.{0}', environment().suffixes.storage))]"
+    },
+    "tableDnsZoneName": {
+      "type": "string",
+      "value": "[format('privatelink.table.{0}', environment().suffixes.storage)]"
+    },
+    "openaiDnsZoneId": {
+      "type": "string",
+      "value": "[resourceId('Microsoft.Network/privateDnsZones', 'privatelink.openai.azure.com')]"
+    },
+    "openaiDnsZoneName": {
+      "type": "string",
+      "value": "privatelink.openai.azure.com"
+    },
+    "postgresDnsZoneId": {
+      "type": "string",
+      "value": "[resourceId('Microsoft.Network/privateDnsZones', 'privatelink.postgres.database.azure.com')]"
+    },
+    "postgresDnsZoneName": {
+      "type": "string",
+      "value": "privatelink.postgres.database.azure.com"
+    },
+    "keyVaultDnsZoneId": {
+      "type": "string",
+      "value": "[resourceId('Microsoft.Network/privateDnsZones', 'privatelink.vaultcore.azure.net')]"
+    },
+    "keyVaultDnsZoneName": {
+      "type": "string",
+      "value": "privatelink.vaultcore.azure.net"
+    },
+    "acrDnsZoneId": {
+      "type": "string",
+      "value": "[resourceId('Microsoft.Network/privateDnsZones', 'privatelink.azurecr.io')]"
+    },
+    "acrDnsZoneName": {
+      "type": "string",
+      "value": "privatelink.azurecr.io"
+    }
+  }
+}

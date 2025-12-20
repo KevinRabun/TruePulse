@@ -45,6 +45,13 @@ resource keyVaultDnsZone 'Microsoft.Network/privateDnsZones@2020-06-01' = {
   tags: tags
 }
 
+// Azure Container Registry
+resource acrDnsZone 'Microsoft.Network/privateDnsZones@2020-06-01' = {
+  name: 'privatelink.azurecr.io'
+  location: 'global'
+  tags: tags
+}
+
 // ============================================================================
 // Outputs
 // ============================================================================
@@ -63,3 +70,6 @@ output postgresDnsZoneName string = postgresDnsZone.name
 
 output keyVaultDnsZoneId string = keyVaultDnsZone.id
 output keyVaultDnsZoneName string = keyVaultDnsZone.name
+
+output acrDnsZoneId string = acrDnsZone.id
+output acrDnsZoneName string = acrDnsZone.name

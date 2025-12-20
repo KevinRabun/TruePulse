@@ -33,6 +33,10 @@ resource keyVaultDnsZone 'Microsoft.Network/privateDnsZones@2020-06-01' existing
   name: 'privatelink.vaultcore.azure.net'
 }
 
+resource acrDnsZone 'Microsoft.Network/privateDnsZones@2020-06-01' existing = {
+  name: 'privatelink.azurecr.io'
+}
+
 // ============================================================================
 // VNet Links - One per DNS zone per environment
 // ============================================================================
@@ -87,6 +91,18 @@ resource postgresDnsZoneLink 'Microsoft.Network/privateDnsZones/virtualNetworkLi
 
 resource keyVaultDnsZoneLink 'Microsoft.Network/privateDnsZones/virtualNetworkLinks@2020-06-01' = {
   parent: keyVaultDnsZone
+  name: 'link-${environmentName}'
+  location: 'global'
+  properties: {
+    registrationEnabled: false
+    virtualNetwork: {
+      id: vnetId
+    }
+  }
+}
+
+resource acrDnsZoneLink 'Microsoft.Network/privateDnsZones/virtualNetworkLinks@2020-06-01' = {
+  parent: acrDnsZone
   name: 'link-${environmentName}'
   location: 'global'
   properties: {
