@@ -301,7 +301,6 @@ module containerAppsEnv 'modules/containerAppsEnv.bicep' = {
     name: containerAppsEnvName
     location: location
     tags: tags
-    logAnalyticsWorkspaceResourceId: sharedLogAnalyticsWorkspaceId
     infrastructureSubnetId: vnet.outputs.containerAppsSubnetId
     platformReservedCidr: platformReservedCidr
     platformReservedDnsIP: platformReservedDnsIP

@@ -185,7 +185,7 @@ resource placeholderContainerApp 'Microsoft.App/containerApps@2024-03-01' = if (
 }
 
 // Full Container App using Azure Verified Module - used after placeholder is replaced
-module containerApp 'br/public:avm/res/app/container-app:0.12.1' = if (!usePlaceholderImage) {
+module containerApp 'br/public:avm/res/app/container-app:0.19.0' = if (!usePlaceholderImage) {
   name: 'container-app-api'
   params: {
     name: name
@@ -322,41 +322,39 @@ module containerApp 'br/public:avm/res/app/container-app:0.12.1' = if (!usePlace
         ]
       }
     ]
-    // Secrets from Key Vault
-    secrets: {
-      secureList: [
-        {
-          name: 'postgres-password'
-          keyVaultUrl: '${keyVaultUri}secrets/postgres-password'
-          identity: managedIdentity.id
-        }
-        {
-          name: 'jwt-secret-key'
-          keyVaultUrl: '${keyVaultUri}secrets/jwt-secret-key'
-          identity: managedIdentity.id
-        }
-        {
-          name: 'vote-hash-secret'
-          keyVaultUrl: '${keyVaultUri}secrets/vote-hash-secret'
-          identity: managedIdentity.id
-        }
-        {
-          name: 'azure-openai-api-key'
-          keyVaultUrl: '${keyVaultUri}secrets/azure-openai-api-key'
-          identity: managedIdentity.id
-        }
-        {
-          name: 'newsdata-api-key'
-          keyVaultUrl: '${keyVaultUri}secrets/newsdata-api-key'
-          identity: managedIdentity.id
-        }
-        {
-          name: 'newsapi-org-key'
-          keyVaultUrl: '${keyVaultUri}secrets/newsapi-org-key'
-          identity: managedIdentity.id
-        }
-      ]
-    }
+    // Secrets from Key Vault (AVM 0.19.0 uses flat array, not secureList)
+    secrets: [
+      {
+        name: 'postgres-password'
+        keyVaultUrl: '${keyVaultUri}secrets/postgres-password'
+        identity: managedIdentity.id
+      }
+      {
+        name: 'jwt-secret-key'
+        keyVaultUrl: '${keyVaultUri}secrets/jwt-secret-key'
+        identity: managedIdentity.id
+      }
+      {
+        name: 'vote-hash-secret'
+        keyVaultUrl: '${keyVaultUri}secrets/vote-hash-secret'
+        identity: managedIdentity.id
+      }
+      {
+        name: 'azure-openai-api-key'
+        keyVaultUrl: '${keyVaultUri}secrets/azure-openai-api-key'
+        identity: managedIdentity.id
+      }
+      {
+        name: 'newsdata-api-key'
+        keyVaultUrl: '${keyVaultUri}secrets/newsdata-api-key'
+        identity: managedIdentity.id
+      }
+      {
+        name: 'newsapi-org-key'
+        keyVaultUrl: '${keyVaultUri}secrets/newsapi-org-key'
+        identity: managedIdentity.id
+      }
+    ]
     // Ingress configuration
     ingressExternal: true
     ingressTargetPort: targetPort
@@ -385,17 +383,102 @@ module containerApp 'br/public:avm/res/app/container-app:0.12.1' = if (!usePlace
       allowCredentials: true
       maxAge: 86400
     }
-    // Scaling configuration
-    scaleMinReplicas: minReplicas
-    scaleMaxReplicas: maxReplicas
-    scaleRules: [
-      {
-        name: 'http-scaling'
-        http: {
-          metadata: {
-            concurrentRequests: '100'
+    // Scaling configuration (AVM 0.19.0 uses scaleSettings object)
+    scaleSettings: {
+      minReplicas: minReplicas
+      maxReplicas: maxReplicas
+      rules: [
+        {
+          name: 'http-scaling'
+          http: {
+            metadata: {
+              concurrentRequests: '100'
+            }
           }
         }
+      ]
+    }
+    // IP Security restrictions for Cloudflare-only access
+    ipSecurityRestrictions: [
+      {
+        name: 'AllowCloudflare1'
+        ipAddressRange: '173.245.48.0/20'
+        action: 'Allow'
+      }
+      {
+        name: 'AllowCloudflare2'
+        ipAddressRange: '103.21.244.0/22'
+        action: 'Allow'
+      }
+      {
+        name: 'AllowCloudflare3'
+        ipAddressRange: '103.22.200.0/22'
+        action: 'Allow'
+      }
+      {
+        name: 'AllowCloudflare4'
+        ipAddressRange: '103.31.4.0/22'
+        action: 'Allow'
+      }
+      {
+        name: 'AllowCloudflare5'
+        ipAddressRange: '141.101.64.0/18'
+        action: 'Allow'
+      }
+      {
+        name: 'AllowCloudflare6'
+        ipAddressRange: '108.162.192.0/18'
+        action: 'Allow'
+      }
+      {
+        name: 'AllowCloudflare7'
+        ipAddressRange: '190.93.240.0/20'
+        action: 'Allow'
+      }
+      {
+        name: 'AllowCloudflare8'
+        ipAddressRange: '188.114.96.0/20'
+        action: 'Allow'
+      }
+      {
+        name: 'AllowCloudflare9'
+        ipAddressRange: '197.234.240.0/22'
+        action: 'Allow'
+      }
+      {
+        name: 'AllowCloudflare10'
+        ipAddressRange: '198.41.128.0/17'
+        action: 'Allow'
+      }
+      {
+        name: 'AllowCloudflare11'
+        ipAddressRange: '162.158.0.0/15'
+        action: 'Allow'
+      }
+      {
+        name: 'AllowCloudflare12'
+        ipAddressRange: '104.16.0.0/13'
+        action: 'Allow'
+      }
+      {
+        name: 'AllowCloudflare13'
+        ipAddressRange: '104.24.0.0/14'
+        action: 'Allow'
+      }
+      {
+        name: 'AllowCloudflare14'
+        ipAddressRange: '172.64.0.0/13'
+        action: 'Allow'
+      }
+      {
+        name: 'AllowCloudflare15'
+        ipAddressRange: '131.0.72.0/22'
+        action: 'Allow'
+      }
+      {
+        name: 'DenyAll'
+        ipAddressRange: '0.0.0.0/0'
+        action: 'Deny'
       }
     ]
     // Managed identity

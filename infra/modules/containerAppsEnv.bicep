@@ -14,9 +14,6 @@ param location string
 @description('Resource tags')
 param tags object
 
-@description('Log Analytics workspace resource ID')
-param logAnalyticsWorkspaceResourceId string
-
 @description('Infrastructure subnet ID for Container Apps')
 param infrastructureSubnetId string
 
@@ -34,24 +31,26 @@ param dockerBridgeCidr string
 // ============================================================================
 
 // Using Azure Verified Module: br/public:avm/res/app/managed-environment
-module containerAppsEnv 'br/public:avm/res/app/managed-environment:0.10.1' = {
+// Updated to AVM 0.11.0 with external access for Cloudflare integration
+module containerAppsEnv 'br/public:avm/res/app/managed-environment:0.11.0' = {
   name: 'container-apps-env'
   params: {
     name: name
     location: location
     tags: tags
-    // VNet integration - WAF aligned
-    internal: true
-    infrastructureSubnetId: infrastructureSubnetId
+    // VNet integration - External for Cloudflare access with IP restrictions at Container App level
+    internal: false
+    infrastructureSubnetResourceId: infrastructureSubnetId
     infrastructureResourceGroupName: 'ME_${name}'
     platformReservedCidr: platformReservedCidr
     platformReservedDnsIP: platformReservedDnsIP
     dockerBridgeCidr: dockerBridgeCidr
     // Zone redundancy
     zoneRedundant: true
-    // Logging configuration
-    logAnalyticsWorkspaceResourceId: logAnalyticsWorkspaceResourceId
-    logsDestination: 'log-analytics'
+    // Logging configuration - using azure-monitor destination (no shared key required)
+    appLogsConfiguration: {
+      destination: 'azure-monitor'
+    }
     // Workload profiles for production workloads
     workloadProfiles: [
       {
