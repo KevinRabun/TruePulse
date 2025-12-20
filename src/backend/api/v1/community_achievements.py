@@ -14,7 +14,7 @@ from sqlalchemy import and_, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from api.deps import get_current_user, get_current_verified_user
+from api.deps import get_current_user, get_current_user_optional, get_current_verified_user
 from db.session import get_db
 from models.achievement import (
     CommunityAchievement,
@@ -102,7 +102,7 @@ class CommunityLeaderboard(BaseModel):
 
 @router.get("/active", response_model=list[CommunityAchievementProgress])
 async def get_active_community_achievements(
-    current_user: Optional[UserInDB] = Depends(get_current_user),
+    current_user: Optional[UserInDB] = Depends(get_current_user_optional),
     db: AsyncSession = Depends(get_db),
 ) -> list[CommunityAchievementProgress]:
     """
@@ -191,7 +191,7 @@ async def get_active_community_achievements(
 async def get_completed_community_achievements(
     page: int = Query(1, ge=1),
     per_page: int = Query(10, ge=1, le=50),
-    current_user: Optional[UserInDB] = Depends(get_current_user),
+    current_user: Optional[UserInDB] = Depends(get_current_user_optional),
     db: AsyncSession = Depends(get_db),
 ) -> list[CommunityAchievementEventSchema]:
     """
@@ -338,7 +338,7 @@ async def get_community_leaderboard(
 @router.get("/{achievement_id}", response_model=CommunityAchievementProgress)
 async def get_community_achievement(
     achievement_id: str,
-    current_user: Optional[UserInDB] = Depends(get_current_user),
+    current_user: Optional[UserInDB] = Depends(get_current_user_optional),
     db: AsyncSession = Depends(get_db),
 ) -> CommunityAchievementProgress:
     """

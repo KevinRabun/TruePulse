@@ -80,29 +80,34 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
 
-    # CORS
-    CORS_ORIGINS: list[str] = ["http://localhost:3000"]
+    # CORS - stored as comma-separated string to avoid pydantic-settings JSON parsing issues
+    CORS_ORIGINS: str = "http://localhost:3000"
 
     # Frontend-only API access
     # Secret shared between frontend and backend to prevent unauthorized API access
     FRONTEND_API_SECRET: str = ""  # Required - loaded from environment
     # Allowed origins for API requests (stricter than CORS - blocks non-browser requests)
-    ALLOWED_ORIGINS: list[str] = ["http://localhost:3000"]
+    ALLOWED_ORIGINS: str = "http://localhost:3000"
     # Whether to enforce frontend-only access (disable for local development if needed)
     ENFORCE_FRONTEND_ONLY: bool = True
 
-    @field_validator("CORS_ORIGINS", mode="before")
-    @classmethod
-    def parse_cors_origins(cls, v: Any) -> list[str]:
-        """Parse CORS origins from string or list."""
-        if isinstance(v, str):
-            import json
+    @property
+    def cors_origins_list(self) -> list[str]:
+        """Get CORS origins as a list."""
+        import json
+        try:
+            return json.loads(self.CORS_ORIGINS)
+        except json.JSONDecodeError:
+            return [origin.strip() for origin in self.CORS_ORIGINS.split(",") if origin.strip()]
 
-            try:
-                return json.loads(v)
-            except json.JSONDecodeError:
-                return [origin.strip() for origin in v.split(",")]
-        return v
+    @property
+    def allowed_origins_list(self) -> list[str]:
+        """Get allowed origins as a list."""
+        import json
+        try:
+            return json.loads(self.ALLOWED_ORIGINS)
+        except json.JSONDecodeError:
+            return [origin.strip() for origin in self.ALLOWED_ORIGINS.split(",") if origin.strip()]
 
     # Rate Limiting
     RATE_LIMIT_PER_MINUTE: int = 60

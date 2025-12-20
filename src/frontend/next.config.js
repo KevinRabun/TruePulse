@@ -1,8 +1,13 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  output: 'standalone',
+  // Static export for SWA deployment
+  output: 'export',
+  // Trailing slashes for SWA routing compatibility
+  trailingSlash: true,
   reactStrictMode: true,
   images: {
+    // SWA doesn't support Next.js Image Optimization
+    unoptimized: true,
     remotePatterns: [
       {
         protocol: 'https',

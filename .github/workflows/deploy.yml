@@ -473,7 +473,7 @@ jobs:
       - name: Build frontend
         working-directory: src/frontend
         env:
-          NEXT_PUBLIC_API_URL: https://${{ needs.infrastructure.outputs.apiFqdn }}
+          NEXT_PUBLIC_API_URL: https://${{ needs.infrastructure.outputs.apiFqdn }}/api/v1
           NEXT_PUBLIC_APP_ENV: ${{ needs.setup.outputs.environment }}
         run: npm run build
 

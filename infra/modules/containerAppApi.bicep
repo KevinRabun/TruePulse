@@ -360,11 +360,15 @@ module containerApp 'br/public:avm/res/app/container-app:0.19.0' = if (!usePlace
     ingressTargetPort: targetPort
     ingressTransport: 'http'
     corsPolicy: {
-      allowedOrigins: !empty(customDomain) ? [
+      // Include base domain, www subdomain, environment-specific subdomain, and SWA domains
+      allowedOrigins: !empty(customDomain) ? concat([
         'https://${customDomain}'
         'https://www.${customDomain}'
         'https://*.azurestaticapps.net'
-      ] : [
+      ], environmentName != 'prod' ? [
+        'https://${environmentName}.${customDomain}'
+        'https://www.${environmentName}.${customDomain}'
+      ] : []) : [
         'https://*.azurestaticapps.net'
       ]
       allowedMethods: [

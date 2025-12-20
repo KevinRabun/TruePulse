@@ -443,7 +443,7 @@ export default function ProfilePage() {
                     className="flex items-center gap-4 p-4 bg-gray-50 dark:bg-slate-900/30 rounded-xl hover:bg-gray-100 dark:hover:bg-slate-900/50 transition-colors"
                   >
                     <div className="flex-1">
-                      <Link href={`/polls/${vote.poll_id}`} className="text-gray-900 dark:text-white hover:text-primary-600 dark:hover:text-cyan-400 transition-colors">
+                      <Link href={`/poll?id=${vote.poll_id}`} className="text-gray-900 dark:text-white hover:text-primary-600 dark:hover:text-cyan-400 transition-colors">
                         {vote.poll_question}
                       </Link>
                       <p className="text-sm text-gray-500 dark:text-slate-500">

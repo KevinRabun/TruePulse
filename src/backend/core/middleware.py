@@ -39,7 +39,7 @@ class FrontendOnlyMiddleware(BaseHTTPMiddleware):
     def __init__(self, app: Callable, enforce: bool = True):
         super().__init__(app)
         self.enforce = enforce
-        self.allowed_origins = set(settings.ALLOWED_ORIGINS)
+        self.allowed_origins = set(settings.allowed_origins_list)
         self.frontend_secret = settings.FRONTEND_API_SECRET
 
     async def dispatch(self, request: Request, call_next: Callable) -> Response:

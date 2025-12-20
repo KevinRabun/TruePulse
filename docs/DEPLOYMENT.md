@@ -40,33 +40,86 @@ Add the following secrets to your GitHub repository:
 
 | Secret | Description |
 |--------|-------------|
-| `AZURE_CREDENTIALS` | Service principal JSON for Azure auth |
+| `AZURE_CLIENT_ID` | Service principal (app registration) client ID |
+| `AZURE_TENANT_ID` | Azure AD tenant ID |
 | `AZURE_SUBSCRIPTION_ID` | Your Azure subscription ID |
-| `AZURE_RESOURCE_GROUP` | Target resource group name |
-| `JWT_SECRET` | Secret for JWT token signing |
-| `API_SECRET_KEY` | Backend API secret |
-| `POSTGRES_ADMIN_PASSWORD` | PostgreSQL admin password |
-| `OPENAI_API_KEY` | Azure OpenAI API key |
+| `POSTGRES_PASSWORD` | PostgreSQL admin password (secure, 16+ chars) |
+| `JWT_SECRET_KEY` | Secret for JWT token signing (32+ chars) |
+| `VOTE_HASH_SECRET` | Secret for vote hashing (32+ chars) |
+| `NEWSDATA_API_KEY` | NewsData.io API key (optional) |
+| `NEWSAPI_ORG_KEY` | NewsAPI.org API key (optional) |
+| `COMMUNICATION_SENDER_NUMBER` | Azure Communication Services phone number |
 
-#### 2. Create Azure Service Principal
+#### 2. Create Azure Service Principal (Federated Credentials)
+
+The workflow uses OIDC federation for passwordless authentication:
 
 ```bash
-# Create service principal with Contributor role
-az ad sp create-for-rbac \
-  --name "truepulse-github" \
-  --role Contributor \
-  --scopes /subscriptions/<subscription-id> \
-  --sdk-auth
+# Create app registration
+az ad app create --display-name "truepulse-github"
 
-# Copy the JSON output to AZURE_CREDENTIALS secret
+# Get the app ID
+APP_ID=$(az ad app list --display-name "truepulse-github" --query "[0].appId" -o tsv)
+
+# Create service principal
+az ad sp create --id $APP_ID
+
+# Get service principal object ID
+SP_OBJECT_ID=$(az ad sp show --id $APP_ID --query "id" -o tsv)
+
+# Grant Contributor role on subscription
+az role assignment create \
+  --assignee $SP_OBJECT_ID \
+  --role "Contributor" \
+  --scope /subscriptions/<subscription-id>
+
+# Grant User Access Administrator role (for role assignments)
+az role assignment create \
+  --assignee $SP_OBJECT_ID \
+  --role "User Access Administrator" \
+  --scope /subscriptions/<subscription-id>
+
+# Create federated credential for GitHub Actions
+az ad app federated-credential create \
+  --id $APP_ID \
+  --parameters '{
+    "name": "github-main",
+    "issuer": "https://token.actions.githubusercontent.com",
+    "subject": "repo:<owner>/TruePulse:ref:refs/heads/main",
+    "audiences": ["api://AzureADTokenExchange"]
+  }'
+
+# Create federated credential for environment (optional, for environment protection)
+az ad app federated-credential create \
+  --id $APP_ID \
+  --parameters '{
+    "name": "github-dev-env",
+    "issuer": "https://token.actions.githubusercontent.com",
+    "subject": "repo:<owner>/TruePulse:environment:dev",
+    "audiences": ["api://AzureADTokenExchange"]
+  }'
+
+echo "Add these to GitHub Secrets:"
+echo "AZURE_CLIENT_ID: $APP_ID"
+echo "AZURE_TENANT_ID: $(az account show --query tenantId -o tsv)"
+echo "AZURE_SUBSCRIPTION_ID: $(az account show --query id -o tsv)"
 ```
 
-#### 3. Trigger Deployment
+#### 3. Create GitHub Environment
+
+1. Go to Repository Settings → Environments
+2. Create environment: `dev` (and optionally `staging`, `prod`)
+3. Add environment-specific secrets if needed
+
+#### 4. Trigger Deployment
 
 Push to `main` branch or manually trigger the workflow:
 
 ```bash
 git push origin main
+
+# Or use GitHub CLI
+gh workflow run deploy.yml -f environment=dev
 ```
 
 ### Option 2: Azure CLI Deployment
@@ -114,15 +167,27 @@ docker push $ACR_NAME.azurecr.io/truepulse-api:latest
 
 #### 5. Deploy Frontend to Static Web App
 
+The frontend uses Next.js static export (`output: 'export'`) for SWA deployment:
+
 ```bash
 cd src/frontend
-npm run build
 
-# Use SWA CLI
-npx @azure/static-web-apps-cli deploy \
+# Build with API URL (include /api/v1 suffix!)
+NEXT_PUBLIC_API_URL=https://<container-app-fqdn>/api/v1 npm run build
+
+# Deploy using SWA CLI
+npx @azure/static-web-apps-cli deploy ./out \
   --deployment-token <swa-deployment-token> \
+  --env production
+
+# Or use Azure CLI
+az staticwebapp deploy \
+  --name <swa-name> \
+  --resource-group <rg-name> \
   --app-location ./out
 ```
+
+> **Important:** The `NEXT_PUBLIC_API_URL` must include the `/api/v1` suffix since the backend API routes are prefixed.
 
 ## Environment Configuration
 
@@ -146,8 +211,8 @@ npx @azure/static-web-apps-cli deploy \
 
 | Variable | Description | Required |
 |----------|-------------|----------|
-| `NEXT_PUBLIC_API_URL` | Backend API URL | Yes |
-| `NEXT_PUBLIC_APP_URL` | Frontend URL | Yes |
+| `NEXT_PUBLIC_API_URL` | Backend API URL (must include `/api/v1` suffix) | Yes |
+| `NEXT_PUBLIC_APP_ENV` | Environment name (dev/staging/prod) | Yes |
 
 ## Infrastructure Customization
 

@@ -343,7 +343,7 @@ export function PollCard({ poll, showVoteButton = true }: PollCardProps) {
               content={{
                 title: poll.question,
                 text: `Vote on: "${poll.question}" - Join the global conversation on TruePulse`,
-                url: typeof window !== 'undefined' ? `${window.location.origin}/polls/${poll.id}` : `/polls/${poll.id}`,
+                url: typeof window !== 'undefined' ? `${window.location.origin}/poll?id=${poll.id}` : `/poll?id=${poll.id}`,
                 hashtags: ['TruePulse', 'GlobalOpinion', poll.category.replace(/\s+/g, '')],
                 pollId: poll.id,
               }}
@@ -398,7 +398,7 @@ export function PollCard({ poll, showVoteButton = true }: PollCardProps) {
               animate={{ opacity: 1, x: 0 }}
             >
               <Link
-                href={`/polls/${poll.id}`}
+                href={`/poll?id=${poll.id}`}
                 className="inline-flex items-center text-primary-600 hover:text-primary-700 dark:text-primary-400 text-sm font-medium group"
               >
                 View full results 

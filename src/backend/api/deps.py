@@ -25,6 +25,7 @@ logger = structlog.get_logger(__name__)
 
 # Security schemes
 security = HTTPBearer()
+security_optional = HTTPBearer(auto_error=False)
 
 
 # =============================================================================
@@ -70,6 +71,58 @@ async def get_current_user(
             detail="User not found",
             headers={"WWW-Authenticate": "Bearer"},
         )
+
+    return UserInDB(
+        id=str(user.id),
+        email=user.email,
+        username=user.username,
+        hashed_password=user.hashed_password,
+        is_active=user.is_active,
+        is_verified=user.is_verified,
+        phone_number=user.phone_number,
+        phone_verified=user.phone_verified,
+        email_verified=user.email_verified,
+        points=user.total_points,
+        level=user.level,
+        votes_cast=user.votes_cast,
+        current_streak=user.current_streak,
+        longest_streak=user.longest_streak,
+        created_at=user.created_at,
+    )
+
+
+async def get_current_user_optional(
+    credentials: Annotated[
+        HTTPAuthorizationCredentials | None, Depends(security_optional)
+    ],
+    db: AsyncSession = Depends(get_db),
+) -> UserInDB | None:
+    """
+    Optionally extract and validate the current user from the JWT token.
+
+    Returns None if no token is provided or token is invalid.
+    Does not raise exceptions - useful for endpoints that work for both
+    authenticated and unauthenticated users.
+    """
+    if credentials is None:
+        return None
+
+    token = credentials.credentials
+    payload = decode_token(token)
+
+    if payload is None:
+        return None
+
+    user_id = payload.get("sub")
+    if user_id is None:
+        return None
+
+    # Fetch user from database
+    result = await db.execute(select(User).where(User.id == user_id))
+    user = result.scalar_one_or_none()
+
+    if not user:
+        return None
 
     return UserInDB(
         id=str(user.id),

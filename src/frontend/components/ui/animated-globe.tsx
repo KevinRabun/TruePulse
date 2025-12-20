@@ -87,7 +87,7 @@ export function AnimatedGlobe({ size = 'lg', showActivity = true, className = ''
               key={`lng-${angle}`}
               cx="50"
               cy="50"
-              rx={40 * Math.cos((angle * Math.PI) / 180)}
+              rx={Math.abs(40 * Math.cos((angle * Math.PI) / 180)) || 0.1}
               ry="40"
               fill="none"
               stroke="white"

@@ -20,6 +20,9 @@ param apiUrl string
 @description('Custom domain name (optional)')
 param customDomain string = ''
 
+@description('Enable www subdomain for custom domain')
+param enableWwwSubdomain bool = true
+
 // ============================================================================
 // Resources
 // ============================================================================
@@ -60,7 +63,7 @@ resource customDomainApex 'Microsoft.Web/staticSites/customDomains@2023-01-01' =
   dependsOn: [staticWebApp]
 }
 
-resource customDomainWww 'Microsoft.Web/staticSites/customDomains@2023-01-01' = if (!empty(customDomain)) {
+resource customDomainWww 'Microsoft.Web/staticSites/customDomains@2023-01-01' = if (!empty(customDomain) && enableWwwSubdomain) {
   name: '${name}/www.${customDomain}'
   properties: {}
   dependsOn: [

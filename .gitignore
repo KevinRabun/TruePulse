@@ -29,6 +29,10 @@ node_modules/
 out/
 .npm
 *.tsbuildinfo
+tsconfig.tsbuildinfo
+
+# SWA CLI
+swa-cli.config.json
 
 # IDEs
 .idea/

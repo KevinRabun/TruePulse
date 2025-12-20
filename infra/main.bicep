@@ -361,6 +361,7 @@ module staticWebApp 'modules/staticWebApp.bicep' = {
     tags: tags
     apiUrl: apiUrl
     customDomain: enableCustomDomain ? (environmentName == 'prod' ? customDomain : '${environmentName}.${customDomain}') : ''
+    enableWwwSubdomain: environmentName == 'prod' // Only enable www for production
   }
 }
 
