@@ -404,17 +404,32 @@ jobs:
           
           echo "Deployment completed!"
 
+      # Note: Health check via curl doesn't work for internal VNet deployments
+      # Using Azure CLI to verify Container App status instead
       - name: Health check
         run: |
-          API_URL="https://${{ needs.infrastructure.outputs.apiFqdn }}"
+          CONTAINER_APP_NAME="ca-truepulse-api-${{ needs.setup.outputs.environment }}"
+          RESOURCE_GROUP="${{ needs.infrastructure.outputs.resourceGroupName }}"
           
           for i in {1..10}; do
-            HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$API_URL/health" || echo "000")
-            if [ "$HTTP_STATUS" == "200" ]; then
-              echo "Health check passed!"
+            STATUS=$(az containerapp show \
+              --name $CONTAINER_APP_NAME \
+              --resource-group $RESOURCE_GROUP \
+              --query "properties.runningStatus" -o tsv 2>/dev/null || echo "Unknown")
+            
+            PROVISIONING=$(az containerapp show \
+              --name $CONTAINER_APP_NAME \
+              --resource-group $RESOURCE_GROUP \
+              --query "properties.provisioningState" -o tsv 2>/dev/null || echo "Unknown")
+            
+            echo "Attempt $i: Running status: $STATUS, Provisioning state: $PROVISIONING"
+            
+            if [ "$STATUS" == "Running" ] && [ "$PROVISIONING" == "Succeeded" ]; then
+              echo "✓ Health check passed! Container App is running."
               exit 0
             fi
-            echo "Attempt $i: HTTP status $HTTP_STATUS, retrying in 10s..."
+            
+            echo "  Retrying in 10s..."
             sleep 10
           done
           
