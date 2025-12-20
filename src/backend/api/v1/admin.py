@@ -133,28 +133,3 @@ async def get_scheduler_status(
         running=scheduler.running,
         jobs=jobs,
     )
-
-
-@router.post("/fix-poll-types")
-async def fix_poll_types() -> dict:
-    """
-    One-time fix to convert standard polls to pulse type.
-    No auth required for initial setup - remove after use.
-    """
-    from sqlalchemy import update
-    from sqlalchemy.ext.asyncio import AsyncSession
-
-    from api.deps import get_db
-    from models.poll import Poll
-
-    # Create a database dependency
-    db_gen = get_db()
-    db: AsyncSession = await db_gen.__anext__()
-    try:
-        result = await db.execute(
-            update(Poll).where(Poll.poll_type == "standard").values(poll_type="pulse")
-        )
-        await db.commit()
-        return {"updated": result.rowcount}
-    finally:
-        await db_gen.aclose()
