@@ -80,6 +80,8 @@ param usePlaceholderImage bool = true
 var containerImage = usePlaceholderImage 
   ? 'mcr.microsoft.com/azuredocs/containerapps-helloworld:latest'
   : '${containerRegistryLoginServer}/truepulse-api:latest'
+// Port depends on whether we use the placeholder image (80) or our app (8000)
+var targetPort = usePlaceholderImage ? 80 : 8000
 // Dev: scale to 0 when idle to save costs. Staging: keep 1 warm. Prod: min 2 for HA
 var minReplicas = environmentName == 'prod' ? 2 : (environmentName == 'staging' ? 1 : 0)
 var maxReplicas = environmentName == 'prod' ? 10 : 3
@@ -248,7 +250,8 @@ module containerApp 'br/public:avm/res/app/container-app:0.12.1' = {
             secretRef: 'newsapi-org-key'
           }
         ]
-        probes: [
+        // Only configure health probes for our actual application, not the placeholder
+        probes: usePlaceholderImage ? [] : [
           {
             type: 'Liveness'
             httpGet: {
@@ -313,7 +316,7 @@ module containerApp 'br/public:avm/res/app/container-app:0.12.1' = {
     }
     // Ingress configuration
     ingressExternal: true
-    ingressTargetPort: 8000
+    ingressTargetPort: targetPort
     ingressTransport: 'http'
     corsPolicy: {
       allowedOrigins: !empty(customDomain) ? [
