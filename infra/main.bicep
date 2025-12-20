@@ -50,6 +50,10 @@ param newsDataApiKey string = ''
 @secure()
 param newsApiOrgKey string = ''
 
+@description('Frontend API secret for frontend-only access validation')
+@secure()
+param frontendApiSecret string = ''
+
 // Communication settings
 @description('Azure Communication Services sender phone number')
 param communicationSenderNumber string = ''
@@ -232,6 +236,10 @@ module keyVault 'modules/keyVault.bicep' = {
       {
         name: 'communication-services-connection-string'
         value: sharedCommunicationServiceConnectionString
+      }
+      {
+        name: 'frontend-api-secret'
+        value: !empty(frontendApiSecret) ? frontendApiSecret : jwtSecretKey
       }
     ]
   }

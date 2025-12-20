@@ -39,7 +39,7 @@ class Settings(BaseSettings):
     POSTGRES_PASSWORD: str = ""  # Required - loaded from environment
     POSTGRES_DB: str = "truepulse"
 
-    @field_validator("SECRET_KEY", "POSTGRES_PASSWORD", "FRONTEND_API_SECRET")
+    @field_validator("SECRET_KEY", "POSTGRES_PASSWORD")
     @classmethod
     def validate_required_secrets(cls, v: str, info: Any) -> str:
         """Validate that required secrets are set."""
@@ -85,11 +85,11 @@ class Settings(BaseSettings):
 
     # Frontend-only API access
     # Secret shared between frontend and backend to prevent unauthorized API access
-    FRONTEND_API_SECRET: str = ""  # Required - loaded from environment
+    FRONTEND_API_SECRET: str = "not-set"  # Optional - only required if ENFORCE_FRONTEND_ONLY is True
     # Allowed origins for API requests (stricter than CORS - blocks non-browser requests)
     ALLOWED_ORIGINS: str = "http://localhost:3000"
     # Whether to enforce frontend-only access (disable for local development if needed)
-    ENFORCE_FRONTEND_ONLY: bool = True
+    ENFORCE_FRONTEND_ONLY: bool = False
 
     @property
     def cors_origins_list(self) -> list[str]:

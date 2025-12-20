@@ -292,6 +292,33 @@ module containerApp 'br/public:avm/res/app/container-app:0.19.0' = if (!usePlace
             name: 'NEWSAPI_ORG_API_KEY'
             secretRef: 'newsapi-org-key'
           }
+          // CORS and Frontend Access Configuration
+          {
+            name: 'CORS_ORIGINS'
+            value: !empty(customDomain) ? (environmentName == 'prod' 
+              ? 'https://${customDomain},https://www.${customDomain}' 
+              : 'https://${environmentName}.${customDomain},https://www.${environmentName}.${customDomain},https://${customDomain}') 
+              : 'https://*.azurestaticapps.net'
+          }
+          {
+            name: 'ALLOWED_ORIGINS'
+            value: !empty(customDomain) ? (environmentName == 'prod' 
+              ? 'https://${customDomain},https://www.${customDomain}' 
+              : 'https://${environmentName}.${customDomain},https://www.${environmentName}.${customDomain},https://${customDomain}') 
+              : 'https://*.azurestaticapps.net'
+          }
+          {
+            name: 'FRONTEND_API_SECRET'
+            secretRef: 'frontend-api-secret'
+          }
+          {
+            name: 'ENFORCE_FRONTEND_ONLY'
+            value: 'false'
+          }
+          {
+            name: 'SECRET_KEY'
+            secretRef: 'jwt-secret-key'
+          }
         ]
         // Only configure health probes for our actual application, not the placeholder
         probes: usePlaceholderImage ? [] : [
@@ -352,6 +379,11 @@ module containerApp 'br/public:avm/res/app/container-app:0.19.0' = if (!usePlace
       {
         name: 'newsapi-org-key'
         keyVaultUrl: '${keyVaultUri}secrets/newsapi-org-key'
+        identity: managedIdentity.id
+      }
+      {
+        name: 'frontend-api-secret'
+        keyVaultUrl: '${keyVaultUri}secrets/frontend-api-secret'
         identity: managedIdentity.id
       }
     ]
