@@ -423,6 +423,7 @@ class PollScheduler:
                 question=poll_data.question,
                 category=poll_data.category,
                 status=initial_status,
+                poll_type="pulse",  # Set as Pulse poll for homepage display
                 scheduled_start=window_start,
                 scheduled_end=window_end,
                 expires_at=window_end,  # Required: expires when window ends
