@@ -416,6 +416,7 @@ class PollScheduler:
                 status=PollStatus.SCHEDULED,
                 scheduled_start=window_start,
                 scheduled_end=window_end,
+                expires_at=window_end,  # Required: expires when window ends
                 ai_generated=True,
                 source_event=poll_data.source_event if hasattr(poll_data, "source_event") else None,
             )
