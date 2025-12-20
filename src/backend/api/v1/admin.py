@@ -142,13 +142,19 @@ async def fix_poll_types() -> dict:
     No auth required for initial setup - remove after use.
     """
     from sqlalchemy import update
+    from sqlalchemy.ext.asyncio import AsyncSession
 
-    from db.session import get_db_session
+    from api.deps import get_db
     from models.poll import Poll
 
-    async with get_db_session() as db:
+    # Create a database dependency
+    db_gen = get_db()
+    db: AsyncSession = await db_gen.__anext__()
+    try:
         result = await db.execute(
             update(Poll).where(Poll.poll_type == "standard").values(poll_type="pulse")
         )
         await db.commit()
         return {"updated": result.rowcount}
+    finally:
+        await db_gen.aclose()
