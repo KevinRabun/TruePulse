@@ -90,34 +90,52 @@ Output format:
         if self._initialized:
             return
 
-        if not settings.FOUNDRY_PROJECT_ENDPOINT:
-            logger.warning("Foundry endpoint not configured, using mock mode")
-            self._initialized = True
-            return
+        # Try Azure AI Foundry first, then fall back to direct Azure OpenAI
+        if settings.FOUNDRY_PROJECT_ENDPOINT:
+            try:
+                # Import Azure AI Projects SDK components
+                from azure.ai.projects.aio import AIProjectClient
+                from azure.identity.aio import DefaultAzureCredential
 
-        try:
-            # Import Azure AI Projects SDK components
-            from azure.ai.projects.aio import AIProjectClient
-            from azure.identity.aio import DefaultAzureCredential
+                self._credential = DefaultAzureCredential()
+                self._client = AIProjectClient(
+                    endpoint=settings.FOUNDRY_PROJECT_ENDPOINT,
+                    credential=self._credential,
+                )
 
-            self._credential = DefaultAzureCredential()
-            self._client = AIProjectClient(
-                endpoint=settings.FOUNDRY_PROJECT_ENDPOINT,
-                credential=self._credential,
-            )
+                # Get OpenAI client for chat completions
+                self._openai_client = await self._client.get_openai_client()
 
-            # Get OpenAI client for chat completions
-            self._openai_client = await self._client.get_openai_client()
+                self._initialized = True
+                logger.info("Poll generator initialized with Azure AI Foundry")
+                return
 
-            self._initialized = True
-            logger.info("Poll generator AI agent initialized successfully")
+            except ImportError:
+                logger.warning("Azure AI Projects not installed, trying direct Azure OpenAI")
+            except Exception as e:
+                logger.warning(f"Failed to initialize Foundry client: {e}, trying direct Azure OpenAI")
 
-        except ImportError:
-            logger.warning("Azure AI Projects not installed. Install with: pip install azure-ai-projects")
-            self._initialized = True
-        except Exception as e:
-            logger.error(f"Failed to initialize AI agent: {e}")
-            self._initialized = True
+        # Fall back to direct Azure OpenAI
+        if settings.AZURE_OPENAI_ENDPOINT and settings.AZURE_OPENAI_API_KEY:
+            try:
+                from openai import AsyncAzureOpenAI
+
+                self._openai_client = AsyncAzureOpenAI(
+                    azure_endpoint=settings.AZURE_OPENAI_ENDPOINT,
+                    api_key=settings.AZURE_OPENAI_API_KEY,
+                    api_version="2024-02-15-preview",
+                )
+                self._initialized = True
+                logger.info("Poll generator initialized with direct Azure OpenAI")
+                return
+
+            except ImportError:
+                logger.warning("openai package not installed")
+            except Exception as e:
+                logger.error(f"Failed to initialize Azure OpenAI client: {e}")
+
+        logger.warning("No AI endpoint configured, using mock mode")
+        self._initialized = True
 
     async def generate_poll_from_event(
         self,
@@ -159,12 +177,13 @@ Return your response as JSON."""
 
         try:
             # For development or when AI is not configured, use mock data
-            if not settings.FOUNDRY_PROJECT_ENDPOINT or not hasattr(self, "_openai_client") or not self._openai_client:
+            if not self._openai_client:
                 return self._generate_mock_poll(event)
 
-            # Use Azure AI Projects SDK with OpenAI client for chat completions
+            # Use OpenAI client for chat completions
+            model = settings.AZURE_OPENAI_DEPLOYMENT or settings.FOUNDRY_MODEL_DEPLOYMENT or "gpt-4o-mini"
             response = await self._openai_client.chat.completions.create(
-                model=settings.FOUNDRY_MODEL_DEPLOYMENT or "gpt-4o-mini",
+                model=model,
                 messages=[
                     {"role": "system", "content": self.SYSTEM_PROMPT},
                     {"role": "user", "content": prompt},
