@@ -9,16 +9,16 @@ Manages scheduled background tasks using APScheduler:
 This runs in-process with the FastAPI application.
 """
 
-import logging
 from datetime import timezone
 
+import structlog
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
 from apscheduler.triggers.interval import IntervalTrigger
 
 from db.session import async_session_maker
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 
 # Global scheduler instance
 _scheduler: AsyncIOScheduler | None = None

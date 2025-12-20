@@ -5,15 +5,15 @@ Manages startup and shutdown tasks for database connections,
 Azure Table Storage initialization, background scheduler, and AI service setup.
 """
 
-import logging
 from typing import Callable
 
+import structlog
 from fastapi import FastAPI
 
 from core.config import settings
 from db.session import close_db, init_db
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 
 
 def create_start_app_handler(app: FastAPI) -> Callable:
@@ -42,9 +42,9 @@ def create_start_app_handler(app: FastAPI) -> Callable:
                 from services.background_scheduler import start_scheduler
 
                 await start_scheduler()
-                logger.info("Background scheduler started")
+                logger.info("Background scheduler started successfully")
             except Exception as e:
-                logger.error(f"Failed to start background scheduler: {e}")
+                logger.exception("Failed to start background scheduler", error=str(e))
                 logger.warning("Poll auto-generation will not work!")
 
         logger.info("TruePulse API started successfully")
