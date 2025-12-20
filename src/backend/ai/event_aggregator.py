@@ -11,18 +11,18 @@ Implements multi-source aggregation using:
 
 import asyncio
 import hashlib
-import logging
 import re
 from datetime import datetime, timedelta, timezone
 from enum import Enum
 from typing import Optional
 
 import httpx
+import structlog
 from pydantic import BaseModel, Field
 
 from core.config import settings
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 
 
 class NewsCategory(str, Enum):

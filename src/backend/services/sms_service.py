@@ -7,15 +7,16 @@ Handles:
 - SMS delivery tracking
 """
 
-import logging
 import random
 import string
 from datetime import datetime, timedelta, timezone
 from typing import Optional, TypedDict
 
+import structlog
+
 from core.config import settings
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 
 
 class BulkSMSResult(TypedDict):

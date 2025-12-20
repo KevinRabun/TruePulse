@@ -9,18 +9,18 @@ Manages the hourly poll rotation system:
 The scheduler uses APScheduler to run background tasks.
 """
 
-import logging
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 from uuid import uuid4
 
+import structlog
 from sqlalchemy import and_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.config import settings
 from models.poll import Poll, PollChoice, PollStatus
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 
 
 class PollScheduler:

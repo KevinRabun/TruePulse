@@ -5,11 +5,11 @@ Uses Microsoft Foundry (formerly Azure AI Foundry) with Agent Framework
 to generate unbiased poll questions from current events.
 """
 
-import logging
 from datetime import datetime, timedelta, timezone
 from typing import TYPE_CHECKING, Any, Optional
 from uuid import uuid4
 
+import structlog
 from pydantic import BaseModel
 
 from ai.event_aggregator import NewsEvent
@@ -21,7 +21,7 @@ if TYPE_CHECKING:
     from azure.identity.aio import DefaultAzureCredential
     from openai import AsyncAzureOpenAI
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 
 
 class GeneratedPoll(BaseModel):
