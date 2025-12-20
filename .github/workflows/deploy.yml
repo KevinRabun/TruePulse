@@ -491,11 +491,32 @@ jobs:
         run: |
           IMAGE_TAG=$(echo "${{ needs.build-backend.outputs.imageTag }}" | head -1)
           CONTAINER_APP_NAME="ca-truepulse-api-${{ needs.setup.outputs.environment }}"
+          ENV="${{ needs.setup.outputs.environment }}"
+          CUSTOM_DOMAIN="truepulse.net"
           
+          # Build allowed origins list based on environment
+          if [ "$ENV" == "prod" ]; then
+            ALLOWED_ORIGINS="https://${CUSTOM_DOMAIN},https://www.${CUSTOM_DOMAIN}"
+          else
+            ALLOWED_ORIGINS="https://${ENV}.${CUSTOM_DOMAIN},https://www.${ENV}.${CUSTOM_DOMAIN},https://${CUSTOM_DOMAIN},https://www.${CUSTOM_DOMAIN}"
+          fi
+          
+          echo "Updating container image to $IMAGE_TAG..."
           az containerapp update \
             --name $CONTAINER_APP_NAME \
             --resource-group ${{ needs.infrastructure.outputs.resourceGroupName }} \
             --image $IMAGE_TAG
+          
+          echo "Configuring CORS policy with allowed origins: $ALLOWED_ORIGINS"
+          az containerapp ingress cors update \
+            --name $CONTAINER_APP_NAME \
+            --resource-group ${{ needs.infrastructure.outputs.resourceGroupName }} \
+            --allowed-origins $ALLOWED_ORIGINS \
+            --allowed-methods GET POST PUT DELETE OPTIONS \
+            --allowed-headers "*" \
+            --expose-headers "X-Request-ID" \
+            --allow-credentials true \
+            --max-age 86400
 
       - name: Wait for deployment
         run: |
