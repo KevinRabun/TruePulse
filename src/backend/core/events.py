@@ -2,7 +2,7 @@
 Application lifecycle event handlers.
 
 Manages startup and shutdown tasks for database connections,
-Azure Table Storage initialization, and AI service setup.
+Azure Table Storage initialization, background scheduler, and AI service setup.
 """
 
 import logging
@@ -10,6 +10,7 @@ from typing import Callable
 
 from fastapi import FastAPI
 
+from core.config import settings
 from db.session import close_db, init_db
 
 logger = logging.getLogger(__name__)
@@ -35,11 +36,16 @@ def create_start_app_handler(app: FastAPI) -> Callable:
             logger.warning(f"Azure Table Storage initialization failed: {e}")
             logger.info("Falling back to in-memory storage for tokens")
 
-        # Initialize AI services
-        # await init_ai_services()
-
-        # Initialize telemetry
-        # await init_telemetry()
+        # Start background scheduler (poll rotation, poll generation)
+        if settings.POLL_AUTO_GENERATE or settings.ENABLE_AI_POLL_GENERATION:
+            try:
+                from services.background_scheduler import start_scheduler
+                
+                await start_scheduler()
+                logger.info("Background scheduler started")
+            except Exception as e:
+                logger.error(f"Failed to start background scheduler: {e}")
+                logger.warning("Poll auto-generation will not work!")
 
         logger.info("TruePulse API started successfully")
 
@@ -52,6 +58,15 @@ def create_stop_app_handler(app: FastAPI) -> Callable:
     async def stop_app() -> None:
         logger.info("Shutting down TruePulse API...")
 
+        # Stop background scheduler
+        try:
+            from services.background_scheduler import stop_scheduler
+            
+            await stop_scheduler()
+            logger.info("Background scheduler stopped")
+        except Exception as e:
+            logger.warning(f"Background scheduler cleanup failed: {e}")
+
         # Close database connections
         await close_db()
 
@@ -63,9 +78,6 @@ def create_stop_app_handler(app: FastAPI) -> Callable:
             logger.info("Azure Table Storage closed")
         except Exception as e:
             logger.warning(f"Azure Table Storage cleanup failed: {e}")
-
-        # Cleanup AI services
-        # await cleanup_ai_services()
 
         logger.info("TruePulse API shutdown complete")
 

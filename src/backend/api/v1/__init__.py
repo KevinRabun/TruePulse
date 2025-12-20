@@ -4,6 +4,7 @@ API v1 router aggregating all endpoints.
 
 from fastapi import APIRouter
 
+from api.v1.admin import router as admin_router
 from api.v1.ads import router as ads_router
 from api.v1.auth import router as auth_router
 from api.v1.community_achievements import router as community_achievements_router
@@ -35,3 +36,4 @@ router.include_router(
     prefix="/community-achievements",
     tags=["Community Achievements"],
 )
+router.include_router(admin_router, prefix="/admin", tags=["Admin"])
