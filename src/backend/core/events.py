@@ -40,7 +40,7 @@ def create_start_app_handler(app: FastAPI) -> Callable:
         if settings.POLL_AUTO_GENERATE or settings.ENABLE_AI_POLL_GENERATION:
             try:
                 from services.background_scheduler import start_scheduler
-                
+
                 await start_scheduler()
                 logger.info("Background scheduler started")
             except Exception as e:
@@ -61,7 +61,7 @@ def create_stop_app_handler(app: FastAPI) -> Callable:
         # Stop background scheduler
         try:
             from services.background_scheduler import stop_scheduler
-            
+
             await stop_scheduler()
             logger.info("Background scheduler stopped")
         except Exception as e:
