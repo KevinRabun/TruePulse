@@ -45,7 +45,10 @@ Thumbs.db
 .azure/
 
 # Bicep build artifacts (compiled ARM templates)
-infra/main.json
+# Keep parameter files (*.parameters.*.json) but ignore compiled ARM JSON
+infra/*.json
+!infra/*.parameters.*.json
+infra/modules/*.json
 
 # Local development
 *.local
