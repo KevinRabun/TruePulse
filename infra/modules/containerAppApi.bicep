@@ -142,7 +142,8 @@ resource keyVault 'Microsoft.KeyVault/vaults@2023-07-01' existing = if (!usePlac
   name: keyVaultName
 }
 
-// Placeholder Container App - simple deployment without secrets for initial infrastructure setup
+// Placeholder Container App - simple deployment without secrets or ACR for initial infrastructure setup
+// Uses MCR image directly - no registry configuration needed (MCR is public)
 resource placeholderContainerApp 'Microsoft.App/containerApps@2024-03-01' = if (usePlaceholderImage) {
   name: name
   location: location
@@ -162,12 +163,7 @@ resource placeholderContainerApp 'Microsoft.App/containerApps@2024-03-01' = if (
         targetPort: 80
         transport: 'http'
       }
-      registries: [
-        {
-          server: containerRegistryLoginServer
-          identity: managedIdentity.id
-        }
-      ]
+      // No registries configuration - MCR is public and doesn't need auth
     }
     template: {
       containers: [
