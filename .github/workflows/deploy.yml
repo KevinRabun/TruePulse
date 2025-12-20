@@ -353,6 +353,7 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+          provenance: false  # Disable provenance attestation to avoid ACR push issues
           build-args: |
             ENVIRONMENT=${{ needs.setup.outputs.environment }}
 
