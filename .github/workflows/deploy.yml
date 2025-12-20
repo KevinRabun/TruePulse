@@ -606,9 +606,9 @@ jobs:
           azure_static_web_apps_api_token: ${{ steps.swa-token.outputs.token }}
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           action: upload
-          app_location: src/frontend
-          output_location: out
+          app_location: src/frontend/out
           skip_app_build: true
+          is_static_export: true
 
   # ============================================================================
   # Deployment Complete
