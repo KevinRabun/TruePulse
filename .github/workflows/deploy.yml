@@ -162,7 +162,7 @@ jobs:
     name: Deploy Shared Resources
     runs-on: ubuntu-latest
     needs: setup
-    if: needs.setup.result == 'success'
+    if: always() && needs.setup.result == 'success'
     outputs:
       # Pass name instead of full ID to avoid GitHub secret masking (subscription ID triggers it)
       logAnalyticsWorkspaceName: ${{ steps.deploy-shared.outputs.logAnalyticsWorkspaceName }}
