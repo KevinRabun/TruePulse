@@ -315,6 +315,10 @@ module containerAppApi 'modules/containerAppApi.bicep' = {
     emailSenderAddress: emailSenderAddress
     customDomain: enableCustomDomain ? customDomain : ''
   }
+  // Explicit dependency to ensure OpenAI secret is in Key Vault before Container App tries to access it
+  dependsOn: [
+    azureOpenAI
+  ]
 }
 
 // Grant ACR pull permission to the Container App's managed identity (cross-resource-group)

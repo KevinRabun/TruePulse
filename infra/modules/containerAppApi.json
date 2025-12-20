@@ -5,7 +5,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.28.1.47646",
-      "templateHash": "15102406863897720873"
+      "templateHash": "11949967984939294860"
     }
   },
   "parameters": {
@@ -151,7 +151,7 @@
   "variables": {
     "containerImage": "[if(parameters('usePlaceholderImage'), 'mcr.microsoft.com/azuredocs/containerapps-helloworld:latest', format('{0}/truepulse-api:latest', parameters('containerRegistryLoginServer')))]",
     "targetPort": "[if(parameters('usePlaceholderImage'), 80, 8000)]",
-    "minReplicas": "[if(equals(parameters('environmentName'), 'prod'), 2, if(equals(parameters('environmentName'), 'staging'), 1, 0))]",
+    "minReplicas": "[if(parameters('usePlaceholderImage'), 1, if(equals(parameters('environmentName'), 'prod'), 2, if(equals(parameters('environmentName'), 'staging'), 1, 0)))]",
     "maxReplicas": "[if(equals(parameters('environmentName'), 'prod'), 10, 3)]"
   },
   "resources": [
@@ -163,6 +163,7 @@
       "tags": "[parameters('tags')]"
     },
     {
+      "condition": "[not(parameters('usePlaceholderImage'))]",
       "type": "Microsoft.Authorization/roleAssignments",
       "apiVersion": "2022-04-01",
       "scope": "[format('Microsoft.KeyVault/vaults/{0}', parameters('keyVaultName'))]",
@@ -177,6 +178,7 @@
       ]
     },
     {
+      "condition": "[not(parameters('usePlaceholderImage'))]",
       "type": "Microsoft.Authorization/roleAssignments",
       "apiVersion": "2022-04-01",
       "scope": "[format('Microsoft.Storage/storageAccounts/{0}', parameters('storageAccountName'))]",
@@ -191,6 +193,7 @@
       ]
     },
     {
+      "condition": "[not(parameters('usePlaceholderImage'))]",
       "type": "Microsoft.Authorization/roleAssignments",
       "apiVersion": "2022-04-01",
       "scope": "[format('Microsoft.Storage/storageAccounts/{0}', parameters('storageAccountName'))]",
@@ -205,6 +208,57 @@
       ]
     },
     {
+      "condition": "[parameters('usePlaceholderImage')]",
+      "type": "Microsoft.App/containerApps",
+      "apiVersion": "2024-03-01",
+      "name": "[parameters('name')]",
+      "location": "[parameters('location')]",
+      "tags": "[parameters('tags')]",
+      "identity": {
+        "type": "UserAssigned",
+        "userAssignedIdentities": {
+          "[format('{0}', resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('{0}-identity', parameters('name'))))]": {}
+        }
+      },
+      "properties": {
+        "managedEnvironmentId": "[parameters('containerAppsEnvId')]",
+        "workloadProfileName": "Consumption",
+        "configuration": {
+          "ingress": {
+            "external": true,
+            "targetPort": 80,
+            "transport": "http"
+          },
+          "registries": [
+            {
+              "server": "[parameters('containerRegistryLoginServer')]",
+              "identity": "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('{0}-identity', parameters('name')))]"
+            }
+          ]
+        },
+        "template": {
+          "containers": [
+            {
+              "name": "api",
+              "image": "mcr.microsoft.com/azuredocs/containerapps-helloworld:latest",
+              "resources": {
+                "cpu": "[json('0.25')]",
+                "memory": "0.5Gi"
+              }
+            }
+          ],
+          "scale": {
+            "minReplicas": 1,
+            "maxReplicas": 1
+          }
+        }
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('{0}-identity', parameters('name')))]"
+      ]
+    },
+    {
+      "condition": "[not(parameters('usePlaceholderImage'))]",
       "type": "Microsoft.Resources/deployments",
       "apiVersion": "2022-09-01",
       "name": "container-app-api",
@@ -1558,15 +1612,15 @@
   "outputs": {
     "resourceId": {
       "type": "string",
-      "value": "[reference(resourceId('Microsoft.Resources/deployments', 'container-app-api'), '2022-09-01').outputs.resourceId.value]"
+      "value": "[if(parameters('usePlaceholderImage'), resourceId('Microsoft.App/containerApps', parameters('name')), reference(resourceId('Microsoft.Resources/deployments', 'container-app-api'), '2022-09-01').outputs.resourceId.value)]"
     },
     "name": {
       "type": "string",
-      "value": "[reference(resourceId('Microsoft.Resources/deployments', 'container-app-api'), '2022-09-01').outputs.name.value]"
+      "value": "[if(parameters('usePlaceholderImage'), parameters('name'), reference(resourceId('Microsoft.Resources/deployments', 'container-app-api'), '2022-09-01').outputs.name.value)]"
     },
     "fqdn": {
       "type": "string",
-      "value": "[reference(resourceId('Microsoft.Resources/deployments', 'container-app-api'), '2022-09-01').outputs.fqdn.value]"
+      "value": "[if(parameters('usePlaceholderImage'), reference(resourceId('Microsoft.App/containerApps', parameters('name')), '2024-03-01').configuration.ingress.fqdn, reference(resourceId('Microsoft.Resources/deployments', 'container-app-api'), '2022-09-01').outputs.fqdn.value)]"
     },
     "managedIdentityId": {
       "type": "string",

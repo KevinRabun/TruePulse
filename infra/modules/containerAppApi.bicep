@@ -83,7 +83,8 @@ var containerImage = usePlaceholderImage
 // Port depends on whether we use the placeholder image (80) or our app (8000)
 var targetPort = usePlaceholderImage ? 80 : 8000
 // Dev: scale to 0 when idle to save costs. Staging: keep 1 warm. Prod: min 2 for HA
-var minReplicas = environmentName == 'prod' ? 2 : (environmentName == 'staging' ? 1 : 0)
+// For placeholder deployment, always keep 1 replica to avoid startup issues
+var minReplicas = usePlaceholderImage ? 1 : (environmentName == 'prod' ? 2 : (environmentName == 'staging' ? 1 : 0))
 var maxReplicas = environmentName == 'prod' ? 10 : 3
 
 // ============================================================================
@@ -100,8 +101,8 @@ resource managedIdentity 'Microsoft.ManagedIdentity/userAssignedIdentities@2023-
 // Note: ACR pull permission is granted via a separate module deployed to the shared resource group
 // See main.bicep's acrRoleAssignment module for the cross-resource-group role assignment
 
-// Grant Key Vault Secrets User role to the managed identity
-resource keyVaultSecretsRole 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+// Grant Key Vault Secrets User role to the managed identity (only when not using placeholder)
+resource keyVaultSecretsRole 'Microsoft.Authorization/roleAssignments@2022-04-01' = if (!usePlaceholderImage) {
   name: guid(keyVaultName, managedIdentity.id, 'keyvault-secrets-user')
   scope: keyVault
   properties: {
@@ -111,8 +112,8 @@ resource keyVaultSecretsRole 'Microsoft.Authorization/roleAssignments@2022-04-01
   }
 }
 
-// Grant Storage Table Data Contributor role to the managed identity
-resource storageTableDataContributorRole 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+// Grant Storage Table Data Contributor role to the managed identity (only when not using placeholder)
+resource storageTableDataContributorRole 'Microsoft.Authorization/roleAssignments@2022-04-01' = if (!usePlaceholderImage) {
   name: guid(storageAccountName, managedIdentity.id, 'storage-table-data-contributor')
   scope: storageAccount
   properties: {
@@ -122,8 +123,8 @@ resource storageTableDataContributorRole 'Microsoft.Authorization/roleAssignment
   }
 }
 
-// Grant Storage Blob Data Contributor role to the managed identity
-resource storageBlobDataContributorRole 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+// Grant Storage Blob Data Contributor role to the managed identity (only when not using placeholder)
+resource storageBlobDataContributorRole 'Microsoft.Authorization/roleAssignments@2022-04-01' = if (!usePlaceholderImage) {
   name: guid(storageAccountName, managedIdentity.id, 'storage-blob-data-contributor')
   scope: storageAccount
   properties: {
@@ -133,16 +134,62 @@ resource storageBlobDataContributorRole 'Microsoft.Authorization/roleAssignments
   }
 }
 
-resource storageAccount 'Microsoft.Storage/storageAccounts@2024-01-01' existing = {
+resource storageAccount 'Microsoft.Storage/storageAccounts@2024-01-01' existing = if (!usePlaceholderImage) {
   name: storageAccountName
 }
 
-resource keyVault 'Microsoft.KeyVault/vaults@2023-07-01' existing = {
+resource keyVault 'Microsoft.KeyVault/vaults@2023-07-01' existing = if (!usePlaceholderImage) {
   name: keyVaultName
 }
 
-// Using Azure Verified Module: br/public:avm/res/app/container-app
-module containerApp 'br/public:avm/res/app/container-app:0.12.1' = {
+// Placeholder Container App - simple deployment without secrets for initial infrastructure setup
+resource placeholderContainerApp 'Microsoft.App/containerApps@2024-03-01' = if (usePlaceholderImage) {
+  name: name
+  location: location
+  tags: tags
+  identity: {
+    type: 'UserAssigned'
+    userAssignedIdentities: {
+      '${managedIdentity.id}': {}
+    }
+  }
+  properties: {
+    managedEnvironmentId: containerAppsEnvId
+    workloadProfileName: 'Consumption'
+    configuration: {
+      ingress: {
+        external: true
+        targetPort: 80
+        transport: 'http'
+      }
+      registries: [
+        {
+          server: containerRegistryLoginServer
+          identity: managedIdentity.id
+        }
+      ]
+    }
+    template: {
+      containers: [
+        {
+          name: 'api'
+          image: 'mcr.microsoft.com/azuredocs/containerapps-helloworld:latest'
+          resources: {
+            cpu: json('0.25')
+            memory: '0.5Gi'
+          }
+        }
+      ]
+      scale: {
+        minReplicas: 1
+        maxReplicas: 1
+      }
+    }
+  }
+}
+
+// Full Container App using Azure Verified Module - used after placeholder is replaced
+module containerApp 'br/public:avm/res/app/container-app:0.12.1' = if (!usePlaceholderImage) {
   name: 'container-app-api'
   params: {
     name: name
@@ -382,8 +429,8 @@ module containerApp 'br/public:avm/res/app/container-app:0.12.1' = {
 // Outputs
 // ============================================================================
 
-output resourceId string = containerApp.outputs.resourceId
-output name string = containerApp.outputs.name
-output fqdn string = containerApp.outputs.fqdn
+output resourceId string = usePlaceholderImage ? placeholderContainerApp.id : containerApp.outputs.resourceId
+output name string = usePlaceholderImage ? placeholderContainerApp.name : containerApp.outputs.name
+output fqdn string = usePlaceholderImage ? placeholderContainerApp.properties.configuration.ingress.fqdn : containerApp.outputs.fqdn
 output managedIdentityId string = managedIdentity.id
 output managedIdentityPrincipalId string = managedIdentity.properties.principalId
