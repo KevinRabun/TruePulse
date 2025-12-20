@@ -93,9 +93,7 @@ async def get_current_user(
 
 
 async def get_current_user_optional(
-    credentials: Annotated[
-        HTTPAuthorizationCredentials | None, Depends(security_optional)
-    ],
+    credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(security_optional)],
     db: AsyncSession = Depends(get_db),
 ) -> UserInDB | None:
     """

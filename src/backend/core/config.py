@@ -95,6 +95,7 @@ class Settings(BaseSettings):
     def cors_origins_list(self) -> list[str]:
         """Get CORS origins as a list."""
         import json
+
         try:
             return json.loads(self.CORS_ORIGINS)
         except json.JSONDecodeError:
@@ -104,6 +105,7 @@ class Settings(BaseSettings):
     def allowed_origins_list(self) -> list[str]:
         """Get allowed origins as a list."""
         import json
+
         try:
             return json.loads(self.ALLOWED_ORIGINS)
         except json.JSONDecodeError:
