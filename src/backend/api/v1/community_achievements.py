@@ -14,7 +14,7 @@ from sqlalchemy import and_, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from api.deps import get_current_user, get_current_user_optional, get_current_verified_user
+from api.deps import get_current_user_optional, get_current_verified_user
 from db.session import get_db
 from models.achievement import (
     CommunityAchievement,
