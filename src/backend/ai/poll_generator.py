@@ -19,7 +19,6 @@ from schemas.poll import Poll, PollChoice
 if TYPE_CHECKING:
     from azure.ai.projects.aio import AIProjectClient
     from azure.identity.aio import DefaultAzureCredential
-    from openai import AsyncAzureOpenAI
 
 logger = structlog.get_logger(__name__)
 
@@ -82,7 +81,7 @@ Output format:
         self._agent: Any = None
         self._initialized: bool = False
         self._client: Optional["AIProjectClient"] = None
-        self._openai_client: Optional["AsyncAzureOpenAI"] = None
+        self._openai_client: Any = None  # Can be AsyncOpenAI or AsyncAzureOpenAI
         self._credential: Optional["DefaultAzureCredential"] = None
 
     async def initialize(self) -> None:
@@ -105,7 +104,7 @@ Output format:
 
                 # Get OpenAI client for chat completions
                 # Note: get_openai_client() is not a coroutine, it returns AsyncOpenAI directly
-                self._openai_client = self._client.get_openai_client()  # type: ignore[misc]
+                self._openai_client = self._client.get_openai_client()
 
                 self._initialized = True
                 logger.info("Poll generator initialized with Azure AI Foundry")
