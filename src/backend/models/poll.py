@@ -19,6 +19,7 @@ from sqlalchemy import (
     Integer,
     String,
     Text,
+    UniqueConstraint,
     func,
 )
 from sqlalchemy.dialects.postgresql import JSONB, UUID
@@ -67,6 +68,9 @@ class Poll(Base):
         Index("ix_polls_status_scheduled_start", "status", "scheduled_start"),
         # Composite index for "get active polls by type"
         Index("ix_polls_status_poll_type", "status", "poll_type"),
+        # Unique constraint: Only ONE poll per type per time window
+        # Prevents race conditions in concurrent scheduler runs from creating duplicates
+        UniqueConstraint("poll_type", "scheduled_start", name="uq_polls_type_scheduled_start"),
     )
 
     id: Mapped[str] = mapped_column(

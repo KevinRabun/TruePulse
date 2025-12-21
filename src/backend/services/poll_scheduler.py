@@ -15,6 +15,7 @@ from uuid import uuid4
 
 import structlog
 from sqlalchemy import and_, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.config import settings
@@ -604,15 +605,35 @@ class PollScheduler:
                 new_poll.choices.append(poll_choice)
 
             self.db.add(new_poll)
-            await self.db.commit()
-            await self.db.refresh(new_poll)
+            try:
+                await self.db.commit()
+                await self.db.refresh(new_poll)
 
-            logger.info(
-                f"{poll_type.upper()} poll generated: {new_poll.id} - '{new_poll.question[:50]}' "
-                f"[{new_poll.category}] scheduled for {window_start.isoformat()}"
-            )
+                logger.info(
+                    f"{poll_type.upper()} poll generated: {new_poll.id} - '{new_poll.question[:50]}' "
+                    f"[{new_poll.category}] scheduled for {window_start.isoformat()}"
+                )
 
-            return new_poll
+                return new_poll
+            except IntegrityError as e:
+                # Unique constraint violation - another process already created a poll for this window
+                # This is expected behavior in concurrent environments, not an error
+                await self.db.rollback()
+                logger.info(
+                    f"Poll already exists for {poll_type} window {window_start.isoformat()} "
+                    f"(concurrent creation detected via unique constraint) - fetching existing poll"
+                )
+                # Fetch the existing poll that was created by another process
+                result = await self.db.execute(
+                    select(Poll).where(
+                        and_(
+                            Poll.poll_type == poll_type,
+                            Poll.scheduled_start == window_start,
+                        )
+                    )
+                )
+                existing_poll = result.scalar_one_or_none()
+                return existing_poll
 
         except Exception as e:
             logger.error(f"Poll generation error: {e}", exc_info=True)
