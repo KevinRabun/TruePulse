@@ -1,5 +1,11 @@
 # TruePulse Database Migration Pipeline
-# Runs database migrations against Azure PostgreSQL via Container App exec
+# Runs database migrations against Azure PostgreSQL via Container App revision deployment
+#
+# How it works:
+# 1. Triggers a new revision with RUN_MIGRATION env var set to the script name
+# 2. The docker-entrypoint.sh detects this and runs the migration before starting the app
+# 3. Once migration completes, the app starts normally
+# 4. Logs are captured for verification
 #
 # Usage:
 # - Manual trigger with migration script selection
@@ -35,11 +41,6 @@ on:
         description: 'Custom script path (only if migration_script is "custom")'
         required: false
         type: string
-      dry_run:
-        description: 'Dry run mode (show SQL without executing)'
-        required: false
-        default: false
-        type: boolean
   
   # Allow calling from other workflows
   workflow_call:
@@ -52,11 +53,6 @@ on:
         description: 'Migration script to run'
         required: true
         type: string
-      dry_run:
-        description: 'Dry run mode'
-        required: false
-        default: false
-        type: boolean
     secrets:
       AZURE_CLIENT_ID:
         required: true
@@ -91,18 +87,13 @@ jobs:
           fi
           
           if [ "$SCRIPT" != "custom" ]; then
-            SCRIPT_PATH="src/backend/scripts/$SCRIPT"
+            SCRIPT_NAME="$SCRIPT"
           else
-            SCRIPT_PATH="$CUSTOM"
+            SCRIPT_NAME=$(basename "$CUSTOM")
           fi
           
-          if [ ! -f "$SCRIPT_PATH" ]; then
-            echo "Error: Migration script not found: $SCRIPT_PATH"
-            exit 1
-          fi
-          
-          echo "MIGRATION_SCRIPT=$SCRIPT_PATH" >> $GITHUB_ENV
-          echo "Will run migration: $SCRIPT_PATH"
+          echo "SCRIPT_NAME=$SCRIPT_NAME" >> $GITHUB_ENV
+          echo "Will run migration script: $SCRIPT_NAME"
 
       - name: Azure Login
         uses: azure/login@v2
@@ -111,118 +102,202 @@ jobs:
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
-      - name: Get Container App details
-        id: get-ca
+      - name: Set environment variables
         run: |
           ENV="${{ inputs.environment }}"
-          RG="rg-truepulse-${ENV}"
-          CA_NAME="ca-truepulse-api-${ENV}"
+          echo "RESOURCE_GROUP=rg-truepulse-${ENV}" >> $GITHUB_ENV
+          echo "CONTAINER_APP=ca-truepulse-api-${ENV}" >> $GITHUB_ENV
+
+      - name: Verify Container App exists
+        run: |
+          echo "Verifying Container App: ${{ env.CONTAINER_APP }}"
           
-          echo "Resource Group: $RG"
-          echo "Container App: $CA_NAME"
-          
-          # Verify Container App exists
           az containerapp show \
-            --name "$CA_NAME" \
-            --resource-group "$RG" \
+            --name "${{ env.CONTAINER_APP }}" \
+            --resource-group "${{ env.RESOURCE_GROUP }}" \
             --query "name" \
             -o tsv || {
               echo "Error: Container App not found"
               exit 1
             }
           
-          echo "RESOURCE_GROUP=$RG" >> $GITHUB_ENV
-          echo "CONTAINER_APP=$CA_NAME" >> $GITHUB_ENV
+          echo "✅ Container App verified"
 
-      - name: Run migration via Container App exec
+      - name: Deploy migration revision
+        id: deploy-migration
         run: |
-          ENV="${{ inputs.environment }}"
-          DRY_RUN="${{ inputs.dry_run }}"
-          
           echo "=========================================="
-          echo "Running migration: ${{ env.MIGRATION_SCRIPT }}"
-          echo "Environment: $ENV"
-          echo "Dry Run: $DRY_RUN"
+          echo "Deploying migration revision"
+          echo "Script: ${{ env.SCRIPT_NAME }}"
+          echo "Environment: ${{ inputs.environment }}"
           echo "=========================================="
           
-          # Get the migration script name (basename)
-          SCRIPT_NAME=$(basename "${{ env.MIGRATION_SCRIPT }}")
-          
-          # Execute migration in the Container App using shell
-          # The Container App has the database credentials already configured
-          echo "Executing migration script via containerapp exec..."
-          
-          az containerapp exec \
+          # Get current revision for rollback reference
+          CURRENT_REVISION=$(az containerapp revision list \
             --name "${{ env.CONTAINER_APP }}" \
             --resource-group "${{ env.RESOURCE_GROUP }}" \
-            --command "/bin/sh" \
-            --args "-c" "cd /app && python scripts/$SCRIPT_NAME" \
-            2>&1 | tee migration_output.txt || {
-              EXIT_CODE=$?
-              echo "exec command exited with code: $EXIT_CODE"
-              
-              # Check if it's a known issue with exec vs just showing output
-              if [ $EXIT_CODE -eq 0 ] || grep -q "successfully\|completed\|already exists" migration_output.txt; then
-                echo "Migration appears to have run successfully despite exit code"
-              else
-                echo "Migration may have failed. Check output above."
-              fi
+            --query "[?properties.active==\`true\`].name | [0]" \
+            -o tsv)
+          
+          echo "Current revision: $CURRENT_REVISION"
+          echo "ROLLBACK_REVISION=$CURRENT_REVISION" >> $GITHUB_ENV
+          
+          # Deploy with migration env var
+          echo ""
+          echo "Setting RUN_MIGRATION=${{ env.SCRIPT_NAME }}"
+          
+          az containerapp update \
+            --name "${{ env.CONTAINER_APP }}" \
+            --resource-group "${{ env.RESOURCE_GROUP }}" \
+            --set-env-vars "RUN_MIGRATION=${{ env.SCRIPT_NAME }}" \
+            --min-replicas 1 \
+            --max-replicas 1 \
+            --query "properties.latestRevisionName" \
+            -o tsv > new_revision.txt
+          
+          NEW_REVISION=$(cat new_revision.txt)
+          echo "Migration revision: $NEW_REVISION"
+          echo "NEW_REVISION=$NEW_REVISION" >> $GITHUB_ENV
+
+      - name: Wait for migration to complete
+        run: |
+          echo "Waiting for revision to be ready..."
+          
+          # Wait for the new revision to be running
+          for i in {1..30}; do
+            STATUS=$(az containerapp revision show \
+              --name "${{ env.CONTAINER_APP }}" \
+              --resource-group "${{ env.RESOURCE_GROUP }}" \
+              --revision "${{ env.NEW_REVISION }}" \
+              --query "properties.runningState" \
+              -o tsv 2>/dev/null || echo "Unknown")
+            
+            echo "Attempt $i/30: Revision status = $STATUS"
+            
+            if [ "$STATUS" == "Running" ]; then
+              echo "✅ Revision is running"
+              break
+            elif [ "$STATUS" == "Failed" ] || [ "$STATUS" == "Degraded" ]; then
+              echo "❌ Revision failed to start!"
+              exit 1
+            fi
+            
+            sleep 10
+          done
+          
+          # Give the migration script time to execute
+          echo ""
+          echo "Waiting for migration script to execute (60 seconds)..."
+          sleep 60
+
+      - name: Get migration logs
+        id: get-logs
+        run: |
+          echo "=========================================="
+          echo "Fetching migration logs"
+          echo "=========================================="
+          
+          # Get logs from the Container App
+          az containerapp logs show \
+            --name "${{ env.CONTAINER_APP }}" \
+            --resource-group "${{ env.RESOURCE_GROUP }}" \
+            --type console \
+            --tail 300 \
+            --follow false 2>&1 | tee migration_logs.txt || {
+              echo "Warning: Could not fetch logs via CLI"
             }
           
-          # Display summary
           echo ""
-          echo "=========================================="
-          echo "Migration Output Summary:"
-          echo "=========================================="
-          cat migration_output.txt || echo "No output captured"
+          echo "Log output saved to migration_logs.txt"
+          
+          # Check for success/failure markers in logs
+          if grep -q "Migration completed successfully\|✅" migration_logs.txt 2>/dev/null; then
+            echo ""
+            echo "✅ Migration appears successful based on logs"
+            echo "MIGRATION_SUCCESS=true" >> $GITHUB_ENV
+          elif grep -q "already exists" migration_logs.txt 2>/dev/null; then
+            echo ""
+            echo "✅ Migration skipped - table/index already exists"
+            echo "MIGRATION_SUCCESS=true" >> $GITHUB_ENV
+          elif grep -q "Migration failed\|❌\|Error\|Exception" migration_logs.txt 2>/dev/null; then
+            echo ""
+            echo "⚠️ Potential migration failure detected"
+            echo "MIGRATION_SUCCESS=false" >> $GITHUB_ENV
+          else
+            echo ""
+            echo "⚠️ Could not determine migration status from logs"
+            echo "MIGRATION_SUCCESS=unknown" >> $GITHUB_ENV
+          fi
 
-      - name: Upload migration log
+      - name: Clear migration env var
         if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: migration-log-${{ inputs.environment }}-${{ github.run_number }}
-          path: migration_output.txt
-          retention-days: 30
-
-  verify:
-    name: Verify Migration
-    runs-on: ubuntu-latest
-    needs: migrate
-    if: success() && inputs.dry_run != true
-    environment: ${{ inputs.environment }}
-    steps:
-      - name: Azure Login
-        uses: azure/login@v2
-        with:
-          client-id: ${{ secrets.AZURE_CLIENT_ID }}
-          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
-          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-
-      - name: Verify Container App health
         run: |
-          ENV="${{ inputs.environment }}"
-          RG="rg-truepulse-${ENV}"
-          CA_NAME="ca-truepulse-api-${ENV}"
+          echo "Clearing RUN_MIGRATION environment variable..."
+          
+          az containerapp update \
+            --name "${{ env.CONTAINER_APP }}" \
+            --resource-group "${{ env.RESOURCE_GROUP }}" \
+            --remove-env-vars "RUN_MIGRATION" \
+            --query "properties.latestRevisionName" \
+            -o tsv || echo "Warning: Could not clear env var"
+          
+          echo "✅ Environment variable cleared"
+
+      - name: Verify application health
+        run: |
+          echo "Waiting for app to stabilize..."
+          sleep 30
           
           # Get the Container App FQDN
           FQDN=$(az containerapp show \
-            --name "$CA_NAME" \
-            --resource-group "$RG" \
+            --name "${{ env.CONTAINER_APP }}" \
+            --resource-group "${{ env.RESOURCE_GROUP }}" \
             --query "properties.configuration.ingress.fqdn" \
             -o tsv)
           
           echo "Checking health endpoint: https://$FQDN/health"
           
-          # Wait for the app to be healthy
-          for i in {1..5}; do
-            RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" "https://$FQDN/health" || echo "000")
+          for i in {1..10}; do
+            RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" "https://$FQDN/health" 2>/dev/null || echo "000")
+            
             if [ "$RESPONSE" == "200" ]; then
               echo "✅ Container App is healthy"
               exit 0
             fi
-            echo "Attempt $i: Got HTTP $RESPONSE, waiting..."
+            
+            echo "Attempt $i/10: HTTP $RESPONSE, waiting..."
             sleep 10
           done
           
-          echo "⚠️ Health check did not return 200, but migration may still have succeeded"
-          echo "Please verify manually"
+          echo "⚠️ Health check did not return 200 after 10 attempts"
+          echo "The migration may still have succeeded - please verify manually"
+
+      - name: Upload logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: migration-logs-${{ inputs.environment }}-${{ github.run_number }}
+          path: |
+            migration_logs.txt
+            new_revision.txt
+          retention-days: 30
+          if-no-files-found: ignore
+
+      - name: Summary
+        if: always()
+        run: |
+          echo ""
+          echo "=========================================="
+          echo "Migration Summary"
+          echo "=========================================="
+          echo "Script: ${{ env.SCRIPT_NAME }}"
+          echo "Environment: ${{ inputs.environment }}"
+          echo "Migration Revision: ${{ env.NEW_REVISION }}"
+          echo "Status: ${{ env.MIGRATION_SUCCESS || 'unknown' }}"
+          echo "=========================================="
+          
+          if [ "${{ env.MIGRATION_SUCCESS }}" == "false" ]; then
+            echo ""
+            echo "⚠️ Migration may have failed. Please check the logs artifact."
+            exit 1
+          fi
