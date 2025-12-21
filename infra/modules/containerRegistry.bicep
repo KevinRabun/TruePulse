@@ -40,7 +40,10 @@ module acr 'br/public:avm/res/container-registry/registry:0.8.0' = {
     networkRuleSetDefaultAction: empty(subnetId) ? 'Allow' : 'Deny'
     publicNetworkAccess: empty(subnetId) ? 'Enabled' : 'Disabled'
     azureADAuthenticationAsArmPolicyStatus: 'enabled'
-    quarantinePolicyStatus: 'enabled'
+    // Disabled quarantine: Causes ImagePullUnauthorized errors in Container Apps CI/CD
+    // because images are quarantined until Microsoft Defender scan completes.
+    // For automated deployments, this creates a race condition that's hard to handle.
+    quarantinePolicyStatus: 'disabled'
     trustPolicyStatus: 'enabled'
     retentionPolicyStatus: 'enabled'
     retentionPolicyDays: 30
