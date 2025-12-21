@@ -289,6 +289,8 @@ export interface UserSettings {
 export interface FormattedStats {
   polls_created: string;
   polls_created_raw: number;
+  completed_polls: string;
+  completed_polls_raw: number;
   votes_cast: string;
   votes_cast_raw: number;
   active_users: string;

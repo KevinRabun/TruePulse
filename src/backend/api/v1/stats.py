@@ -23,6 +23,8 @@ class FormattedStats(BaseModel):
 
     polls_created: str
     polls_created_raw: int
+    completed_polls: str
+    completed_polls_raw: int
     votes_cast: str
     votes_cast_raw: int
     active_users: str
@@ -37,6 +39,8 @@ class FormattedStats(BaseModel):
             "example": {
                 "polls_created": "12.5K",
                 "polls_created_raw": 12453,
+                "completed_polls": "10.2K",
+                "completed_polls_raw": 10200,
                 "votes_cast": "2.4M",
                 "votes_cast_raw": 2400000,
                 "active_users": "89K",
@@ -63,6 +67,8 @@ class PlatformStatsResponse(BaseModel):
                 "stats": {
                     "polls_created": "12.5K",
                     "polls_created_raw": 12453,
+                    "completed_polls": "10.2K",
+                    "completed_polls_raw": 10200,
                     "votes_cast": "2.4M",
                     "votes_cast_raw": 2400000,
                     "active_users": "89K",
@@ -132,6 +138,8 @@ async def get_platform_stats(
     formatted = FormattedStats(
         polls_created=format_stat_value(stats.polls_created),
         polls_created_raw=stats.polls_created,
+        completed_polls=format_stat_value(stats.completed_polls),
+        completed_polls_raw=stats.completed_polls,
         votes_cast=format_stat_value(stats.votes_cast),
         votes_cast_raw=stats.votes_cast,
         active_users=format_stat_value(stats.active_users),

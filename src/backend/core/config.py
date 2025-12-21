@@ -91,6 +91,14 @@ class Settings(BaseSettings):
     # Whether to enforce frontend-only access (disable for local development if needed)
     ENFORCE_FRONTEND_ONLY: bool = False
 
+    # Cloudflare Turnstile CAPTCHA (privacy-friendly alternative to reCAPTCHA)
+    TURNSTILE_SITE_KEY: str | None = None
+    TURNSTILE_SECRET_KEY: str | None = None
+
+    # Fraud Detection Settings
+    FRAUD_REQUIRE_EMAIL_VERIFIED: bool = True  # Require email verification to vote
+    FRAUD_REQUIRE_PHONE_VERIFIED: bool = True  # Require phone verification to vote
+
     @property
     def cors_origins_list(self) -> list[str]:
         """Get CORS origins as a list."""

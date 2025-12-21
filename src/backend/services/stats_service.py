@@ -12,7 +12,7 @@ from typing import Optional
 from sqlalchemy import and_, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from models.poll import Poll, PollStatus
+from models.poll import Poll, PollStatus, PollType
 from models.user import User
 from models.vote import Vote
 
@@ -22,6 +22,7 @@ class PlatformStats:
     """Platform statistics data."""
 
     polls_created: int
+    completed_polls: int  # Closed/archived pulse and flash polls
     votes_cast: int
     active_users: int  # Users active in last 30 days
     total_users: int
@@ -33,6 +34,7 @@ class PlatformStats:
         """Convert to dictionary for JSON serialization."""
         return {
             "polls_created": self.polls_created,
+            "completed_polls": self.completed_polls,
             "votes_cast": self.votes_cast,
             "active_users": self.active_users,
             "total_users": self.total_users,
@@ -46,6 +48,7 @@ class PlatformStats:
         """Create from dictionary."""
         return cls(
             polls_created=data["polls_created"],
+            completed_polls=data.get("completed_polls", 0),
             votes_cast=data["votes_cast"],
             active_users=data["active_users"],
             total_users=data["total_users"],
@@ -126,6 +129,19 @@ class StatsService:
         )
         polls_created = polls_result.scalar() or 0
 
+        # Count completed pulse and flash polls (closed or archived)
+        completed_polls_result = await self.db.execute(
+            select(func.count(Poll.id)).where(
+                and_(
+                    Poll.status.in_(
+                        [PollStatus.CLOSED.value, PollStatus.ARCHIVED.value]
+                    ),
+                    Poll.poll_type.in_([PollType.PULSE.value, PollType.FLASH.value]),
+                )
+            )
+        )
+        completed_polls = completed_polls_result.scalar() or 0
+
         # Count total votes
         votes_result = await self.db.execute(select(func.count(Vote.id)))
         votes_cast = votes_result.scalar() or 0
@@ -163,6 +179,7 @@ class StatsService:
 
         return PlatformStats(
             polls_created=polls_created,
+            completed_polls=completed_polls,
             votes_cast=votes_cast,
             active_users=active_users,
             total_users=total_users,

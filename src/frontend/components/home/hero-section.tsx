@@ -26,7 +26,7 @@ const staggerContainer = {
 interface HeroStats {
   countries: string;
   votesCast: string;
-  uptime: string;
+  completedPolls: string;
 }
 
 export function HeroSection() {
@@ -34,7 +34,7 @@ export function HeroSection() {
   const [stats, setStats] = useState<HeroStats>({
     countries: '150+',
     votesCast: '---',
-    uptime: '99.9%',
+    completedPolls: '---',
   });
   const [isLoading, setIsLoading] = useState(true);
 
@@ -46,7 +46,7 @@ export function HeroSection() {
         setStats({
           countries: countriesCount > 0 ? `${countriesCount}` : '---',
           votesCast: response.stats.votes_cast,
-          uptime: '99.9%', // This would need infrastructure monitoring integration
+          completedPolls: response.stats.completed_polls,
         });
       } catch (error) {
         console.error('Failed to fetch platform stats:', error);
@@ -166,7 +166,7 @@ export function HeroSection() {
               {[
                 { value: stats.countries, label: 'Countries' },
                 { value: stats.votesCast, label: 'Votes Cast' },
-                { value: stats.uptime, label: 'Uptime' },
+                { value: stats.completedPolls, label: 'Polls Completed' },
               ].map((stat) => (
                 <div key={stat.label} className="text-center">
                   <div className={`text-2xl font-bold text-white ${isLoading ? 'animate-pulse' : ''}`}>

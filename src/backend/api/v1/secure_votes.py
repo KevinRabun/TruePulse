@@ -526,7 +526,7 @@ async def verify_captcha_token(token: str, ip_address: str) -> bool:
 
     from core.config import settings
 
-    secret_key = getattr(settings, "TURNSTILE_SECRET_KEY", None)
+    secret_key = settings.TURNSTILE_SECRET_KEY
     if not secret_key:
         # If no CAPTCHA configured, allow (for development)
         return True
