@@ -5,7 +5,7 @@ Community achievements are collective goals where all participants
 earn rewards when the community reaches a target together.
 """
 
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -344,8 +344,6 @@ async def get_community_achievement(
     """
     Get details of a specific community achievement.
     """
-    from datetime import timedelta
-
     result = await db.execute(select(CommunityAchievement).where(CommunityAchievement.id == achievement_id))
     achievement = result.scalar_one_or_none()
 
@@ -416,6 +414,4 @@ async def get_community_achievement(
 
 
 # Import needed for leaderboard query
-from datetime import timedelta
-
 from sqlalchemy import Integer

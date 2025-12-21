@@ -413,7 +413,6 @@ class PollScheduler:
         """
         from zoneinfo import ZoneInfo
 
-        now = datetime.now(timezone.utc)
         et_tz = ZoneInfo("America/New_York")
         now_et = datetime.now(et_tz)
 
