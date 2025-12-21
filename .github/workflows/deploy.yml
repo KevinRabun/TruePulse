@@ -371,7 +371,7 @@ jobs:
             --parameters newsApiOrgKey='${{ secrets.NEWSAPI_ORG_KEY }}' \
             --parameters communicationSenderNumber='${{ secrets.COMMUNICATION_SENDER_NUMBER }}' \
             --parameters enableCMK=false \
-            --parameters enableCustomDomain=false \
+            --parameters enableCustomDomain=true \
             --parameters sharedLogAnalyticsWorkspaceId='${{ steps.shared.outputs.logAnalyticsWorkspaceId }}' \
             --parameters sharedContainerRegistryName='${{ steps.shared.outputs.containerRegistryName }}' \
             --parameters sharedContainerRegistryLoginServer='${{ steps.shared.outputs.containerRegistryLoginServer }}' \
