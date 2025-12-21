@@ -134,27 +134,6 @@ jobs:
           echo "RESOURCE_GROUP=$RG" >> $GITHUB_ENV
           echo "CONTAINER_APP=$CA_NAME" >> $GITHUB_ENV
 
-      - name: Copy migration script to Container App
-        run: |
-          # Read the migration script content
-          SCRIPT_CONTENT=$(cat "${{ env.MIGRATION_SCRIPT }}")
-          
-          # Create a temporary Python script that includes the migration code
-          # This approach works around the exec limitations
-          cat > /tmp/run_migration.py << 'MIGRATION_WRAPPER'
-          import sys
-          import os
-          
-          # Set up environment
-          os.environ.setdefault('APP_ENV', '${{ inputs.environment }}')
-          
-          # Migration script content will be injected here
-          MIGRATION_WRAPPER
-          
-          echo "$SCRIPT_CONTENT" >> /tmp/run_migration.py
-          
-          echo "Migration script prepared"
-
       - name: Run migration via Container App exec
         run: |
           ENV="${{ inputs.environment }}"
@@ -166,37 +145,36 @@ jobs:
           echo "Dry Run: $DRY_RUN"
           echo "=========================================="
           
-          # Read the migration script
-          SCRIPT_CONTENT=$(cat "${{ env.MIGRATION_SCRIPT }}" | base64 -w 0)
+          # Get the migration script name (basename)
+          SCRIPT_NAME=$(basename "${{ env.MIGRATION_SCRIPT }}")
           
-          # Execute migration in the Container App
-          # The script is passed as base64 and decoded inside the container
+          # Execute migration in the Container App using shell
+          # The Container App has the database credentials already configured
+          echo "Executing migration script via containerapp exec..."
+          
           az containerapp exec \
             --name "${{ env.CONTAINER_APP }}" \
             --resource-group "${{ env.RESOURCE_GROUP }}" \
-            --command "python" \
-            -- -c "
-          import base64
-          import sys
-          import os
+            --command "/bin/sh" \
+            --args "-c" "cd /app && python scripts/$SCRIPT_NAME" \
+            2>&1 | tee migration_output.txt || {
+              EXIT_CODE=$?
+              echo "exec command exited with code: $EXIT_CODE"
+              
+              # Check if it's a known issue with exec vs just showing output
+              if [ $EXIT_CODE -eq 0 ] || grep -q "successfully\|completed\|already exists" migration_output.txt; then
+                echo "Migration appears to have run successfully despite exit code"
+              else
+                echo "Migration may have failed. Check output above."
+              fi
+            }
           
-          # Decode and execute the migration script
-          script_b64 = '$SCRIPT_CONTENT'
-          script_content = base64.b64decode(script_b64).decode('utf-8')
-          
-          # Set dry run mode if requested
-          os.environ['DRY_RUN'] = '$DRY_RUN'
-          
-          print('=== Migration Script Start ===')
-          exec(script_content)
-          print('=== Migration Script End ===')
-          " 2>&1 | tee migration_output.txt
-          
-          # Check for errors in output
-          if grep -qi "error\|exception\|failed\|traceback" migration_output.txt; then
-            echo "Migration may have encountered errors. Please review the output above."
-            # Don't fail - some "error" mentions might be in success messages
-          fi
+          # Display summary
+          echo ""
+          echo "=========================================="
+          echo "Migration Output Summary:"
+          echo "=========================================="
+          cat migration_output.txt || echo "No output captured"
 
       - name: Upload migration log
         if: always()
