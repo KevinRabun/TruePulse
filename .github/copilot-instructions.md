@@ -33,6 +33,9 @@ contract:
     - logging_sensitive_information
     - bypassing_security_mechanisms
     - production_code_without_automated_test_coverage
+    - tests_that_dont_verify_intent_of_production_code
+    - using_raw_bicep_when_avm_possible
+    - changing_infra_or_code_outside_of_github_ci_cd
   required:
     - fix_root_cause_not_tests
     - show_commands_and_outputs
@@ -41,6 +44,13 @@ contract:
     - use_replace_selection_or_diff_only
     - follow_named_algorithm_exactly
     - all_code_production_ready
+    - deployment_through_github_ci_cd
+    - tests_cover_intent_and_existence_of_production_code
+    - use_avm_infra_as_code_when_possible
+    - fix_all_errors_and_warnings
+    - tests_must_pass_fully
+    - fix_all_security_issues
+    - fix_vs_code_recommendations_and_warnings_problems
   validation_gate:
     - run_full_local_test_suite
     - block_output_if_any_check_fails
