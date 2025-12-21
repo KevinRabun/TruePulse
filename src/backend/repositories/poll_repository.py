@@ -401,9 +401,7 @@ class PollRepository:
         total_polls = total_result.scalar() or 0
 
         # Active polls
-        active_result = await self.db.execute(
-            select(func.count(Poll.id)).where(Poll.status == PollStatus.ACTIVE.value)
-        )
+        active_result = await self.db.execute(select(func.count(Poll.id)).where(Poll.status == PollStatus.ACTIVE.value))
         active_polls = active_result.scalar() or 0
 
         # Scheduled polls
@@ -413,27 +411,19 @@ class PollRepository:
         scheduled_polls = scheduled_result.scalar() or 0
 
         # Closed polls
-        closed_result = await self.db.execute(
-            select(func.count(Poll.id)).where(Poll.status == PollStatus.CLOSED.value)
-        )
+        closed_result = await self.db.execute(select(func.count(Poll.id)).where(Poll.status == PollStatus.CLOSED.value))
         closed_polls = closed_result.scalar() or 0
 
         # Polls with votes
-        polls_with_votes_result = await self.db.execute(
-            select(func.count(Poll.id)).where(Poll.total_votes > 0)
-        )
+        polls_with_votes_result = await self.db.execute(select(func.count(Poll.id)).where(Poll.total_votes > 0))
         polls_with_votes = polls_with_votes_result.scalar() or 0
 
         # Total votes across all polls
-        total_votes_result = await self.db.execute(
-            select(func.sum(Poll.total_votes))
-        )
+        total_votes_result = await self.db.execute(select(func.sum(Poll.total_votes)))
         total_votes = total_votes_result.scalar() or 0
 
         # AI generated vs manual
-        ai_generated_result = await self.db.execute(
-            select(func.count(Poll.id)).where(Poll.ai_generated == True)
-        )
+        ai_generated_result = await self.db.execute(select(func.count(Poll.id)).where(Poll.ai_generated == True))
         ai_generated_count = ai_generated_result.scalar() or 0
 
         manual_count = total_polls - ai_generated_count
@@ -476,8 +466,8 @@ class PollRepository:
                 choice = PollChoice(
                     id=str(uuid4()),
                     poll_id=poll.id,
-                    text=choice_data.text if hasattr(choice_data, 'text') else choice_data,
-                    order=choice_data.order if hasattr(choice_data, 'order') else idx,
+                    text=choice_data.text if hasattr(choice_data, "text") else choice_data,
+                    order=choice_data.order if hasattr(choice_data, "order") else idx,
                     vote_count=0,
                 )
                 self.db.add(choice)
@@ -486,4 +476,3 @@ class PollRepository:
         await self.db.refresh(poll)
 
         return poll
-

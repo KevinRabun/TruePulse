@@ -39,30 +39,22 @@ class DistributedLock(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
 
     # Lock identifier (e.g., 'poll_rotation', 'poll_generation')
-    lock_name: Mapped[str] = mapped_column(
-        String(100), unique=True, nullable=False, index=True
-    )
+    lock_name: Mapped[str] = mapped_column(String(100), unique=True, nullable=False, index=True)
 
     # Which instance holds the lock (hostname + timestamp or UUID)
     locked_by: Mapped[str | None] = mapped_column(String(255), nullable=True)
 
     # When the lock was acquired
-    locked_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
+    locked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     # When the lock expires (for dead lock prevention)
-    expires_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
+    expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     # Current lock state
     is_locked: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
 
     # Optional: Last successful run timestamp (for monitoring)
-    last_run_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
+    last_run_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     # Optional: Last run result/notes
     last_run_result: Mapped[str | None] = mapped_column(Text, nullable=True)
@@ -71,9 +63,7 @@ class DistributedLock(Base):
     version: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
 
     # Indexes for efficient querying
-    __table_args__ = (
-        Index("ix_distributed_locks_name_locked", "lock_name", "is_locked"),
-    )
+    __table_args__ = (Index("ix_distributed_locks_name_locked", "lock_name", "is_locked"),)
 
     def is_expired(self) -> bool:
         """Check if the lock has expired."""
@@ -82,7 +72,4 @@ class DistributedLock(Base):
         return datetime.now(timezone.utc) > self.expires_at
 
     def __repr__(self) -> str:
-        return (
-            f"<DistributedLock(name={self.lock_name}, "
-            f"locked={self.is_locked}, by={self.locked_by})>"
-        )
+        return f"<DistributedLock(name={self.lock_name}, locked={self.is_locked}, by={self.locked_by})>"

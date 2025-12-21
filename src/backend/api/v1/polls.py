@@ -625,4 +625,3 @@ async def list_categories() -> list[str]:
         "Social Issues",
         "International",
     ]
-

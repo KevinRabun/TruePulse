@@ -53,9 +53,7 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         )
 
         # CSP for API responses - very restrictive
-        response.headers["Content-Security-Policy"] = (
-            "default-src 'none'; frame-ancestors 'none'"
-        )
+        response.headers["Content-Security-Policy"] = "default-src 'none'; frame-ancestors 'none'"
 
         # Cache control for API responses - generally don't cache
         if "Cache-Control" not in response.headers:

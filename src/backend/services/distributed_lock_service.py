@@ -64,9 +64,7 @@ class DistributedLockService:
 
         Creates the lock if it doesn't exist.
         """
-        result = await db.execute(
-            select(DistributedLock).where(DistributedLock.lock_name == lock_name)
-        )
+        result = await db.execute(select(DistributedLock).where(DistributedLock.lock_name == lock_name))
         lock = result.scalar_one_or_none()
 
         if lock is None:
@@ -111,10 +109,7 @@ class DistributedLockService:
 
             # Check if lock is available or expired
             if lock.is_locked and lock.expires_at and lock.expires_at > now:
-                logger.debug(
-                    f"Lock '{lock_name}' is held by {lock.locked_by} "
-                    f"until {lock.expires_at}"
-                )
+                logger.debug(f"Lock '{lock_name}' is held by {lock.locked_by} until {lock.expires_at}")
                 return False
 
             # Try to acquire using optimistic locking
@@ -194,9 +189,7 @@ class DistributedLockService:
                 return True
             else:
                 await db.rollback()
-                logger.warning(
-                    f"Lock '{lock_name}' release failed - not held by {instance_id}"
-                )
+                logger.warning(f"Lock '{lock_name}' release failed - not held by {instance_id}")
                 return False
 
         except SQLAlchemyError as e:
@@ -276,9 +269,7 @@ class DistributedLockService:
         Yields:
             True if lock acquired, False otherwise
         """
-        acquired = await DistributedLockService.try_acquire(
-            db, lock_name, timeout_seconds
-        )
+        acquired = await DistributedLockService.try_acquire(db, lock_name, timeout_seconds)
         success = True
         result_notes = None
 
@@ -290,18 +281,12 @@ class DistributedLockService:
             raise
         finally:
             if acquired:
-                await DistributedLockService.release(
-                    db, lock_name, success, result_notes
-                )
+                await DistributedLockService.release(db, lock_name, success, result_notes)
 
     @staticmethod
-    async def get_lock_status(
-        db: AsyncSession, lock_name: str
-    ) -> Optional[DistributedLock]:
+    async def get_lock_status(db: AsyncSession, lock_name: str) -> Optional[DistributedLock]:
         """Get the current status of a lock."""
-        result = await db.execute(
-            select(DistributedLock).where(DistributedLock.lock_name == lock_name)
-        )
+        result = await db.execute(select(DistributedLock).where(DistributedLock.lock_name == lock_name))
         return result.scalar_one_or_none()
 
     @staticmethod

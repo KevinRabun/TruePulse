@@ -48,13 +48,9 @@ async def poll_rotation_job() -> None:
     try:
         async with async_session_maker() as db:
             # Use distributed lock to coordinate across replicas
-            async with DistributedLockService.acquire_lock(
-                db, LOCK_POLL_ROTATION, timeout_seconds=300
-            ) as acquired:
+            async with DistributedLockService.acquire_lock(db, LOCK_POLL_ROTATION, timeout_seconds=300) as acquired:
                 if not acquired:
-                    logger.info(
-                        "Poll rotation skipped - another instance is running"
-                    )
+                    logger.info("Poll rotation skipped - another instance is running")
                     return
 
                 logger.info("Lock acquired, starting poll rotation...")
@@ -85,13 +81,9 @@ async def generate_polls_job() -> None:
     try:
         async with async_session_maker() as db:
             # Use distributed lock to coordinate across replicas
-            async with DistributedLockService.acquire_lock(
-                db, LOCK_POLL_GENERATION, timeout_seconds=600
-            ) as acquired:
+            async with DistributedLockService.acquire_lock(db, LOCK_POLL_GENERATION, timeout_seconds=600) as acquired:
                 if not acquired:
-                    logger.info(
-                        "Poll generation skipped - another instance is running"
-                    )
+                    logger.info("Poll generation skipped - another instance is running")
                     return
 
                 logger.info("Lock acquired, checking poll generation needs...")
