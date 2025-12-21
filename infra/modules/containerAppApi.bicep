@@ -511,11 +511,8 @@ module containerApp 'br/public:avm/res/app/container-app:0.19.0' = if (!usePlace
         ipAddressRange: '131.0.72.0/22'
         action: 'Allow'
       }
-      {
-        name: 'DenyAll'
-        ipAddressRange: '0.0.0.0/0'
-        action: 'Deny'
-      }
+      // Note: With Allow rules, traffic is denied by default if it doesn't match any rule.
+      // Azure Container Apps requires all rules to have the same action (all Allow OR all Deny).
     ]
     // Managed identity
     managedIdentities: {

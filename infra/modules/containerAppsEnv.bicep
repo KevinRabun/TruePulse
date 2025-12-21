@@ -40,6 +40,8 @@ module containerAppsEnv 'br/public:avm/res/app/managed-environment:0.11.0' = {
     tags: tags
     // VNet integration - External for Cloudflare access with IP restrictions at Container App level
     internal: false
+    // Enable public network access for external ingress
+    publicNetworkAccess: 'Enabled'
     infrastructureSubnetResourceId: infrastructureSubnetId
     infrastructureResourceGroupName: 'ME_${name}'
     platformReservedCidr: platformReservedCidr
