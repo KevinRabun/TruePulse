@@ -133,9 +133,7 @@ class StatsService:
         completed_polls_result = await self.db.execute(
             select(func.count(Poll.id)).where(
                 and_(
-                    Poll.status.in_(
-                        [PollStatus.CLOSED.value, PollStatus.ARCHIVED.value]
-                    ),
+                    Poll.status.in_([PollStatus.CLOSED.value, PollStatus.ARCHIVED.value]),
                     Poll.poll_type.in_([PollType.PULSE.value, PollType.FLASH.value]),
                 )
             )
