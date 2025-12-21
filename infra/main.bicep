@@ -343,6 +343,9 @@ module containerAppApi 'modules/containerAppApi.bicep' = {
     emailSenderAddress: emailSenderAddress
     customDomain: enableCustomDomain ? customDomain : ''
     usePlaceholderImage: false  // Use actual ACR image, not placeholder
+    // Disable Cloudflare IP restrictions for dev to allow direct testing
+    // Enable for staging/prod for security (traffic must go through Cloudflare)
+    enableCloudflareIpRestrictions: environmentName != 'dev'
   }
   // Explicit dependency to ensure OpenAI secret is in Key Vault before Container App tries to access it
   dependsOn: [

@@ -71,6 +71,9 @@ param customDomain string = ''
 @description('Use placeholder image (for initial deployment before ACR has images)')
 param usePlaceholderImage bool = true
 
+@description('Enable Cloudflare IP restrictions (false for dev to allow direct testing)')
+param enableCloudflareIpRestrictions bool = true
+
 // ============================================================================
 // Variables
 // ============================================================================
@@ -86,6 +89,26 @@ var targetPort = usePlaceholderImage ? 80 : 8000
 // For placeholder deployment, always keep 1 replica to avoid startup issues
 var minReplicas = usePlaceholderImage ? 1 : (environmentName == 'prod' ? 2 : (environmentName == 'staging' ? 1 : 0))
 var maxReplicas = environmentName == 'prod' ? 10 : 3
+
+// Cloudflare IP ranges for security restrictions
+// https://www.cloudflare.com/ips-v4
+var cloudflareIpRestrictions = [
+  { name: 'AllowCloudflare1', ipAddressRange: '173.245.48.0/20', action: 'Allow' }
+  { name: 'AllowCloudflare2', ipAddressRange: '103.21.244.0/22', action: 'Allow' }
+  { name: 'AllowCloudflare3', ipAddressRange: '103.22.200.0/22', action: 'Allow' }
+  { name: 'AllowCloudflare4', ipAddressRange: '103.31.4.0/22', action: 'Allow' }
+  { name: 'AllowCloudflare5', ipAddressRange: '141.101.64.0/18', action: 'Allow' }
+  { name: 'AllowCloudflare6', ipAddressRange: '108.162.192.0/18', action: 'Allow' }
+  { name: 'AllowCloudflare7', ipAddressRange: '190.93.240.0/20', action: 'Allow' }
+  { name: 'AllowCloudflare8', ipAddressRange: '188.114.96.0/20', action: 'Allow' }
+  { name: 'AllowCloudflare9', ipAddressRange: '197.234.240.0/22', action: 'Allow' }
+  { name: 'AllowCloudflare10', ipAddressRange: '198.41.128.0/17', action: 'Allow' }
+  { name: 'AllowCloudflare11', ipAddressRange: '162.158.0.0/15', action: 'Allow' }
+  { name: 'AllowCloudflare12', ipAddressRange: '104.16.0.0/13', action: 'Allow' }
+  { name: 'AllowCloudflare13', ipAddressRange: '104.24.0.0/14', action: 'Allow' }
+  { name: 'AllowCloudflare14', ipAddressRange: '172.64.0.0/13', action: 'Allow' }
+  { name: 'AllowCloudflare15', ipAddressRange: '131.0.72.0/22', action: 'Allow' }
+]
 
 // ============================================================================
 // Resources
@@ -434,86 +457,9 @@ module containerApp 'br/public:avm/res/app/container-app:0.19.0' = if (!usePlace
         }
       ]
     }
-    // IP Security restrictions for Cloudflare-only access
-    ipSecurityRestrictions: [
-      {
-        name: 'AllowCloudflare1'
-        ipAddressRange: '173.245.48.0/20'
-        action: 'Allow'
-      }
-      {
-        name: 'AllowCloudflare2'
-        ipAddressRange: '103.21.244.0/22'
-        action: 'Allow'
-      }
-      {
-        name: 'AllowCloudflare3'
-        ipAddressRange: '103.22.200.0/22'
-        action: 'Allow'
-      }
-      {
-        name: 'AllowCloudflare4'
-        ipAddressRange: '103.31.4.0/22'
-        action: 'Allow'
-      }
-      {
-        name: 'AllowCloudflare5'
-        ipAddressRange: '141.101.64.0/18'
-        action: 'Allow'
-      }
-      {
-        name: 'AllowCloudflare6'
-        ipAddressRange: '108.162.192.0/18'
-        action: 'Allow'
-      }
-      {
-        name: 'AllowCloudflare7'
-        ipAddressRange: '190.93.240.0/20'
-        action: 'Allow'
-      }
-      {
-        name: 'AllowCloudflare8'
-        ipAddressRange: '188.114.96.0/20'
-        action: 'Allow'
-      }
-      {
-        name: 'AllowCloudflare9'
-        ipAddressRange: '197.234.240.0/22'
-        action: 'Allow'
-      }
-      {
-        name: 'AllowCloudflare10'
-        ipAddressRange: '198.41.128.0/17'
-        action: 'Allow'
-      }
-      {
-        name: 'AllowCloudflare11'
-        ipAddressRange: '162.158.0.0/15'
-        action: 'Allow'
-      }
-      {
-        name: 'AllowCloudflare12'
-        ipAddressRange: '104.16.0.0/13'
-        action: 'Allow'
-      }
-      {
-        name: 'AllowCloudflare13'
-        ipAddressRange: '104.24.0.0/14'
-        action: 'Allow'
-      }
-      {
-        name: 'AllowCloudflare14'
-        ipAddressRange: '172.64.0.0/13'
-        action: 'Allow'
-      }
-      {
-        name: 'AllowCloudflare15'
-        ipAddressRange: '131.0.72.0/22'
-        action: 'Allow'
-      }
-      // Note: With Allow rules, traffic is denied by default if it doesn't match any rule.
-      // Azure Container Apps requires all rules to have the same action (all Allow OR all Deny).
-    ]
+    // IP Security restrictions for Cloudflare-only access (production/staging)
+    // Disabled for dev to allow direct testing
+    ipSecurityRestrictions: enableCloudflareIpRestrictions ? cloudflareIpRestrictions : []
     // Managed identity
     managedIdentities: {
       systemAssigned: true
