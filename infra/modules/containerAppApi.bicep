@@ -231,6 +231,22 @@ module containerApp 'br/public:avm/res/app/container-app:0.19.0' = if (!usePlace
             value: 'postgresql+asyncpg://${postgresUsername}@${postgresHost}/${postgresDatabase}'
           }
           {
+            name: 'POSTGRES_HOST'
+            value: postgresHost
+          }
+          {
+            name: 'POSTGRES_PORT'
+            value: '5432'
+          }
+          {
+            name: 'POSTGRES_USER'
+            value: postgresUsername
+          }
+          {
+            name: 'POSTGRES_DB'
+            value: postgresDatabase
+          }
+          {
             name: 'POSTGRES_PASSWORD'
             secretRef: 'postgres-password'
           }
