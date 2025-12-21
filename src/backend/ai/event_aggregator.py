@@ -41,6 +41,14 @@ class NewsCategory(str, Enum):
     WORLD = "world"
 
 
+class NewsScope(str, Enum):
+    """Geographic scope of news articles."""
+
+    LOCAL = "local"  # City/regional news
+    NATIONAL = "national"  # Country-wide news
+    INTERNATIONAL = "international"  # Multi-country/global news
+
+
 class NewsEvent(BaseModel):
     """A news event from aggregated sources."""
 
@@ -58,6 +66,7 @@ class NewsEvent(BaseModel):
     sentiment: Optional[str] = None  # positive, negative, neutral
     country: Optional[str] = None
     language: str = "en"
+    scope: NewsScope = Field(default=NewsScope.NATIONAL, description="Geographic scope of the news")
 
 
 class NewsDataClient:
@@ -78,7 +87,7 @@ class NewsDataClient:
         self,
         categories: list[str] | None = None,
         keywords: str | None = None,
-        country: str = "us",
+        country: str | None = "us",
         language: str = "en",
         size: int = 10,
     ) -> list[NewsEvent]:
@@ -96,6 +105,7 @@ class NewsDataClient:
         if keywords:
             params["q"] = keywords
 
+        # Only add country filter if specified (None = global news)
         if country:
             params["country"] = country
 
@@ -176,24 +186,31 @@ class NewsAPIClient:
         self,
         categories: list[str] | None = None,
         keywords: str | None = None,
-        country: str = "us",
+        country: str | None = "us",
         language: str = "en",
         page_size: int = 20,
     ) -> list[NewsEvent]:
         """Fetch news from NewsAPI.org."""
         headers = {"X-Api-Key": self.api_key}
 
-        # Use /everything for keyword search, /top-headlines for categories
+        # Use /everything for keyword search or global news, /top-headlines for country-specific
         params: dict[str, str | int]
-        if keywords:
+        if keywords or not country:
+            # Use /everything endpoint for keyword-based or global searches
             endpoint = f"{self.BASE_URL}/everything"
             params = {
-                "q": keywords,
                 "language": language,
                 "pageSize": min(page_size, 100),
                 "sortBy": "relevancy",
             }
+            if keywords:
+                params["q"] = keywords
+            else:
+                # Default query for global news
+                params["q"] = "world OR international OR economy OR politics"
+                params["sortBy"] = "publishedAt"
         else:
+            # Use /top-headlines for country-specific news
             endpoint = f"{self.BASE_URL}/top-headlines"
             params = {
                 "country": country,
@@ -295,15 +312,131 @@ class NewsAPIClient:
                 return category
 
         return "general"
-        keywords = []
 
-        # Extract from entities if available
-        for entity_type in ["persons", "organizations", "locations"]:
-            entities = article.get(entity_type, [])
-            if isinstance(entities, list):
-                keywords.extend(entities[:3])  # Limit to 3 per type
 
-        return keywords[:10]  # Max 10 keywords
+def classify_news_scope(title: str, summary: str, keywords: list[str]) -> NewsScope:
+    """
+    Classify the geographic scope of a news article.
+
+    Returns:
+        NewsScope indicating local, national, or international reach
+    """
+    content = f"{title} {summary}".lower()
+    keyword_str = " ".join(keywords).lower() if keywords else ""
+
+    # International indicators - stories with global impact
+    international_indicators = [
+        # Global organizations and summits
+        "united nations", "un ", "nato", "who ", "world health",
+        "imf", "world bank", "g7", "g20", "opec", "european union", "eu ",
+        # International events and issues
+        "global", "worldwide", "international", "world leaders",
+        "climate summit", "cop28", "cop29", "davos",
+        "trade war", "sanctions", "tariff", "embargo",
+        # Major world regions/conflicts
+        "ukraine", "russia", "china", "middle east", "gaza", "israel",
+        "taiwan", "north korea", "iran", "syria",
+        # International business/tech
+        "multinational", "global economy", "world market",
+        "spacex", "nasa", "esa", "space station",
+        # Pandemic/global health
+        "pandemic", "outbreak", "vaccine rollout",
+    ]
+
+    # National indicators - country-wide significance
+    national_indicators = [
+        # Federal government and politics
+        "president", "congress", "senate", "supreme court",
+        "federal", "national", "white house", "capitol",
+        "election", "primary", "ballot", "vote", "campaign",
+        "legislation", "bill passed", "executive order",
+        # National issues
+        "nationwide", "across the country", "americans",
+        "national security", "federal reserve", "fed rate",
+        "inflation", "recession", "unemployment rate",
+        "immigration", "border", "healthcare reform",
+        # Major companies with national impact
+        "fortune 500", "wall street", "dow jones", "nasdaq", "s&p",
+        "big tech", "major airlines", "automakers",
+        # National events
+        "super bowl", "march madness", "thanksgiving",
+        "memorial day", "labor day", "independence day",
+    ]
+
+    # Local/niche indicators - stories to filter out
+    local_indicators = [
+        # Local government
+        "city council", "mayor", "county", "township", "alderman",
+        "school board", "sheriff", "district attorney",
+        "local police", "fire department",
+        # Regional/local events
+        "high school", "local business", "neighborhood",
+        "downtown", "suburb", "community center",
+        "local restaurant", "small town", "regional",
+        # Traffic/weather (unless severe)
+        "traffic accident", "car crash", "road closure",
+        "local weather", "forecast",
+        # Crime (unless major)
+        "robbery", "burglary", "theft", "break-in",
+        "drug arrest", "dui",
+        # Niche financial news (individual company earnings, not market-wide)
+        "eps estimate", "earnings estimate", "quarterly earnings",
+        "fy2024", "fy2025", "fy2026", "fy2027",
+        "price target", "analyst rating", "buy rating", "sell rating",
+        "stock upgrade", "stock downgrade",
+    ]
+
+    # Check for international scope first (highest priority)
+    if any(indicator in content or indicator in keyword_str for indicator in international_indicators):
+        return NewsScope.INTERNATIONAL
+
+    # Check for local/niche scope (filter out)
+    local_count = sum(1 for indicator in local_indicators if indicator in content or indicator in keyword_str)
+    if local_count >= 1:  # Changed from 2 to 1 for niche financial news
+        return NewsScope.LOCAL
+
+    # Check for national scope
+    if any(indicator in content or indicator in keyword_str for indicator in national_indicators):
+        return NewsScope.NATIONAL
+
+    # Default to national if uncertain
+    return NewsScope.NATIONAL
+
+
+def calculate_relevance_boost(event: "NewsEvent") -> float:
+    """
+    Calculate a relevance score boost based on news scope and other factors.
+
+    Returns:
+        A multiplier (0.5 to 1.5) to apply to the base relevance score
+    """
+    boost = 1.0
+
+    # Scope-based boost
+    if event.scope == NewsScope.INTERNATIONAL:
+        boost *= 1.3  # International news gets 30% boost
+    elif event.scope == NewsScope.NATIONAL:
+        boost *= 1.1  # National news gets 10% boost
+    else:  # LOCAL
+        boost *= 0.6  # Local news gets penalized
+
+    # Category-based boost for topics with broader appeal
+    high_interest_categories = {"politics", "technology", "world", "health", "science"}
+    if event.category in high_interest_categories:
+        boost *= 1.1
+
+    # Major source boost (well-known outlets tend to cover bigger stories)
+    major_sources = [
+        "reuters", "associated press", "ap news", "bbc", "cnn",
+        "new york times", "washington post", "wall street journal",
+        "the guardian", "npr", "pbs", "abc news", "nbc news", "cbs news",
+        "fox news", "bloomberg", "cnbc", "al jazeera", "france24",
+    ]
+    source_lower = event.source.lower()
+    if any(src in source_lower for src in major_sources):
+        boost *= 1.15
+
+    return min(max(boost, 0.5), 1.5)  # Clamp between 0.5 and 1.5
 
 
 class EventAggregator:
@@ -349,20 +482,22 @@ class EventAggregator:
         categories: list[str] | None = None,
         keywords: str | None = None,
         limit: int = 50,
+        min_scope: NewsScope = NewsScope.NATIONAL,
     ) -> list[NewsEvent]:
         """
-        Fetch trending events from multiple news sources.
+        Fetch trending events from multiple news sources with global reach.
 
-        Sources are weighted to ensure political balance and
-        diverse perspectives.
+        Sources are weighted to ensure political balance, diverse perspectives,
+        and national/international relevance.
 
         Args:
             categories: Filter by news categories (politics, tech, etc.)
             keywords: Search keywords
             limit: Maximum number of events to return
+            min_scope: Minimum geographic scope (filters out local news by default)
 
         Returns:
-            List of NewsEvent objects from multiple sources
+            List of NewsEvent objects from multiple sources, prioritized by relevance
         """
         logger.info(f"Fetching trending events, categories={categories}, keywords={keywords}, limit={limit}")
 
@@ -377,28 +512,43 @@ class EventAggregator:
             ]
         )
 
-        # Calculate articles per source
-        articles_per_source = max(limit // max(num_clients, 1), 10)
+        # Calculate articles per source - fetch more to allow filtering
+        articles_per_source = max((limit * 2) // max(num_clients, 1), 20)
 
-        # Fetch from NewsData.io
+        # Fetch from NewsData.io - use no country filter to get global news
         if self.newsdata_client:
+            # First fetch: world/top news without country filter
             fetch_tasks.append(
                 self.newsdata_client.fetch_news(
-                    categories=categories,
+                    categories=categories or ["world", "politics", "business"],
                     keywords=keywords,
+                    country=None,  # No country filter = global news
                     size=min(articles_per_source, 10),  # API limit
                 )
             )
 
-        # Fetch from NewsAPI.org
+        # Fetch from NewsAPI.org - mix of US and global sources
         if self.newsapi_client:
+            # Fetch from top-headlines (US for major domestic news)
             fetch_tasks.append(
                 self.newsapi_client.fetch_news(
                     categories=categories,
                     keywords=keywords,
-                    page_size=min(articles_per_source, 100),  # API limit
+                    country="us",  # US national news
+                    page_size=min(articles_per_source // 2, 50),
                 )
             )
+            # Fetch from /everything endpoint (global, keyword-based)
+            if not keywords:
+                # Use broad keywords to get internationally relevant news
+                fetch_tasks.append(
+                    self.newsapi_client.fetch_news(
+                        categories=None,
+                        keywords="world OR international OR global OR economy",
+                        country=None,
+                        page_size=min(articles_per_source // 2, 50),
+                    )
+                )
 
         # Execute all fetches concurrently
         if fetch_tasks:
@@ -414,8 +564,32 @@ class EventAggregator:
         if not all_events and not fetch_tasks:
             all_events = self._get_mock_events()
 
+        # Classify scope and apply relevance boost for each event
+        for event in all_events:
+            event.scope = classify_news_scope(event.title, event.summary, event.keywords)
+            boost = calculate_relevance_boost(event)
+            event.relevance_score = min(event.relevance_score * boost, 1.0)
+
+        # Filter out local news (unless explicitly requested)
+        scope_priority = {
+            NewsScope.INTERNATIONAL: 3,
+            NewsScope.NATIONAL: 2,
+            NewsScope.LOCAL: 1,
+        }
+        min_scope_priority = scope_priority.get(min_scope, 2)
+
+        filtered_events = [
+            event for event in all_events
+            if scope_priority.get(event.scope, 1) >= min_scope_priority
+        ]
+
+        logger.info(
+            f"Scope filtering: {len(all_events)} total -> {len(filtered_events)} "
+            f"(min_scope={min_scope.value})"
+        )
+
         # Deduplicate and sort by relevance
-        unique_events = await self.deduplicate_events(all_events)
+        unique_events = await self.deduplicate_events(filtered_events)
         unique_events.sort(key=lambda e: e.relevance_score, reverse=True)
 
         logger.info(f"Aggregated {len(unique_events)} unique events from {len(fetch_tasks)} sources")

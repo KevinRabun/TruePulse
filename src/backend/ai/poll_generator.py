@@ -57,6 +57,14 @@ creating unbiased, fair poll questions from current events. Your goals are:
 3. BALANCE: Answer choices must represent all major viewpoints fairly
 4. INCLUSIVITY: Include "Undecided" or "Other" options when appropriate
 5. NON-LEADING: Avoid loaded language or presuppositions
+6. BROAD RELEVANCE: Focus on topics with national or international significance
+
+IMPORTANT - TOPIC SELECTION CRITERIA:
+- PRIORITIZE stories that affect large populations (national policy, international relations, major economic trends)
+- PREFER topics that most people can form an opinion on regardless of location
+- AVOID hyper-local stories (city council decisions, local crime, regional weather)
+- AVOID niche financial news (individual stock earnings, specific company quarterly results)
+- FOCUS ON: Policy debates, social issues, technology impacts, global events, public health, environment
 
 When generating polls:
 - Frame questions objectively without emotional language
@@ -64,6 +72,7 @@ When generating polls:
 - Avoid false dichotomies - include nuanced options
 - Don't assume the reader's position
 - Use neutral, professional language
+- Make questions accessible to a general audience (avoid jargon)
 
 Output format:
 {
@@ -154,6 +163,11 @@ Output format:
         """
         await self.initialize()
 
+        # Get scope info if available
+        scope_info = ""
+        if hasattr(event, "scope"):
+            scope_info = f"\nGEOGRAPHIC SCOPE: {event.scope.value}"
+
         # Build the prompt
         prompt = f"""Generate an unbiased poll question based on this news event:
 
@@ -163,7 +177,7 @@ SUMMARY: {event.summary}
 
 CATEGORY: {event.category}
 
-KEYWORDS: {", ".join(event.keywords)}
+KEYWORDS: {", ".join(event.keywords)}{scope_info}
 
 {f"ADDITIONAL CONTEXT: {context}" if context else ""}
 
@@ -172,6 +186,10 @@ Create a poll that:
 2. Offers balanced answer choices representing different viewpoints
 3. Uses neutral, non-leading language
 4. Includes 3-5 answer choices
+5. Is relevant to a NATIONAL or INTERNATIONAL audience (avoid hyper-local framing)
+6. Focuses on the broader implications, not just the specific event
+
+If this event is too local/niche for a general audience, reframe the question around the broader issue it represents.
 
 Return your response as JSON."""
 
