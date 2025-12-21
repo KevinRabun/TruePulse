@@ -503,8 +503,8 @@ module containerApp 'br/public:avm/res/app/container-app:0.19.0' = if (!usePlace
 // Outputs
 // ============================================================================
 
-output resourceId string = usePlaceholderImage ? placeholderContainerApp.id : containerApp.outputs.resourceId
-output name string = usePlaceholderImage ? placeholderContainerApp.name : containerApp.outputs.name
-output fqdn string = usePlaceholderImage ? placeholderContainerApp.properties.configuration.ingress.fqdn : containerApp.outputs.fqdn
+output resourceId string = usePlaceholderImage ? placeholderContainerApp!.id : containerApp!.outputs.resourceId
+output name string = usePlaceholderImage ? placeholderContainerApp!.name : containerApp!.outputs.name
+output fqdn string = usePlaceholderImage ? placeholderContainerApp!.properties.configuration.ingress.fqdn : containerApp!.outputs.fqdn
 output managedIdentityId string = managedIdentity.id
 output managedIdentityPrincipalId string = managedIdentity.properties.principalId

@@ -182,7 +182,7 @@ module privateDnsZoneLinks 'modules/privateDnsZoneLinks.bicep' = {
     environmentName: environmentName
     vnetId: vnet.outputs.vnetId
   }
-  dependsOn: [vnet]
+  // Note: Implicit dependency on vnet via vnet.outputs.vnetId reference
 }
 
 // ACR Private Endpoint - enables Container Apps to pull images from shared ACR via private network
@@ -347,10 +347,8 @@ module containerAppApi 'modules/containerAppApi.bicep' = {
     // Enable for staging/prod for security (traffic must go through Cloudflare)
     enableCloudflareIpRestrictions: environmentName != 'dev'
   }
-  // Explicit dependency to ensure OpenAI secret is in Key Vault before Container App tries to access it
-  dependsOn: [
-    azureOpenAI
-  ]
+  // Note: OpenAI secrets are stored in Key Vault during azureOpenAI module deployment
+  // Container App accesses secrets at runtime via managed identity, not deployment time
 }
 
 // Grant ACR pull permission to the Container App's managed identity (cross-resource-group)
