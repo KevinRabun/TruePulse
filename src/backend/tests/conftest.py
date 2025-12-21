@@ -5,7 +5,7 @@ Pytest fixtures for TruePulse backend tests.
 import os
 from collections.abc import AsyncGenerator
 from typing import Any
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock
 
 import pytest
 from httpx import ASGITransport, AsyncClient

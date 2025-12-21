@@ -6,6 +6,7 @@ Includes:
 - Rate limiting (per-user)
 """
 
+import hashlib
 from typing import Annotated
 
 import structlog

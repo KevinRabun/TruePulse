@@ -129,7 +129,7 @@ class PollRepository:
     ) -> Poll:
         """Create a new poll with choices."""
         initial_status = status or PollStatus.SCHEDULED.value
-        
+
         poll = Poll(
             id=str(uuid4()),
             question=question,
@@ -331,11 +331,11 @@ class PollRepository:
         poll = await self.get_by_id(poll_id)
         if not poll:
             return False
-        
+
         # Delete choices first (foreign key constraint)
         for choice in poll.choices:
             await self.db.delete(choice)
-        
+
         # Delete the poll
         await self.db.delete(poll)
         await self.db.commit()
@@ -470,7 +470,7 @@ class PollRepository:
             # Delete existing choices
             for choice in poll.choices:
                 await self.db.delete(choice)
-            
+
             # Create new choices
             for idx, choice_data in enumerate(new_choices):
                 choice = PollChoice(
@@ -484,6 +484,6 @@ class PollRepository:
 
         await self.db.commit()
         await self.db.refresh(poll)
-        
+
         return poll
 

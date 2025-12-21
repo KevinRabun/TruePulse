@@ -15,7 +15,6 @@ Security measures:
 import logging
 from datetime import datetime, timedelta, timezone
 from typing import Annotated, Optional
-from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel, Field
@@ -30,7 +29,6 @@ from schemas.poll import (
     PollChoice,
     PollChoiceWithResults,
     PollCreate,
-    PollListResponse,
     PollStatusEnum,
     PollTypeEnum,
     PollWithResults,
@@ -50,7 +48,7 @@ router = APIRouter()
 def require_admin(current_user: Annotated[UserInDB, Depends(get_current_user)]) -> UserInDB:
     """
     Dependency to require admin access.
-    
+
     Raises HTTPException 403 if user is not an admin.
     """
     if not current_user.is_admin:
@@ -151,8 +149,7 @@ def poll_model_to_schema(poll) -> Poll:
         id=str(poll.id),
         question=poll.question,
         choices=[
-            PollChoice(id=str(c.id), text=c.text, order=c.order)
-            for c in sorted(poll.choices, key=lambda x: x.order)
+            PollChoice(id=str(c.id), text=c.text, order=c.order) for c in sorted(poll.choices, key=lambda x: x.order)
         ],
         category=poll.category,
         source_event=poll.source_event,
@@ -228,7 +225,7 @@ async def list_all_polls(
 ) -> AdminPollListResponse:
     """
     List all polls with advanced filtering options.
-    
+
     Admin-only endpoint that provides access to all polls including
     inactive, scheduled, and archived polls.
     """
@@ -236,9 +233,9 @@ async def list_all_polls(
         f"Admin {admin.id} listing polls",
         extra={"admin_id": str(admin.id), "filters": {"status": status_filter, "poll_type": poll_type}},
     )
-    
+
     repo = PollRepository(db)
-    
+
     # Get polls with filters
     polls, total = await repo.get_all_polls(
         page=page,
@@ -249,9 +246,9 @@ async def list_all_polls(
         ai_generated_filter=ai_generated,
         search_query=search,
     )
-    
+
     total_pages = (total + per_page - 1) // per_page
-    
+
     return AdminPollListResponse(
         polls=[poll_model_to_schema(p) for p in polls],
         total=total,
@@ -268,12 +265,12 @@ async def get_poll_stats(
 ) -> PollStatsResponse:
     """
     Get aggregate statistics about polls.
-    
+
     Provides overview metrics for admin dashboard.
     """
     repo = PollRepository(db)
     stats = await repo.get_poll_statistics()
-    
+
     return PollStatsResponse(**stats)
 
 
@@ -285,18 +282,18 @@ async def get_poll_details(
 ) -> PollWithResults:
     """
     Get detailed information about a specific poll.
-    
+
     Returns full poll data including vote counts and demographic breakdowns.
     """
     repo = PollRepository(db)
     poll = await repo.get_by_id(poll_id)
-    
+
     if not poll:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Poll not found",
         )
-    
+
     return poll_model_to_results_schema(poll)
 
 
@@ -308,7 +305,7 @@ async def create_poll(
 ) -> Poll:
     """
     Create a new poll with admin options.
-    
+
     Admins can create polls with custom scheduling, immediate activation,
     and other advanced options not available to regular poll creation.
     """
@@ -320,20 +317,20 @@ async def create_poll(
             "poll_type": poll_data.poll_type,
         },
     )
-    
+
     repo = PollRepository(db)
-    
+
     # Calculate scheduling
     now = datetime.now(timezone.utc)
     scheduled_start = poll_data.scheduled_start or now
     scheduled_end = scheduled_start + timedelta(hours=poll_data.duration_hours)
-    
+
     # Determine initial status
     initial_status = poll_data.status.value
     if poll_data.activate_immediately:
         initial_status = PollStatus.ACTIVE.value
         scheduled_start = now
-    
+
     poll = await repo.create(
         question=poll_data.question,
         choices=[c.text for c in poll_data.choices],
@@ -347,12 +344,12 @@ async def create_poll(
         is_special=poll_data.is_special,
         status=initial_status,
     )
-    
+
     logger.info(
         f"Admin {admin.id} created poll {poll.id}",
         extra={"admin_id": str(admin.id), "poll_id": str(poll.id)},
     )
-    
+
     return poll_model_to_schema(poll)
 
 
@@ -365,7 +362,7 @@ async def update_poll(
 ) -> Poll:
     """
     Update an existing poll.
-    
+
     Allows partial updates to poll properties. Some restrictions apply:
     - Cannot change question/choices for polls with votes
     - Status changes follow allowed transitions
@@ -374,16 +371,16 @@ async def update_poll(
         f"Admin {admin.id} updating poll {poll_id}",
         extra={"admin_id": str(admin.id), "poll_id": poll_id},
     )
-    
+
     repo = PollRepository(db)
     poll = await repo.get_by_id(poll_id)
-    
+
     if not poll:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Poll not found",
         )
-    
+
     # Validate update constraints
     if poll.total_votes > 0:
         if poll_data.question is not None or poll_data.choices is not None:
@@ -391,7 +388,7 @@ async def update_poll(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Cannot modify question or choices for polls with existing votes",
             )
-    
+
     # Build update dictionary
     update_fields = {}
     if poll_data.question is not None:
@@ -415,27 +412,27 @@ async def update_poll(
         update_fields["is_special"] = poll_data.is_special
     if poll_data.poll_type is not None:
         update_fields["poll_type"] = poll_data.poll_type.value
-    
+
     if not update_fields and poll_data.choices is None:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="No fields to update",
         )
-    
+
     # Update poll
     updated_poll = await repo.update_poll(poll_id, update_fields, poll_data.choices)
-    
+
     if not updated_poll:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to update poll",
         )
-    
+
     logger.info(
         f"Admin {admin.id} updated poll {poll_id}",
         extra={"admin_id": str(admin.id), "poll_id": poll_id, "fields": list(update_fields.keys())},
     )
-    
+
     return poll_model_to_schema(updated_poll)
 
 
@@ -448,7 +445,7 @@ async def delete_poll(
 ) -> None:
     """
     Delete a poll by ID.
-    
+
     By default, polls with votes cannot be deleted to preserve data integrity.
     Use force=true to override this protection (audit logged).
     """
@@ -456,23 +453,23 @@ async def delete_poll(
         f"Admin {admin.id} attempting to delete poll {poll_id}",
         extra={"admin_id": str(admin.id), "poll_id": poll_id, "force": force},
     )
-    
+
     repo = PollRepository(db)
     poll = await repo.get_by_id(poll_id)
-    
+
     if not poll:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Poll not found",
         )
-    
+
     # Check for votes unless force is specified
     if poll.total_votes > 0 and not force:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Cannot delete poll with {poll.total_votes} votes. Use force=true to override.",
         )
-    
+
     if poll.total_votes > 0 and force:
         logger.warning(
             f"Admin {admin.id} FORCE deleting poll {poll_id} with {poll.total_votes} votes",
@@ -483,15 +480,15 @@ async def delete_poll(
                 "question": poll.question,
             },
         )
-    
+
     deleted = await repo.delete_poll(poll_id)
-    
+
     if not deleted:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to delete poll",
         )
-    
+
     logger.info(
         f"Admin {admin.id} deleted poll {poll_id}",
         extra={"admin_id": str(admin.id), "poll_id": poll_id},
@@ -506,7 +503,7 @@ async def bulk_delete_polls(
 ) -> BulkDeleteResponse:
     """
     Delete multiple polls at once.
-    
+
     Useful for cleaning up duplicate or test polls.
     Returns summary of successful and failed deletions.
     """
@@ -514,39 +511,39 @@ async def bulk_delete_polls(
         f"Admin {admin.id} attempting bulk delete of {len(request.poll_ids)} polls",
         extra={"admin_id": str(admin.id), "poll_count": len(request.poll_ids), "force": request.force},
     )
-    
+
     repo = PollRepository(db)
     deleted_count = 0
     failed_ids = []
     errors = []
-    
+
     for poll_id in request.poll_ids:
         try:
             poll = await repo.get_by_id(poll_id)
-            
+
             if not poll:
                 failed_ids.append(poll_id)
                 errors.append(f"Poll {poll_id} not found")
                 continue
-            
+
             if poll.total_votes > 0 and not request.force:
                 failed_ids.append(poll_id)
                 errors.append(f"Poll {poll_id} has {poll.total_votes} votes")
                 continue
-            
+
             deleted = await repo.delete_poll(poll_id)
-            
+
             if deleted:
                 deleted_count += 1
             else:
                 failed_ids.append(poll_id)
                 errors.append(f"Failed to delete poll {poll_id}")
-                
+
         except Exception as e:
             logger.error(f"Error deleting poll {poll_id}: {e}")
             failed_ids.append(poll_id)
             errors.append(f"Error deleting poll {poll_id}: {str(e)}")
-    
+
     logger.info(
         f"Admin {admin.id} bulk deleted {deleted_count} polls, {len(failed_ids)} failed",
         extra={
@@ -555,7 +552,7 @@ async def bulk_delete_polls(
             "failed_count": len(failed_ids),
         },
     )
-    
+
     return BulkDeleteResponse(
         deleted_count=deleted_count,
         failed_ids=failed_ids,
@@ -576,30 +573,30 @@ async def activate_poll(
 ) -> Poll:
     """
     Manually activate a scheduled poll.
-    
+
     Immediately sets the poll status to active and updates timestamps.
     """
     repo = PollRepository(db)
     poll = await repo.get_by_id(poll_id)
-    
+
     if not poll:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Poll not found",
         )
-    
+
     if poll.status == PollStatus.ACTIVE.value:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Poll is already active",
         )
-    
+
     if poll.status == PollStatus.CLOSED.value:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Cannot activate a closed poll",
         )
-    
+
     now = datetime.now(timezone.utc)
     updated = await repo.update_poll(
         poll_id,
@@ -609,12 +606,12 @@ async def activate_poll(
             "scheduled_start": now,
         },
     )
-    
+
     logger.info(
         f"Admin {admin.id} activated poll {poll_id}",
         extra={"admin_id": str(admin.id), "poll_id": poll_id},
     )
-    
+
     return poll_model_to_schema(updated)
 
 
@@ -626,24 +623,24 @@ async def close_poll(
 ) -> Poll:
     """
     Manually close an active poll.
-    
+
     Immediately ends the poll and prevents further voting.
     """
     repo = PollRepository(db)
     poll = await repo.get_by_id(poll_id)
-    
+
     if not poll:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Poll not found",
         )
-    
+
     if poll.status == PollStatus.CLOSED.value:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Poll is already closed",
         )
-    
+
     now = datetime.now(timezone.utc)
     updated = await repo.update_poll(
         poll_id,
@@ -654,12 +651,12 @@ async def close_poll(
             "expires_at": now,
         },
     )
-    
+
     logger.info(
         f"Admin {admin.id} closed poll {poll_id}",
         extra={"admin_id": str(admin.id), "poll_id": poll_id},
     )
-    
+
     return poll_model_to_schema(updated)
 
 
@@ -672,23 +669,23 @@ async def toggle_featured(
 ) -> Poll:
     """
     Toggle the featured status of a poll.
-    
+
     Featured polls are highlighted in the UI and may appear in special sections.
     """
     repo = PollRepository(db)
     poll = await repo.get_by_id(poll_id)
-    
+
     if not poll:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Poll not found",
         )
-    
+
     updated = await repo.update_poll(poll_id, {"is_featured": featured})
-    
+
     logger.info(
         f"Admin {admin.id} set poll {poll_id} featured={featured}",
         extra={"admin_id": str(admin.id), "poll_id": poll_id, "featured": featured},
     )
-    
+
     return poll_model_to_schema(updated)
