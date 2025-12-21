@@ -615,7 +615,7 @@ class PollScheduler:
                 )
 
                 return new_poll
-            except IntegrityError as e:
+            except IntegrityError:
                 # Unique constraint violation - another process already created a poll for this window
                 # This is expected behavior in concurrent environments, not an error
                 await self.db.rollback()
