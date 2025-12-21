@@ -123,18 +123,25 @@ class PollRepository:
         source_event_url: Optional[str] = None,
         is_featured: bool = False,
         ai_generated: bool = False,
+        poll_type: str = "standard",
+        is_special: bool = False,
+        status: Optional[str] = None,
     ) -> Poll:
         """Create a new poll with choices."""
+        initial_status = status or PollStatus.SCHEDULED.value
+        
         poll = Poll(
             id=str(uuid4()),
             question=question,
             category=category,
             source_event=source_event,
             source_event_url=source_event_url,
-            status=PollStatus.SCHEDULED.value,
-            is_active=True,
+            status=initial_status,
+            is_active=initial_status == PollStatus.ACTIVE.value,
             is_featured=is_featured,
+            is_special=is_special,
             ai_generated=ai_generated,
+            poll_type=poll_type,
             scheduled_start=scheduled_start,
             scheduled_end=scheduled_end,
             expires_at=scheduled_end,
@@ -318,3 +325,165 @@ class PollRepository:
         polls = list(result.scalars().all())
 
         return polls, total
+
+    async def delete_poll(self, poll_id: str) -> bool:
+        """Delete a poll and its choices by ID."""
+        poll = await self.get_by_id(poll_id)
+        if not poll:
+            return False
+        
+        # Delete choices first (foreign key constraint)
+        for choice in poll.choices:
+            await self.db.delete(choice)
+        
+        # Delete the poll
+        await self.db.delete(poll)
+        await self.db.commit()
+        return True
+
+    # ========================================================================
+    # Admin Methods
+    # ========================================================================
+
+    async def get_all_polls(
+        self,
+        page: int = 1,
+        per_page: int = 20,
+        status_filter: Optional[str] = None,
+        poll_type: Optional[str] = None,
+        include_inactive: bool = True,
+        ai_generated_filter: Optional[bool] = None,
+        search_query: Optional[str] = None,
+    ) -> tuple[list[Poll], int]:
+        """Get all polls with advanced filtering for admin views."""
+        query = select(Poll).options(selectinload(Poll.choices))
+        count_query = select(func.count(Poll.id))
+
+        # Apply filters
+        if status_filter:
+            query = query.where(Poll.status == status_filter)
+            count_query = count_query.where(Poll.status == status_filter)
+
+        if poll_type:
+            query = query.where(Poll.poll_type == poll_type)
+            count_query = count_query.where(Poll.poll_type == poll_type)
+
+        if not include_inactive:
+            query = query.where(Poll.is_active == True)
+            count_query = count_query.where(Poll.is_active == True)
+
+        if ai_generated_filter is not None:
+            query = query.where(Poll.ai_generated == ai_generated_filter)
+            count_query = count_query.where(Poll.ai_generated == ai_generated_filter)
+
+        if search_query:
+            search_pattern = f"%{search_query}%"
+            query = query.where(Poll.question.ilike(search_pattern))
+            count_query = count_query.where(Poll.question.ilike(search_pattern))
+
+        # Get total count
+        total_result = await self.db.execute(count_query)
+        total = total_result.scalar() or 0
+
+        # Get paginated results (most recent first)
+        query = query.order_by(Poll.created_at.desc())
+        query = query.offset((page - 1) * per_page).limit(per_page)
+
+        result = await self.db.execute(query)
+        polls = list(result.scalars().all())
+
+        return polls, total
+
+    async def get_poll_statistics(self) -> dict:
+        """Get aggregate statistics about polls for admin dashboard."""
+        # Total polls
+        total_result = await self.db.execute(select(func.count(Poll.id)))
+        total_polls = total_result.scalar() or 0
+
+        # Active polls
+        active_result = await self.db.execute(
+            select(func.count(Poll.id)).where(Poll.status == PollStatus.ACTIVE.value)
+        )
+        active_polls = active_result.scalar() or 0
+
+        # Scheduled polls
+        scheduled_result = await self.db.execute(
+            select(func.count(Poll.id)).where(Poll.status == PollStatus.SCHEDULED.value)
+        )
+        scheduled_polls = scheduled_result.scalar() or 0
+
+        # Closed polls
+        closed_result = await self.db.execute(
+            select(func.count(Poll.id)).where(Poll.status == PollStatus.CLOSED.value)
+        )
+        closed_polls = closed_result.scalar() or 0
+
+        # Polls with votes
+        polls_with_votes_result = await self.db.execute(
+            select(func.count(Poll.id)).where(Poll.total_votes > 0)
+        )
+        polls_with_votes = polls_with_votes_result.scalar() or 0
+
+        # Total votes across all polls
+        total_votes_result = await self.db.execute(
+            select(func.sum(Poll.total_votes))
+        )
+        total_votes = total_votes_result.scalar() or 0
+
+        # AI generated vs manual
+        ai_generated_result = await self.db.execute(
+            select(func.count(Poll.id)).where(Poll.ai_generated == True)
+        )
+        ai_generated_count = ai_generated_result.scalar() or 0
+
+        manual_count = total_polls - ai_generated_count
+
+        return {
+            "total_polls": total_polls,
+            "active_polls": active_polls,
+            "scheduled_polls": scheduled_polls,
+            "closed_polls": closed_polls,
+            "polls_with_votes": polls_with_votes,
+            "total_votes": total_votes,
+            "ai_generated_count": ai_generated_count,
+            "manual_count": manual_count,
+        }
+
+    async def update_poll(
+        self,
+        poll_id: str,
+        update_fields: dict,
+        new_choices: Optional[list] = None,
+    ) -> Optional[Poll]:
+        """Update a poll with the given fields."""
+        poll = await self.get_by_id(poll_id)
+        if not poll:
+            return None
+
+        # Update scalar fields
+        for field, value in update_fields.items():
+            if hasattr(poll, field):
+                setattr(poll, field, value)
+
+        # Update choices if provided
+        if new_choices is not None:
+            # Delete existing choices
+            for choice in poll.choices:
+                await self.db.delete(choice)
+            
+            # Create new choices
+            for idx, choice_data in enumerate(new_choices):
+                choice = PollChoice(
+                    id=str(uuid4()),
+                    poll_id=poll.id,
+                    text=choice_data.text if hasattr(choice_data, 'text') else choice_data,
+                    order=choice_data.order if hasattr(choice_data, 'order') else idx,
+                    vote_count=0,
+                )
+                self.db.add(choice)
+
+        await self.db.commit()
+        await self.db.refresh(poll)
+        
+        return poll
+
