@@ -14,7 +14,7 @@ Security measures:
 
 import logging
 from datetime import datetime, timedelta, timezone
-from typing import Annotated, Optional
+from typing import Annotated, Any, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel, Field
@@ -389,8 +389,8 @@ async def update_poll(
                 detail="Cannot modify question or choices for polls with existing votes",
             )
 
-    # Build update dictionary
-    update_fields = {}
+    # Build update dictionary with proper type for mixed values
+    update_fields: dict[str, Any] = {}
     if poll_data.question is not None:
         update_fields["question"] = poll_data.question
     if poll_data.category is not None:

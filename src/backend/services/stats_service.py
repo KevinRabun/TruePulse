@@ -5,7 +5,6 @@ Computes and caches platform-wide statistics (polls, votes, active users)
 to avoid expensive database queries on every request.
 """
 
-import json
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from typing import Optional
@@ -173,53 +172,21 @@ class StatsService:
         )
 
     async def _get_cached_stats(self) -> Optional[PlatformStats]:
-        """Get stats from cache (Redis or in-memory)."""
-        # Try Redis first if available
-        if self.redis_client:
-            try:
-                cached_json = await self.redis_client.get(self.cache_key)
-                if cached_json:
-                    data = json.loads(cached_json)
-                    return PlatformStats.from_dict(data)
-            except Exception:
-                # Redis error, fall back to in-memory
-                pass
-
-        # Fall back to in-memory cache
+        """Get stats from in-memory cache."""
+        # Use in-memory cache (sufficient for Container Apps)
         if StatsService._cache and not StatsService._cache.is_stale():
             return StatsService._cache
 
         return None
 
     async def _cache_stats(self, stats: PlatformStats) -> None:
-        """Cache stats in Redis and/or in-memory."""
+        """Cache stats in memory."""
         # Update in-memory cache
         StatsService._cache = stats
-
-        # Also store in Redis if available
-        if self.redis_client:
-            try:
-                stats_json = json.dumps(stats.to_dict())
-                # Set with TTL slightly longer than our cache_ttl
-                ttl_seconds = (self.cache_ttl_hours + 1) * 3600
-                await self.redis_client.setex(
-                    self.cache_key,
-                    ttl_seconds,
-                    stats_json,
-                )
-            except Exception:
-                # Redis error, in-memory cache is still valid
-                pass
 
     async def invalidate_cache(self) -> None:
         """Invalidate cached stats (call when data changes significantly)."""
         StatsService._cache = None
-
-        if self.redis_client:
-            try:
-                await self.redis_client.delete(self.cache_key)
-            except Exception:
-                pass
 
 
 def format_stat_value(value: int) -> str:
