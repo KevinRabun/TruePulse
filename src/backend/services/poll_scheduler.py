@@ -371,12 +371,16 @@ class PollScheduler:
             Set of category names recently used
         """
         cutoff = datetime.now(timezone.utc) - timedelta(hours=hours)
-        query = select(Poll.category).where(
-            and_(
-                Poll.created_at >= cutoff,
-                Poll.ai_generated == True,
+        query = (
+            select(Poll.category)
+            .where(
+                and_(
+                    Poll.created_at >= cutoff,
+                    Poll.ai_generated == True,
+                )
             )
-        ).distinct()
+            .distinct()
+        )
         result = await self.db.execute(query)
         return {row[0] for row in result.fetchall() if row[0]}
 
