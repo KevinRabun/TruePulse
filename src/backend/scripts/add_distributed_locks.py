@@ -19,6 +19,8 @@ from db.session import engine
 
 async def create_distributed_locks_table():
     """Create distributed_locks table if it doesn't exist."""
+    print("Starting distributed_locks table migration...")
+
     async with engine.begin() as conn:
         # Check if table exists
         result = await conn.execute(
@@ -32,7 +34,7 @@ async def create_distributed_locks_table():
         exists = result.scalar()
 
         if exists:
-            print("Table 'distributed_locks' already exists.")
+            print("✅ Table 'distributed_locks' already exists.")
             return
 
         # Create the table
@@ -51,6 +53,7 @@ async def create_distributed_locks_table():
             )
         """)
         )
+        print("✅ Created 'distributed_locks' table.")
 
         # Create indexes
         await conn.execute(
@@ -59,6 +62,7 @@ async def create_distributed_locks_table():
             ON distributed_locks (lock_name)
         """)
         )
+        print("✅ Created index 'ix_distributed_locks_lock_name'.")
 
         await conn.execute(
             text("""
@@ -66,6 +70,7 @@ async def create_distributed_locks_table():
             ON distributed_locks (lock_name, is_locked)
         """)
         )
+        print("✅ Created index 'ix_distributed_locks_name_locked'.")
 
         # Pre-populate with known job lock names
         await conn.execute(
@@ -77,8 +82,8 @@ async def create_distributed_locks_table():
         """)
         )
 
-        print("Successfully created 'distributed_locks' table with indexes.")
-        print("Pre-populated with lock entries: poll_rotation, poll_generation")
+        print("✅ Pre-populated with lock entries: poll_rotation, poll_generation")
+        print("✅ Distributed locks migration completed successfully.")
 
 
 if __name__ == "__main__":

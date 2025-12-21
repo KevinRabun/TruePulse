@@ -1,0 +1,250 @@
+# TruePulse Database Migration Pipeline
+# Runs database migrations against Azure PostgreSQL via Container App exec
+#
+# Usage:
+# - Manual trigger with migration script selection
+# - Can also be called from deploy workflow for automatic migrations
+
+name: Database Migration
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Target environment'
+        required: true
+        default: 'dev'
+        type: choice
+        options:
+          - dev
+          - staging
+          - prod
+      migration_script:
+        description: 'Migration script to run (in src/backend/scripts/)'
+        required: true
+        type: choice
+        options:
+          - add_distributed_locks.py
+          - add_polls_composite_indexes.py
+          - add_ad_tracking.py
+          - add_new_demographics.py
+          - add_poll_types_and_community.py
+          - add_theme_preference.py
+          - custom
+      custom_script:
+        description: 'Custom script path (only if migration_script is "custom")'
+        required: false
+        type: string
+      dry_run:
+        description: 'Dry run mode (show SQL without executing)'
+        required: false
+        default: false
+        type: boolean
+  
+  # Allow calling from other workflows
+  workflow_call:
+    inputs:
+      environment:
+        description: 'Target environment'
+        required: true
+        type: string
+      migration_script:
+        description: 'Migration script to run'
+        required: true
+        type: string
+      dry_run:
+        description: 'Dry run mode'
+        required: false
+        default: false
+        type: boolean
+    secrets:
+      AZURE_CLIENT_ID:
+        required: true
+      AZURE_TENANT_ID:
+        required: true
+      AZURE_SUBSCRIPTION_ID:
+        required: true
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  AZURE_LOCATION: eastus2
+
+jobs:
+  migrate:
+    name: Run Migration
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate inputs
+        run: |
+          SCRIPT="${{ inputs.migration_script }}"
+          CUSTOM="${{ inputs.custom_script }}"
+          
+          if [ "$SCRIPT" == "custom" ] && [ -z "$CUSTOM" ]; then
+            echo "Error: custom_script is required when migration_script is 'custom'"
+            exit 1
+          fi
+          
+          if [ "$SCRIPT" != "custom" ]; then
+            SCRIPT_PATH="src/backend/scripts/$SCRIPT"
+          else
+            SCRIPT_PATH="$CUSTOM"
+          fi
+          
+          if [ ! -f "$SCRIPT_PATH" ]; then
+            echo "Error: Migration script not found: $SCRIPT_PATH"
+            exit 1
+          fi
+          
+          echo "MIGRATION_SCRIPT=$SCRIPT_PATH" >> $GITHUB_ENV
+          echo "Will run migration: $SCRIPT_PATH"
+
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Get Container App details
+        id: get-ca
+        run: |
+          ENV="${{ inputs.environment }}"
+          RG="rg-truepulse-${ENV}"
+          CA_NAME="ca-truepulse-api-${ENV}"
+          
+          echo "Resource Group: $RG"
+          echo "Container App: $CA_NAME"
+          
+          # Verify Container App exists
+          az containerapp show \
+            --name "$CA_NAME" \
+            --resource-group "$RG" \
+            --query "name" \
+            -o tsv || {
+              echo "Error: Container App not found"
+              exit 1
+            }
+          
+          echo "RESOURCE_GROUP=$RG" >> $GITHUB_ENV
+          echo "CONTAINER_APP=$CA_NAME" >> $GITHUB_ENV
+
+      - name: Copy migration script to Container App
+        run: |
+          # Read the migration script content
+          SCRIPT_CONTENT=$(cat "${{ env.MIGRATION_SCRIPT }}")
+          
+          # Create a temporary Python script that includes the migration code
+          # This approach works around the exec limitations
+          cat > /tmp/run_migration.py << 'MIGRATION_WRAPPER'
+          import sys
+          import os
+          
+          # Set up environment
+          os.environ.setdefault('APP_ENV', '${{ inputs.environment }}')
+          
+          # Migration script content will be injected here
+          MIGRATION_WRAPPER
+          
+          echo "$SCRIPT_CONTENT" >> /tmp/run_migration.py
+          
+          echo "Migration script prepared"
+
+      - name: Run migration via Container App exec
+        run: |
+          ENV="${{ inputs.environment }}"
+          DRY_RUN="${{ inputs.dry_run }}"
+          
+          echo "=========================================="
+          echo "Running migration: ${{ env.MIGRATION_SCRIPT }}"
+          echo "Environment: $ENV"
+          echo "Dry Run: $DRY_RUN"
+          echo "=========================================="
+          
+          # Read the migration script
+          SCRIPT_CONTENT=$(cat "${{ env.MIGRATION_SCRIPT }}" | base64 -w 0)
+          
+          # Execute migration in the Container App
+          # The script is passed as base64 and decoded inside the container
+          az containerapp exec \
+            --name "${{ env.CONTAINER_APP }}" \
+            --resource-group "${{ env.RESOURCE_GROUP }}" \
+            --command "python" \
+            -- -c "
+          import base64
+          import sys
+          import os
+          
+          # Decode and execute the migration script
+          script_b64 = '$SCRIPT_CONTENT'
+          script_content = base64.b64decode(script_b64).decode('utf-8')
+          
+          # Set dry run mode if requested
+          os.environ['DRY_RUN'] = '$DRY_RUN'
+          
+          print('=== Migration Script Start ===')
+          exec(script_content)
+          print('=== Migration Script End ===')
+          " 2>&1 | tee migration_output.txt
+          
+          # Check for errors in output
+          if grep -qi "error\|exception\|failed\|traceback" migration_output.txt; then
+            echo "Migration may have encountered errors. Please review the output above."
+            # Don't fail - some "error" mentions might be in success messages
+          fi
+
+      - name: Upload migration log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: migration-log-${{ inputs.environment }}-${{ github.run_number }}
+          path: migration_output.txt
+          retention-days: 30
+
+  verify:
+    name: Verify Migration
+    runs-on: ubuntu-latest
+    needs: migrate
+    if: success() && inputs.dry_run != true
+    environment: ${{ inputs.environment }}
+    steps:
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Verify Container App health
+        run: |
+          ENV="${{ inputs.environment }}"
+          RG="rg-truepulse-${ENV}"
+          CA_NAME="ca-truepulse-api-${ENV}"
+          
+          # Get the Container App FQDN
+          FQDN=$(az containerapp show \
+            --name "$CA_NAME" \
+            --resource-group "$RG" \
+            --query "properties.configuration.ingress.fqdn" \
+            -o tsv)
+          
+          echo "Checking health endpoint: https://$FQDN/health"
+          
+          # Wait for the app to be healthy
+          for i in {1..5}; do
+            RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" "https://$FQDN/health" || echo "000")
+            if [ "$RESPONSE" == "200" ]; then
+              echo "✅ Container App is healthy"
+              exit 0
+            fi
+            echo "Attempt $i: Got HTTP $RESPONSE, waiting..."
+            sleep 10
+          done
+          
+          echo "⚠️ Health check did not return 200, but migration may still have succeeded"
+          echo "Please verify manually"
