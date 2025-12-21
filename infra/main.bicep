@@ -342,6 +342,7 @@ module containerAppApi 'modules/containerAppApi.bicep' = {
     emailServiceName: ''  // Email handled via shared services
     emailSenderAddress: emailSenderAddress
     customDomain: enableCustomDomain ? customDomain : ''
+    usePlaceholderImage: false  // Use actual ACR image, not placeholder
   }
   // Explicit dependency to ensure OpenAI secret is in Key Vault before Container App tries to access it
   dependsOn: [
