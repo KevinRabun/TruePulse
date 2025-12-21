@@ -343,11 +343,15 @@ class PollScheduler:
         current_poll = await self.get_current_poll()
         generated_poll = None
 
+        # Only generate if no current poll AND auto-generate is enabled AND
+        # we don't already have upcoming polls (prevent duplicate generation)
         if not current_poll and settings.POLL_AUTO_GENERATE:
-            logger.info("No active poll found, generating new poll...")
-            # The actual poll generation would be triggered here
-            # This integrates with the AI poll generator
-            generated_poll = await self._generate_poll_from_events()
+            upcoming_polls = await self.get_upcoming_polls(limit=5)
+            if len(upcoming_polls) < 1:
+                logger.info("No active poll and no upcoming polls, generating new poll...")
+                generated_poll = await self._generate_poll_from_events()
+            else:
+                logger.info(f"No active poll but {len(upcoming_polls)} upcoming polls exist, skipping generation")
 
         return {
             "closed_count": len(closed_polls),
@@ -356,47 +360,197 @@ class PollScheduler:
             "generated_poll_id": generated_poll.id if generated_poll else None,
         }
 
+    async def _get_recently_used_categories(self, hours: int = 48) -> set[str]:
+        """
+        Get categories used in recent polls to ensure topic diversity.
+
+        Args:
+            hours: Number of hours to look back
+
+        Returns:
+            Set of category names recently used
+        """
+        cutoff = datetime.now(timezone.utc) - timedelta(hours=hours)
+        query = select(Poll.category).where(
+            and_(
+                Poll.created_at >= cutoff,
+                Poll.ai_generated == True,
+            )
+        ).distinct()
+        result = await self.db.execute(query)
+        return {row[0] for row in result.fetchall() if row[0]}
+
+    async def _get_recently_used_event_titles(self, hours: int = 72) -> set[str]:
+        """
+        Get source event titles used recently to avoid duplicate topics.
+
+        Args:
+            hours: Number of hours to look back
+
+        Returns:
+            Set of normalized event titles (lowercase, stripped)
+        """
+        cutoff = datetime.now(timezone.utc) - timedelta(hours=hours)
+        query = select(Poll.source_event).where(
+            and_(
+                Poll.created_at >= cutoff,
+                Poll.source_event.isnot(None),
+            )
+        )
+        result = await self.db.execute(query)
+        return {row[0].lower().strip() for row in result.fetchall() if row[0]}
+
+    async def _determine_next_poll_type(self) -> tuple[str, datetime, datetime]:
+        """
+        Determine whether to generate a pulse or flash poll based on schedule.
+
+        Flash polls: Run every 3 hours (0:00, 3:00, 6:00, 9:00, 12:00, 15:00, 18:00, 21:00 UTC)
+                     Each flash poll is open for 1 hour only.
+        Pulse polls: Run 8am-8pm ET (12 hours), one per day during prime hours.
+
+        Returns:
+            Tuple of (poll_type, window_start, window_end)
+        """
+        from zoneinfo import ZoneInfo
+
+        now = datetime.now(timezone.utc)
+        et_tz = ZoneInfo("America/New_York")
+        now_et = datetime.now(et_tz)
+
+        # Check if we already have an active pulse poll today (8am-8pm ET)
+        if 8 <= now_et.hour < 20:
+            # Check for existing pulse poll today
+            today_start_et = now_et.replace(hour=8, minute=0, second=0, microsecond=0)
+            today_start_utc = today_start_et.astimezone(timezone.utc)
+
+            query = select(Poll).where(
+                and_(
+                    Poll.poll_type == "pulse",
+                    Poll.scheduled_start >= today_start_utc,
+                )
+            )
+            result = await self.db.execute(query)
+            existing_pulse = result.scalar_one_or_none()
+
+            if not existing_pulse:
+                # No pulse poll today, create one
+                pulse_start, pulse_end = get_pulse_poll_window()
+                logger.info(f"Creating daily pulse poll for {pulse_start.isoformat()} to {pulse_end.isoformat()}")
+                return "pulse", pulse_start, pulse_end
+
+        # Otherwise, schedule a flash poll
+        # Flash polls run at: 0:00, 3:00, 6:00, 9:00, 12:00, 15:00, 18:00, 21:00 UTC
+        flash_start, flash_end = get_next_flash_poll_window()
+        logger.info(f"Scheduling flash poll for {flash_start.isoformat()} (1 hour duration)")
+        return "flash", flash_start, flash_end
+
     async def _generate_poll_from_events(self) -> Optional[Poll]:
         """
         Generate a new poll from current events using the AI system.
 
         Uses the EventAggregator to fetch trending events and
         the PollGenerator to create unbiased poll questions.
+
+        Ensures:
+        - Alternating between pulse and flash poll types
+        - Different categories/topics from recent polls
+        - Diverse event selection
+        - No duplicate polls for the same time window
         """
         from ai.event_aggregator import EventAggregator
         from ai.poll_generator import PollGenerator
 
         try:
-            # Initialize the event aggregator
-            aggregator = EventAggregator()
+            # Determine which poll type to generate and get the time window
+            poll_type, window_start, window_end = await self._determine_next_poll_type()
 
-            # Fetch trending events from multiple news sources
-            logger.info("fetching_trending_events")
-            events = await aggregator.fetch_trending_events(
-                categories=[
+            # *** CRITICAL: Check if a poll already exists for this time window ***
+            # This prevents duplicate polls from concurrent scheduler invocations
+            existing_poll_query = select(Poll).where(
+                and_(
+                    Poll.poll_type == poll_type,
+                    Poll.scheduled_start == window_start,
+                )
+            )
+            result = await self.db.execute(existing_poll_query)
+            existing_poll = result.scalar_one_or_none()
+
+            if existing_poll:
+                logger.info(
+                    f"Poll already exists for {poll_type} window {window_start.isoformat()}: "
+                    f"{existing_poll.id} - skipping generation"
+                )
+                return existing_poll
+
+            # Get recently used categories and events to avoid repetition
+            recent_categories = await self._get_recently_used_categories(hours=24)
+            recent_events = await self._get_recently_used_event_titles(hours=72)
+
+            logger.info(f"Generating {poll_type} poll, avoiding categories: {recent_categories}")
+
+            # Initialize the event aggregator
+            async with EventAggregator() as aggregator:
+                # Define all available categories
+                all_categories = [
                     "politics",
                     "business",
                     "technology",
                     "health",
                     "environment",
-                ],
-                limit=20,
-            )
+                    "science",
+                    "world",
+                    "entertainment",
+                    "sports",
+                ]
+
+                # Prioritize categories NOT recently used
+                prioritized_categories = [c for c in all_categories if c not in recent_categories]
+                if not prioritized_categories:
+                    # All categories used recently, reset
+                    prioritized_categories = all_categories
+
+                # Fetch trending events from prioritized categories
+                logger.info(f"Fetching events from prioritized categories: {prioritized_categories[:5]}")
+                events = await aggregator.fetch_trending_events(
+                    categories=prioritized_categories[:5],  # API limit on categories
+                    limit=30,
+                )
 
             if not events:
                 logger.warning("No trending events available for poll generation")
                 return None
 
-            logger.info(f"Fetched {len(events)} trending events for poll generation")
+            # Filter out events similar to recently used ones
+            filtered_events = []
+            for event in events:
+                event_title_normalized = event.title.lower().strip()
+                # Check if this event is too similar to recent ones
+                is_duplicate = False
+                for recent in recent_events:
+                    # Simple word overlap check
+                    event_words = set(event_title_normalized.split())
+                    recent_words = set(recent.split())
+                    if event_words and recent_words:
+                        overlap = len(event_words & recent_words) / len(event_words | recent_words)
+                        if overlap > 0.5:  # More than 50% word overlap
+                            is_duplicate = True
+                            break
+                if not is_duplicate:
+                    filtered_events.append(event)
+
+            if not filtered_events:
+                logger.warning("All events filtered as duplicates, using original list")
+                filtered_events = events[:10]
+
+            logger.info(f"Filtered to {len(filtered_events)} unique events from {len(events)} total")
 
             # Initialize the poll generator
             generator = PollGenerator()
 
-            # Generate a poll from the top event
-            # (PollGenerator selects diverse events internally)
+            # Generate a poll from the events
             generated_polls = await generator.generate_daily_polls(
-                events=events,
-                count=1,  # Generate just one poll for rotation
+                events=filtered_events,
+                count=1,
             )
 
             if not generated_polls:
@@ -405,17 +559,20 @@ class PollScheduler:
 
             poll_data = generated_polls[0]
 
-            # Check if there's currently an active poll
-            current_poll = await self.get_current_poll()
+            # Set duration and special flag based on poll type
+            if poll_type == "pulse":
+                duration_hours = 12
+                is_special = True
+            else:  # flash
+                duration_hours = 1
+                is_special = False
 
-            if current_poll:
-                # There's an active poll, schedule for next window
-                window_start, window_end = self.get_next_poll_window()
-                initial_status = PollStatus.SCHEDULED
-            else:
-                # No active poll, schedule for current window and activate immediately
-                window_start, window_end = self.get_current_poll_window()
+            # Check current window status
+            now = datetime.now(timezone.utc)
+            if window_start <= now < window_end:
                 initial_status = PollStatus.ACTIVE
+            else:
+                initial_status = PollStatus.SCHEDULED
 
             # Create the poll in database
             new_poll = Poll(
@@ -423,10 +580,12 @@ class PollScheduler:
                 question=poll_data.question,
                 category=poll_data.category,
                 status=initial_status,
-                poll_type="pulse",  # Set as Pulse poll for homepage display
+                poll_type=poll_type,
+                is_special=is_special,
+                duration_hours=duration_hours,
                 scheduled_start=window_start,
                 scheduled_end=window_end,
-                expires_at=window_end,  # Required: expires when window ends
+                expires_at=window_end,
                 ai_generated=True,
                 source_event=poll_data.source_event if hasattr(poll_data, "source_event") else None,
             )
@@ -446,13 +605,14 @@ class PollScheduler:
             await self.db.refresh(new_poll)
 
             logger.info(
-                f"Poll generated successfully: {new_poll.id} - '{new_poll.question[:50]}' scheduled for {window_start.isoformat()}"
+                f"{poll_type.upper()} poll generated: {new_poll.id} - '{new_poll.question[:50]}' "
+                f"[{new_poll.category}] scheduled for {window_start.isoformat()}"
             )
 
             return new_poll
 
         except Exception as e:
-            logger.error(f"Poll generation error: {e}")
+            logger.error(f"Poll generation error: {e}", exc_info=True)
             return None
 
 

@@ -215,44 +215,289 @@ Return your response as JSON."""
             return None
 
     def _generate_mock_poll(self, event: NewsEvent) -> GeneratedPoll:
-        """Generate a mock poll for development/testing."""
-        mock_questions: dict[str, dict[str, str | list[str]]] = {
-            "Environment": {
-                "question": "Regarding recent climate discussions, what approach do you think governments should prioritize?",
-                "choices": [
-                    "Aggressive emissions targets with economic trade-offs",
-                    "Gradual transition balancing economy and environment",
-                    "Market-based solutions without government mandates",
-                    "Focus on adaptation rather than prevention",
-                    "Undecided / Need more information",
-                ],
-            },
-            "Technology": {
-                "question": "How should AI technology be regulated?",
-                "choices": [
-                    "Strict government oversight and licensing",
-                    "Industry self-regulation with guidelines",
-                    "Minimal regulation to encourage innovation",
-                    "International coordination on standards",
-                    "Undecided / Need more information",
-                ],
-            },
-        }
+        """Generate a mock poll for development/testing with diverse topics."""
+        import random
 
-        default: dict[str, str | list[str]] = {
-            "question": f"What is your view on: {event.title}?",
-            "choices": [
-                "Strongly support the described approach",
-                "Somewhat support with reservations",
-                "Neutral / Mixed feelings",
-                "Somewhat oppose",
-                "Strongly oppose",
+        # Comprehensive mock questions by category
+        mock_questions: dict[str, list[dict[str, str | list[str]]]] = {
+            "environment": [
+                {
+                    "question": "Regarding recent climate discussions, what approach do you think governments should prioritize?",
+                    "choices": [
+                        "Aggressive emissions targets with economic trade-offs",
+                        "Gradual transition balancing economy and environment",
+                        "Market-based solutions without government mandates",
+                        "Focus on adaptation rather than prevention",
+                        "Undecided / Need more information",
+                    ],
+                },
+                {
+                    "question": "How should communities address local environmental challenges?",
+                    "choices": [
+                        "Increased local regulations and enforcement",
+                        "Community-led voluntary initiatives",
+                        "Public-private partnerships",
+                        "Federal intervention and funding",
+                        "Focus on education over regulation",
+                    ],
+                },
+                {
+                    "question": "What is the most effective way to reduce carbon emissions?",
+                    "choices": [
+                        "Transition to renewable energy sources",
+                        "Carbon pricing and taxation",
+                        "Individual lifestyle changes",
+                        "Technological innovation",
+                        "International cooperation and treaties",
+                    ],
+                },
+            ],
+            "technology": [
+                {
+                    "question": "How should AI technology be regulated?",
+                    "choices": [
+                        "Strict government oversight and licensing",
+                        "Industry self-regulation with guidelines",
+                        "Minimal regulation to encourage innovation",
+                        "International coordination on standards",
+                        "Undecided / Need more information",
+                    ],
+                },
+                {
+                    "question": "What concerns you most about social media platforms?",
+                    "choices": [
+                        "Privacy and data collection",
+                        "Misinformation and fake news",
+                        "Impact on mental health",
+                        "Political polarization",
+                        "No major concerns",
+                    ],
+                },
+                {
+                    "question": "How should tech companies handle user data?",
+                    "choices": [
+                        "Users should have complete control and ownership",
+                        "Companies should be transparent but self-regulate",
+                        "Government should set strict data protection rules",
+                        "Data sharing is acceptable for free services",
+                        "Case-by-case depending on the service",
+                    ],
+                },
+            ],
+            "politics": [
+                {
+                    "question": "What should be the top priority for government spending?",
+                    "choices": [
+                        "Healthcare and social services",
+                        "Infrastructure and transportation",
+                        "Education and job training",
+                        "Defense and national security",
+                        "Debt reduction and fiscal responsibility",
+                    ],
+                },
+                {
+                    "question": "How should elected officials engage with constituents?",
+                    "choices": [
+                        "Regular town halls and public forums",
+                        "Social media and digital engagement",
+                        "Work primarily through local representatives",
+                        "Focus on legislative work over engagement",
+                        "All of the above equally",
+                    ],
+                },
+                {
+                    "question": "What approach to political compromise do you prefer?",
+                    "choices": [
+                        "Leaders should seek bipartisan solutions",
+                        "Elected officials should stick to their platform",
+                        "Compromise depends on the specific issue",
+                        "More direct democracy and public input",
+                        "No strong opinion",
+                    ],
+                },
+            ],
+            "business": [
+                {
+                    "question": "What is the most important factor when choosing where to work?",
+                    "choices": [
+                        "Salary and financial compensation",
+                        "Work-life balance and flexibility",
+                        "Career growth opportunities",
+                        "Company culture and values",
+                        "Job security and stability",
+                    ],
+                },
+                {
+                    "question": "How should companies approach remote work?",
+                    "choices": [
+                        "Fully remote options for all eligible roles",
+                        "Hybrid model with required office days",
+                        "Return to traditional office work",
+                        "Let individual teams decide",
+                        "Depends on the industry and role",
+                    ],
+                },
+                {
+                    "question": "What is the biggest challenge facing small businesses today?",
+                    "choices": [
+                        "Access to capital and funding",
+                        "Competition from large corporations",
+                        "Regulatory burden and compliance",
+                        "Finding and retaining talent",
+                        "Economic uncertainty",
+                    ],
+                },
+            ],
+            "health": [
+                {
+                    "question": "What is the most pressing healthcare issue today?",
+                    "choices": [
+                        "Cost of healthcare and medications",
+                        "Access to quality care",
+                        "Mental health services",
+                        "Preventive care and wellness",
+                        "Healthcare workforce shortages",
+                    ],
+                },
+                {
+                    "question": "How should mental health services be improved?",
+                    "choices": [
+                        "More insurance coverage for mental health",
+                        "School-based mental health programs",
+                        "Workplace mental health initiatives",
+                        "Community mental health centers",
+                        "Telehealth and digital solutions",
+                    ],
+                },
+                {
+                    "question": "What approach to public health do you support?",
+                    "choices": [
+                        "Strong government health mandates",
+                        "Education and voluntary guidelines",
+                        "Local community-based decisions",
+                        "Individual choice with minimal intervention",
+                        "Science-based policies with flexibility",
+                    ],
+                },
+            ],
+            "science": [
+                {
+                    "question": "Where should scientific research funding be prioritized?",
+                    "choices": [
+                        "Medical and health research",
+                        "Climate and environmental science",
+                        "Space exploration",
+                        "Technology and computing",
+                        "Basic scientific research",
+                    ],
+                },
+                {
+                    "question": "How should scientific findings influence policy?",
+                    "choices": [
+                        "Science should be the primary driver of policy",
+                        "Balance scientific input with other factors",
+                        "Scientists should advise but not decide",
+                        "Depends on the policy area",
+                        "Public opinion should take precedence",
+                    ],
+                },
+            ],
+            "world": [
+                {
+                    "question": "What should be the priority in international relations?",
+                    "choices": [
+                        "Global cooperation and multilateralism",
+                        "National interests first",
+                        "Regional partnerships and alliances",
+                        "Economic relationships and trade",
+                        "Human rights and democracy promotion",
+                    ],
+                },
+                {
+                    "question": "How should countries address global challenges?",
+                    "choices": [
+                        "Through international organizations",
+                        "Bilateral agreements between countries",
+                        "Focus on domestic solutions first",
+                        "Public-private global partnerships",
+                        "Case-by-case assessment",
+                    ],
+                },
+            ],
+            "entertainment": [
+                {
+                    "question": "How do you prefer to consume entertainment content?",
+                    "choices": [
+                        "Streaming services at home",
+                        "Traditional theaters and venues",
+                        "Live events and concerts",
+                        "Social media and short-form content",
+                        "Mix of all formats",
+                    ],
+                },
+                {
+                    "question": "What matters most in entertainment industry practices?",
+                    "choices": [
+                        "Fair compensation for creators",
+                        "Diverse representation",
+                        "Quality over quantity",
+                        "Affordable access for consumers",
+                        "Innovation and new formats",
+                    ],
+                },
+            ],
+            "sports": [
+                {
+                    "question": "What is the biggest issue facing professional sports?",
+                    "choices": [
+                        "Player salaries and team economics",
+                        "Fan experience and engagement",
+                        "Health and safety of athletes",
+                        "Integrity and fair play",
+                        "Access and inclusivity",
+                    ],
+                },
+                {
+                    "question": "How should sports address social issues?",
+                    "choices": [
+                        "Athletes should use their platform to speak out",
+                        "Sports should remain neutral",
+                        "Organizations should lead initiatives",
+                        "Focus on community programs",
+                        "Individual choice for athletes and teams",
+                    ],
+                },
             ],
         }
 
-        poll_template = mock_questions.get(event.category, default)
+        # Normalize category to lowercase
+        category = event.category.lower()
 
-        # Cast to expected types since we know the dict structure
+        # Get questions for category or use general pool
+        category_questions = mock_questions.get(category, [])
+
+        # If no category match, pick from a random category
+        if not category_questions:
+            all_questions = [q for questions in mock_questions.values() for q in questions]
+            if all_questions:
+                poll_template = random.choice(all_questions)
+            else:
+                # Ultimate fallback
+                poll_template = {
+                    "question": f"What is your view on: {event.title}?",
+                    "choices": [
+                        "Strongly support the described approach",
+                        "Somewhat support with reservations",
+                        "Neutral / Mixed feelings",
+                        "Somewhat oppose",
+                        "Strongly oppose",
+                    ],
+                }
+        else:
+            # Pick a random question from the category
+            poll_template = random.choice(category_questions)
+
+        # Cast to expected types
         question = str(poll_template["question"])
         choices = list(poll_template["choices"]) if isinstance(poll_template["choices"], list) else []
 
