@@ -331,14 +331,13 @@ az communication email domain link \
 
 ### Dev Environment (Optimized for Low Cost)
 
-The dev environment is configured with serverless/minimal SKUs:
+The dev environment is configured with serverless/minimal SKUs. Note: Redis and Cosmos DB were intentionally excluded from the architecture in favor of Azure Table Storage for simplicity and cost-effectiveness.
 
 | Resource | SKU | Monthly Cost | Notes |
 |----------|-----|--------------|-------|
 | Container App | 0.25 vCPU, 0.5GB | ~$15-20 | Scale to 0 when idle |
 | PostgreSQL Flexible | B2s (1 vCore) | ~$15 | Burstable, cost-effective |
-| Cosmos DB | **Serverless** | ~$5-15 | Pay per request (no min RUs) |
-| Redis Cache | Basic C0 (250MB) | ~$16 | Minimal cache tier |
+| Storage Account (Tables) | Standard | ~$5-10 | Token blacklist, rate limiting |
 | Static Web App | Free | $0 | 2 custom domains included |
 | Log Analytics | Pay per GB | ~$5 | Minimal logs in dev |
 | Key Vault | Standard | ~$1 | Per operation pricing |
@@ -346,7 +345,7 @@ The dev environment is configured with serverless/minimal SKUs:
 | Private Endpoints (4) | Per endpoint | ~$30 | Network charges |
 | Communication Services | Pay per use | ~$5 | SMS/Email as needed |
 | DNS Zone | Per zone + queries | ~$1 | Minimal cost |
-| **Total Dev Estimate** | | **~$100-130/month** | Low-traffic workload |
+| **Total Dev Estimate** | | **~$85-95/month** | Low-traffic workload |
 
 ### Production Environment
 
@@ -354,18 +353,16 @@ The dev environment is configured with serverless/minimal SKUs:
 |----------|-----|--------------|-------|
 | Container App | 1-4 vCPU, 2-8GB | ~$50-200 | Auto-scale with traffic |
 | PostgreSQL Flexible | D4s (4 vCores) | ~$150-400 | Zone redundant, HA |
-| Cosmos DB | Provisioned | ~$50-500 | 400+ RU/s, predictable |
-| Redis Cache | Standard C1+ | ~$50-200 | HA with replication |
+| Storage Account (Tables) | Standard | ~$10-50 | Scales with usage |
 | Static Web App | Standard | ~$9 | Enterprise features |
-| **Total Prod Estimate** | | **~$400-1500/month** | Scales with usage |
+| **Total Prod Estimate** | | **~$300-700/month** | Scales with usage |
 
 ### Cost Optimization Tips
 
-1. **Cosmos DB**: Dev uses serverless (pay per request) - no minimum cost. Switch to provisioned throughput for predictable high-volume production.
+1. **Storage Tables**: Uses serverless pricing - pay per transaction and storage. Very cost-effective for token/rate-limit data.
 2. **Container Apps**: Scales to 0 when idle. Set `minReplicas: 0` in dev.
 3. **PostgreSQL**: B2s is burstable - sufficient for dev/low traffic.
-4. **Redis**: Basic C0 has no SLA but works fine for dev caching.
-5. **Private Endpoints**: Each costs ~$7.50/month. Consider reducing for dev if security allows.
+4. **Private Endpoints**: Each costs ~$7.50/month. Consider reducing for dev if security allows.
 
 ## Monitoring & Alerts
 

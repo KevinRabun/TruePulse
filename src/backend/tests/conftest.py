@@ -64,18 +64,6 @@ def mock_db_session() -> AsyncMock:
 
 
 @pytest.fixture
-def mock_redis() -> MagicMock:
-    """Create mock Redis client."""
-    redis = MagicMock()
-    redis.get = AsyncMock(return_value=None)
-    redis.set = AsyncMock(return_value=True)
-    redis.delete = AsyncMock(return_value=1)
-    redis.incr = AsyncMock(return_value=1)
-    redis.expire = AsyncMock(return_value=True)
-    return redis
-
-
-@pytest.fixture
 def sample_user_data() -> dict[str, Any]:
     """Sample user data for testing."""
     return {

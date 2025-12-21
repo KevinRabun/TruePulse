@@ -80,7 +80,6 @@ jobs:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
           POSTGRES_DB: truepulse_test
-          REDIS_URL: redis://localhost:6379
           FRONTEND_API_SECRET: test-frontend-secret
           ENFORCE_FRONTEND_ONLY: 'false'
         run: |

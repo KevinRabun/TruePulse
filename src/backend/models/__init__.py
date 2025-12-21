@@ -7,6 +7,7 @@ from models.achievement import (
     CommunityAchievementParticipant,
     UserAchievement,
 )
+from models.distributed_lock import DistributedLock
 from models.location import City, Country, StateProvince
 from models.poll import Poll, PollChoice, PollStatus, PollType
 from models.user import User
@@ -29,4 +30,5 @@ __all__ = [
     "Country",
     "StateProvince",
     "City",
+    "DistributedLock",
 ]

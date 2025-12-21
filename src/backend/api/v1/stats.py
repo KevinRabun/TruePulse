@@ -13,7 +13,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.config import settings
 from db.session import get_db
-from services.redis_service import RedisService, get_redis_service
 from services.stats_service import StatsService, format_stat_value
 
 router = APIRouter()
@@ -104,7 +103,6 @@ DEFAULT_CACHE_TTL_HOURS = getattr(settings, "STATS_CACHE_TTL_HOURS", 24)
 )
 async def get_platform_stats(
     db: AsyncSession = Depends(get_db),
-    redis: RedisService = Depends(get_redis_service),
     refresh: bool = Query(
         False,
         description="Force refresh stats (admin use only, respects rate limits)",
@@ -116,11 +114,9 @@ async def get_platform_stats(
     Returns cached statistics to minimize database load.
     Stats are automatically refreshed based on cache_ttl_hours setting.
     """
-    # Create stats service with configurable TTL and Redis client
-    # Note: RedisService now uses Azure Tables but maintains same interface
+    # Create stats service with configurable TTL
     stats_service = StatsService(
         db=db,
-        redis_client=redis if redis.is_available else None,
         cache_ttl_hours=DEFAULT_CACHE_TTL_HOURS,
     )
 

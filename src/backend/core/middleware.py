@@ -1,5 +1,5 @@
 """
-Frontend-only access middleware.
+Frontend-only access middleware and security headers.
 
 Ensures API requests can only come from the official TruePulse frontend,
 preventing unauthorized third-party access to the API.
@@ -13,6 +13,55 @@ from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 
 from core.config import settings
+
+
+class SecurityHeadersMiddleware(BaseHTTPMiddleware):
+    """
+    Middleware to add security headers to all responses.
+
+    Implements OWASP security header recommendations:
+    - X-Content-Type-Options: Prevents MIME type sniffing
+    - X-Frame-Options: Prevents clickjacking attacks
+    - X-XSS-Protection: Enables XSS filtering (legacy browsers)
+    - Referrer-Policy: Controls referrer information
+    - Permissions-Policy: Restricts browser features
+    - Content-Security-Policy: For API responses, restricts content loading
+
+    Note: HSTS should be handled at the Azure load balancer/CDN level
+    """
+
+    async def dispatch(self, request: Request, call_next: Callable) -> Response:
+        """Add security headers to response."""
+        response = await call_next(request)
+
+        # Prevent MIME type sniffing
+        response.headers["X-Content-Type-Options"] = "nosniff"
+
+        # Prevent clickjacking (API shouldn't be framed)
+        response.headers["X-Frame-Options"] = "DENY"
+
+        # Enable XSS filtering in legacy browsers
+        response.headers["X-XSS-Protection"] = "1; mode=block"
+
+        # Control referrer information
+        response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+
+        # Restrict browser features (API doesn't need any)
+        response.headers["Permissions-Policy"] = (
+            "accelerometer=(), camera=(), geolocation=(), gyroscope=(), "
+            "magnetometer=(), microphone=(), payment=(), usb=()"
+        )
+
+        # CSP for API responses - very restrictive
+        response.headers["Content-Security-Policy"] = (
+            "default-src 'none'; frame-ancestors 'none'"
+        )
+
+        # Cache control for API responses - generally don't cache
+        if "Cache-Control" not in response.headers:
+            response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate"
+
+        return response
 
 
 class FrontendOnlyMiddleware(BaseHTTPMiddleware):

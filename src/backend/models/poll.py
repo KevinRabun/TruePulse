@@ -2,7 +2,7 @@
 Poll model for PostgreSQL storage.
 
 Contains poll metadata and aggregated results.
-Individual votes are stored in Cosmos DB.
+Individual votes are stored in Azure Table Storage.
 """
 
 from datetime import datetime
@@ -10,7 +10,17 @@ from enum import Enum
 from typing import Optional
 from uuid import uuid4
 
-from sqlalchemy import Boolean, DateTime, Float, ForeignKey, Integer, String, Text, func
+from sqlalchemy import (
+    Boolean,
+    DateTime,
+    Float,
+    ForeignKey,
+    Index,
+    Integer,
+    String,
+    Text,
+    func,
+)
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -38,7 +48,7 @@ class Poll(Base):
     """
     Poll model storing question and aggregated results.
 
-    Individual votes are NOT stored here - they're in Cosmos DB
+    Individual votes are NOT stored here - they're in Azure Table Storage
     with privacy-preserving hashes.
 
     Hourly Poll Rotation:
@@ -49,6 +59,15 @@ class Poll(Base):
     """
 
     __tablename__ = "polls"
+
+    # Table args including composite indexes for common queries
+    __table_args__ = (
+        # Composite index for scheduler queries: "get scheduled polls to activate"
+        # Used by poll_scheduler.py to efficiently find polls ready to activate
+        Index("ix_polls_status_scheduled_start", "status", "scheduled_start"),
+        # Composite index for "get active polls by type"
+        Index("ix_polls_status_poll_type", "status", "poll_type"),
+    )
 
     id: Mapped[str] = mapped_column(
         UUID(as_uuid=False),

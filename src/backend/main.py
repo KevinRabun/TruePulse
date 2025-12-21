@@ -14,7 +14,7 @@ from fastapi.middleware.gzip import GZipMiddleware
 from api.v1 import router as api_v1_router
 from core.config import settings
 from core.events import create_start_app_handler, create_stop_app_handler
-from core.middleware import FrontendOnlyMiddleware
+from core.middleware import FrontendOnlyMiddleware, SecurityHeadersMiddleware
 
 
 @asynccontextmanager
@@ -39,19 +39,36 @@ def create_application() -> FastAPI:
         lifespan=lifespan,
     )
 
-    # Add middleware
-    # Frontend-only middleware should be added first (processed last in request chain)
+    # Add middleware (order matters - processed in reverse)
+    # 1. Security headers - added to all responses
+    application.add_middleware(SecurityHeadersMiddleware)
+
+    # 2. Frontend-only middleware - validates request origin
     application.add_middleware(
         FrontendOnlyMiddleware,
         enforce=settings.ENFORCE_FRONTEND_ONLY,
     )
+
+    # 3. CORS - restricted to specific methods and headers
     application.add_middleware(
         CORSMiddleware,
         allow_origins=settings.cors_origins_list,
         allow_credentials=True,
-        allow_methods=["*"],
-        allow_headers=["*"],
+        allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+        allow_headers=[
+            "Authorization",
+            "Content-Type",
+            "X-Frontend-Secret",
+            "X-Request-ID",
+        ],
+        expose_headers=[
+            "X-RateLimit-Limit",
+            "X-RateLimit-Remaining",
+            "X-Request-ID",
+        ],
     )
+
+    # 4. GZip compression for responses
     application.add_middleware(GZipMiddleware, minimum_size=1000)
 
     # Include routers

@@ -7,6 +7,7 @@ Manages scheduled background tasks using APScheduler:
 - Cleanup tasks
 
 This runs in-process with the FastAPI application.
+Uses distributed locks to coordinate across multiple replicas.
 """
 
 from datetime import timezone
@@ -17,6 +18,11 @@ from apscheduler.triggers.cron import CronTrigger
 from apscheduler.triggers.interval import IntervalTrigger
 
 from db.session import async_session_maker
+from services.distributed_lock_service import (
+    LOCK_POLL_GENERATION,
+    LOCK_POLL_ROTATION,
+    DistributedLockService,
+)
 
 logger = structlog.get_logger(__name__)
 
@@ -32,22 +38,35 @@ async def poll_rotation_job() -> None:
     1. Closes any expired polls
     2. Activates any scheduled polls whose time has come
     3. Generates new polls from current events if needed
+
+    Uses distributed locking to ensure only one replica runs at a time.
     """
     from services.poll_scheduler import PollScheduler
 
-    logger.info("Starting poll rotation job...")
+    logger.info("Poll rotation job triggered, attempting to acquire lock...")
 
     try:
         async with async_session_maker() as db:
-            scheduler = PollScheduler(db)
-            result = await scheduler.run_rotation_cycle()
+            # Use distributed lock to coordinate across replicas
+            async with DistributedLockService.acquire_lock(
+                db, LOCK_POLL_ROTATION, timeout_seconds=300
+            ) as acquired:
+                if not acquired:
+                    logger.info(
+                        "Poll rotation skipped - another instance is running"
+                    )
+                    return
 
-            logger.info(
-                f"Poll rotation completed: "
-                f"closed={result.get('closed_count', 0)}, "
-                f"activated={result.get('activated_count', 0)}, "
-                f"generated={'yes' if result.get('generated_poll') else 'no'}"
-            )
+                logger.info("Lock acquired, starting poll rotation...")
+                scheduler = PollScheduler(db)
+                result = await scheduler.run_rotation_cycle()
+
+                logger.info(
+                    f"Poll rotation completed: "
+                    f"closed={result.get('closed_count', 0)}, "
+                    f"activated={result.get('activated_count', 0)}, "
+                    f"generated={'yes' if result.get('generated_poll') else 'no'}"
+                )
     except Exception as e:
         logger.error(f"Poll rotation job failed: {e}", exc_info=True)
 
@@ -57,31 +76,61 @@ async def generate_polls_job() -> None:
     Background job to generate polls from current events.
 
     Runs periodically to ensure there are always upcoming polls scheduled.
+    Uses distributed locking to ensure only one replica runs at a time.
     """
     from services.poll_scheduler import PollScheduler
 
-    logger.info("Starting poll generation job...")
+    logger.info("Poll generation job triggered, attempting to acquire lock...")
 
     try:
         async with async_session_maker() as db:
-            scheduler = PollScheduler(db)
+            # Use distributed lock to coordinate across replicas
+            async with DistributedLockService.acquire_lock(
+                db, LOCK_POLL_GENERATION, timeout_seconds=600
+            ) as acquired:
+                if not acquired:
+                    logger.info(
+                        "Poll generation skipped - another instance is running"
+                    )
+                    return
 
-            # Check if we need more scheduled polls
-            upcoming = await scheduler.get_upcoming_polls(limit=5)
+                logger.info("Lock acquired, checking poll generation needs...")
+                scheduler = PollScheduler(db)
 
-            if len(upcoming) < 3:  # Generate more if we have less than 3 upcoming
-                logger.info(f"Only {len(upcoming)} upcoming polls, generating more...")
-                poll = await scheduler._generate_poll_from_events()
+                # Check if we need more scheduled polls
+                upcoming = await scheduler.get_upcoming_polls(limit=5)
 
-                if poll:
-                    logger.info(f"Generated new poll: {poll.question[:50]}...")
+                if len(upcoming) < 3:  # Generate more if we have less than 3 upcoming
+                    logger.info(f"Only {len(upcoming)} upcoming polls, generating more...")
+                    poll = await scheduler._generate_poll_from_events()
+
+                    if poll:
+                        logger.info(f"Generated new poll: {poll.question[:50]}...")
+                    else:
+                        logger.warning("Failed to generate poll from events")
                 else:
-                    logger.warning("Failed to generate poll from events")
-            else:
-                logger.info(f"Have {len(upcoming)} upcoming polls, skipping generation")
+                    logger.info(f"Have {len(upcoming)} upcoming polls, skipping generation")
 
     except Exception as e:
         logger.error(f"Poll generation job failed: {e}", exc_info=True)
+
+
+async def cleanup_locks_job() -> None:
+    """
+    Background job to clean up expired locks.
+
+    Runs periodically to release locks from crashed instances.
+    This job does NOT use distributed locking itself to avoid deadlock.
+    """
+    logger.debug("Running lock cleanup job...")
+
+    try:
+        async with async_session_maker() as db:
+            count = await DistributedLockService.cleanup_expired_locks(db)
+            if count > 0:
+                logger.info(f"Cleaned up {count} expired locks")
+    except Exception as e:
+        logger.error(f"Lock cleanup job failed: {e}", exc_info=True)
 
 
 def get_scheduler() -> AsyncIOScheduler:
@@ -125,6 +174,18 @@ async def start_scheduler() -> None:
         max_instances=1,
     )
     logger.info("Added poll generation job (every 30 minutes)")
+
+    # Job 3: Lock cleanup - runs every 5 minutes
+    # This releases expired locks from crashed instances
+    scheduler.add_job(
+        cleanup_locks_job,
+        trigger=IntervalTrigger(minutes=5),
+        id="lock_cleanup",
+        name="Lock Cleanup",
+        replace_existing=True,
+        max_instances=1,
+    )
+    logger.info("Added lock cleanup job (every 5 minutes)")
 
     # Start the scheduler
     scheduler.start()

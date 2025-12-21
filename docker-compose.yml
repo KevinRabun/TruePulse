@@ -20,10 +20,6 @@ services:
       - POSTGRES_USER=truepulse
       - POSTGRES_PASSWORD=truepulse_dev
       - POSTGRES_DB=truepulse
-      - REDIS_URL=redis://redis:6379/0
-      - COSMOS_ENDPOINT=${COSMOS_ENDPOINT:-}
-      - COSMOS_KEY=${COSMOS_KEY:-}
-      - COSMOS_DATABASE=truepulse-votes
       - SECRET_KEY=${SECRET_KEY:-dev-secret-key-change-in-production}
       - JWT_SECRET_KEY=${JWT_SECRET_KEY:-dev-secret-key-change-in-production}
       - JWT_ALGORITHM=HS256
@@ -35,8 +31,6 @@ services:
       - LOG_LEVEL=DEBUG
     depends_on:
       postgres:
-        condition: service_healthy
-      redis:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
@@ -96,46 +90,6 @@ services:
     restart: unless-stopped
 
   # ==========================================================================
-  # Redis Cache
-  # ==========================================================================
-  redis:
-    image: redis:7-alpine
-    container_name: truepulse-redis
-    ports:
-      - "6379:6379"
-    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy volatile-lru
-    volumes:
-      - redis_data:/data
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-    networks:
-      - truepulse-network
-    restart: unless-stopped
-
-  # ==========================================================================
-  # Cosmos DB Emulator (Optional - for local development)
-  # ==========================================================================
-  # cosmos:
-  #   image: mcr.microsoft.com/cosmosdb/linux/azure-cosmos-emulator:latest
-  #   container_name: truepulse-cosmos
-  #   ports:
-  #     - "8081:8081"
-  #     - "10251:10251"
-  #     - "10252:10252"
-  #     - "10253:10253"
-  #     - "10254:10254"
-  #   environment:
-  #     - AZURE_COSMOS_EMULATOR_PARTITION_COUNT=10
-  #     - AZURE_COSMOS_EMULATOR_ENABLE_DATA_PERSISTENCE=true
-  #   volumes:
-  #     - cosmos_data:/tmp/cosmos/appdata
-  #   networks:
-  #     - truepulse-network
-
-  # ==========================================================================
   # PgAdmin (Optional - Database administration)
   # ==========================================================================
   pgadmin:
@@ -185,6 +139,4 @@ networks:
 # ==========================================================================
 volumes:
   postgres_data:
-  redis_data:
   pgadmin_data:
-  # cosmos_data:

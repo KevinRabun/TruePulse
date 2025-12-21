@@ -2,10 +2,10 @@
 Azure Tables Service for TruePulse.
 
 Provides Azure Table Storage operations for:
-- Votes (replaces Cosmos DB)
-- Token blacklist (replaces Redis)
-- Password reset tokens (replaces Redis)
-- Rate limiting (replaces Redis)
+- Votes (high-volume, serverless scaling)
+- Token blacklist (session invalidation)
+- Password reset tokens (secure one-time tokens)
+- Rate limiting (distributed request throttling)
 
 Uses managed identity authentication in production,
 falls back to connection string for local development.
@@ -140,7 +140,7 @@ class AzureTableService:
             self._is_initialized = False
 
     # =========================================================================
-    # Vote Operations (replaces Cosmos DB)
+    # Vote Operations
     # =========================================================================
 
     async def store_vote(
@@ -240,7 +240,7 @@ class AzureTableService:
         return counts
 
     # =========================================================================
-    # Token Blacklist Operations (replaces Redis)
+    # Token Blacklist Operations
     # =========================================================================
 
     async def blacklist_token(self, token_hash: str, ttl_seconds: int) -> bool:
@@ -302,7 +302,7 @@ class AzureTableService:
             return False
 
     # =========================================================================
-    # Password Reset Token Operations (replaces Redis)
+    # Password Reset Token Operations
     # =========================================================================
 
     async def store_password_reset_token(
@@ -394,7 +394,7 @@ class AzureTableService:
             return False
 
     # =========================================================================
-    # Rate Limiting Operations (replaces Redis)
+    # Rate Limiting Operations
     # =========================================================================
 
     async def check_rate_limit(

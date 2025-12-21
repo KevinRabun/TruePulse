@@ -36,12 +36,15 @@ security_optional = HTTPBearer(auto_error=False)
 async def get_current_user(
     credentials: Annotated[HTTPAuthorizationCredentials, Depends(security)],
     db: AsyncSession = Depends(get_db),
+    token_service: RedisService = Depends(get_redis_service),
 ) -> UserInDB:
     """
     Extract and validate the current user from the JWT token.
 
+    Also checks if the token has been blacklisted (user logged out).
+
     Raises:
-        HTTPException: If token is invalid or user not found.
+        HTTPException: If token is invalid, blacklisted, or user not found.
     """
     token = credentials.credentials
     payload = decode_token(token)
@@ -50,6 +53,16 @@ async def get_current_user(
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid or expired token",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    # Check if token has been blacklisted (user logged out)
+    token_hash = hashlib.sha256(token.encode()).hexdigest()[:16]
+    if await token_service.is_token_blacklisted(token_hash):
+        logger.warning("blacklisted_token_used", token_hash=token_hash[:8])
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Token has been revoked",
             headers={"WWW-Authenticate": "Bearer"},
         )
 
@@ -192,9 +205,20 @@ async def get_current_admin_user(
     Ensure the current user is an admin.
 
     Used for administrative actions.
+
+    Raises:
+        HTTPException: If user is not an admin.
     """
-    # Check admin role from database
-    # For now, we rely on the is_admin field being checked elsewhere
+    if not current_user.is_admin:
+        logger.warning(
+            "non_admin_access_attempt",
+            user_id=current_user.id,
+            email=current_user.email,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Admin access required",
+        )
     return current_user
 
 

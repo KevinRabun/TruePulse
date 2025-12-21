@@ -8,7 +8,7 @@ to avoid expensive database queries on every request.
 import json
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
-from typing import Any, Optional
+from typing import Optional
 
 from sqlalchemy import and_, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -64,14 +64,14 @@ class PlatformStats:
 class StatsService:
     """Service for computing and caching platform statistics."""
 
-    # In-memory cache (for single instance deployments)
-    # For production with multiple instances, use Redis
+    # In-memory cache (sufficient for Container Apps with single replica in dev)
+    # For multi-replica production, stats are recomputed per-replica which is acceptable
+    # since they're read-only aggregations and the cache TTL ensures consistency
     _cache: Optional[PlatformStats] = None
 
     def __init__(
         self,
         db: AsyncSession,
-        redis_client: Optional[Any] = None,
         cache_ttl_hours: int = 24,
     ):
         """
@@ -79,11 +79,9 @@ class StatsService:
 
         Args:
             db: Database session
-            redis_client: Optional Redis client for distributed caching
             cache_ttl_hours: How long to cache stats (default: 24 hours)
         """
         self.db = db
-        self.redis_client = redis_client
         self.cache_ttl_hours = cache_ttl_hours
         self.cache_key = "platform:stats:v1"
 

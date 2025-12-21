@@ -21,6 +21,12 @@ class UserCreate(UserBase):
 
     Both email and phone are required for registration to ensure
     one person = one vote and prevent bot registrations.
+
+    Password requirements:
+    - Minimum 8 characters
+    - At least one uppercase letter
+    - At least one lowercase letter
+    - At least one digit
     """
 
     password: str = Field(..., min_length=8, max_length=100)
@@ -31,6 +37,18 @@ class UserCreate(UserBase):
         description="Phone number for SMS verification",
     )
     display_name: Optional[str] = Field(None, max_length=100)
+
+    @field_validator("password")
+    @classmethod
+    def validate_password_strength(cls, v: str) -> str:
+        """Validate password meets security requirements."""
+        if not re.search(r"[A-Z]", v):
+            raise ValueError("Password must contain at least one uppercase letter")
+        if not re.search(r"[a-z]", v):
+            raise ValueError("Password must contain at least one lowercase letter")
+        if not re.search(r"\d", v):
+            raise ValueError("Password must contain at least one digit")
+        return v
 
     @field_validator("phone_number")
     @classmethod
