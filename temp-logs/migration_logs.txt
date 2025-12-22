@@ -1,0 +1,302 @@
+{"TimeStamp": "2025-12-22T17:50:44.04656", "Log": "Connecting to the container 'api'..."}
+{"TimeStamp": "2025-12-22T17:50:44.11166", "Log": "Successfully Connected to container: 'api' [Revision: 'ca-truepulse-api-dev--0000090', Replica: 'ca-truepulse-api-dev--0000090-7db9f7695d-d2kqm']"}
+{"TimeStamp": "2025-12-22T17:49:10.5261496+00:00", "Log": "F     self._flush(objects)"}
+{"TimeStamp": "2025-12-22T17:49:10.5261515+00:00", "Log": "F   File \"/opt/venv/lib/python3.11/site-packages/sqlalchemy/orm/session.py\", line 4466, in _flush"}
+{"TimeStamp": "2025-12-22T17:49:10.5261535+00:00", "Log": "F     with util.safe_reraise():"}
+{"TimeStamp": "2025-12-22T17:49:10.5261556+00:00", "Log": "F   File \"/opt/venv/lib/python3.11/site-packages/sqlalchemy/util/langhelpers.py\", line 224, in __exit__"}
+{"TimeStamp": "2025-12-22T17:49:10.5261577+00:00", "Log": "F     raise exc_value.with_traceback(exc_tb)"}
+{"TimeStamp": "2025-12-22T17:49:10.5261652+00:00", "Log": "F   File \"/opt/venv/lib/python3.11/site-packages/sqlalchemy/orm/session.py\", line 4427, in _flush"}
+{"TimeStamp": "2025-12-22T17:49:10.5261682+00:00", "Log": "F     flush_context.execute()"}
+{"TimeStamp": "2025-12-22T17:49:10.5261708+00:00", "Log": "F   File \"/opt/venv/lib/python3.11/site-packages/sqlalchemy/orm/unitofwork.py\", line 466, in execute"}
+{"TimeStamp": "2025-12-22T17:49:10.526173+00:00", "Log": "F     rec.execute(self)"}
+{"TimeStamp": "2025-12-22T17:49:10.5261762+00:00", "Log": "F   File \"/opt/venv/lib/python3.11/site-packages/sqlalchemy/orm/unitofwork.py\", line 642, in execute"}
+{"TimeStamp": "2025-12-22T17:49:10.5261784+00:00", "Log": "F     util.preloaded.orm_persistence.save_obj("}
+{"TimeStamp": "2025-12-22T17:49:10.5261806+00:00", "Log": "F   File \"/opt/venv/lib/python3.11/site-packages/sqlalchemy/orm/persistence.py\", line 93, in save_obj"}
+{"TimeStamp": "2025-12-22T17:49:10.5261826+00:00", "Log": "F     _emit_insert_statements("}
+{"TimeStamp": "2025-12-22T17:49:10.5261847+00:00", "Log": "F   File \"/opt/venv/lib/python3.11/site-packages/sqlalchemy/orm/persistence.py\", line 1233, in _emit_insert_statements"}
+{"TimeStamp": "2025-12-22T17:49:10.5261868+00:00", "Log": "F     result = connection.execute("}
+{"TimeStamp": "2025-12-22T17:49:10.5261889+00:00", "Log": "F              ^^^^^^^^^^^^^^^^^^^"}
+{"TimeStamp": "2025-12-22T17:49:10.5261909+00:00", "Log": "F   File \"/opt/venv/lib/python3.11/site-packages/sqlalchemy/engine/base.py\", line 1419, in execute"}
+{"TimeStamp": "2025-12-22T17:49:10.526193+00:00", "Log": "F     return meth("}
+{"TimeStamp": "2025-12-22T17:49:10.526195+00:00", "Log": "F            ^^^^^"}
+{"TimeStamp": "2025-12-22T17:49:10.5261971+00:00", "Log": "F   File \"/opt/venv/lib/python3.11/site-packages/sqlalchemy/sql/elements.py\", line 527, in _execute_on_connection"}
+{"TimeStamp": "2025-12-22T17:49:10.5262+00:00", "Log": "F     return connection._execute_clauseelement("}
+{"TimeStamp": "2025-12-22T17:49:10.5262164+00:00", "Log": "F            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^"}
+{"TimeStamp": "2025-12-22T17:49:10.5262241+00:00", "Log": "F   File \"/opt/venv/lib/python3.11/site-packages/sqlalchemy/engine/base.py\", line 1641, in _execute_clauseelement"}
+{"TimeStamp": "2025-12-22T17:49:10.5262268+00:00", "Log": "F     ret = self._execute_context("}
+{"TimeStamp": "2025-12-22T17:49:10.5262292+00:00", "Log": "F           ^^^^^^^^^^^^^^^^^^^^^^"}
+{"TimeStamp": "2025-12-22T17:49:10.5262313+00:00", "Log": "F   File \"/opt/venv/lib/python3.11/site-packages/sqlalchemy/engine/base.py\", line 1846, in _execute_context"}
+{"TimeStamp": "2025-12-22T17:49:10.5262335+00:00", "Log": "F     return self._exec_single_context("}
+{"TimeStamp": "2025-12-22T17:49:10.5262357+00:00", "Log": "F            ^^^^^^^^^^^^^^^^^^^^^^^^^^"}
+{"TimeStamp": "2025-12-22T17:49:10.5262377+00:00", "Log": "F   File \"/opt/venv/lib/python3.11/site-packages/sqlalchemy/engine/base.py\", line 1986, in _exec_single_context"}
+{"TimeStamp": "2025-12-22T17:49:10.5262397+00:00", "Log": "F     self._handle_dbapi_exception("}
+{"TimeStamp": "2025-12-22T17:49:10.5262418+00:00", "Log": "F   File \"/opt/venv/lib/python3.11/site-packages/sqlalchemy/engine/base.py\", line 2363, in _handle_dbapi_exception"}
+{"TimeStamp": "2025-12-22T17:49:10.526244+00:00", "Log": "F     raise sqlalchemy_exception.with_traceback(exc_info[2]) from e"}
+{"TimeStamp": "2025-12-22T17:49:10.5262462+00:00", "Log": "F   File \"/opt/venv/lib/python3.11/site-packages/sqlalchemy/engine/base.py\", line 1967, in _exec_single_context"}
+{"TimeStamp": "2025-12-22T17:49:10.5262493+00:00", "Log": "F     self.dialect.do_execute("}
+{"TimeStamp": "2025-12-22T17:49:10.5262513+00:00", "Log": "F   File \"/opt/venv/lib/python3.11/site-packages/sqlalchemy/engine/default.py\", line 952, in do_execute"}
+{"TimeStamp": "2025-12-22T17:49:10.5262534+00:00", "Log": "F     cursor.execute(statement, parameters)"}
+{"TimeStamp": "2025-12-22T17:49:10.5262618+00:00", "Log": "F   File \"/opt/venv/lib/python3.11/site-packages/sqlalchemy/dialects/postgresql/asyncpg.py\", line 585, in execute"}
+{"TimeStamp": "2025-12-22T17:49:10.526265+00:00", "Log": "F     self._adapt_connection.await_("}
+{"TimeStamp": "2025-12-22T17:49:10.5262675+00:00", "Log": "F   File \"/opt/venv/lib/python3.11/site-packages/sqlalchemy/util/_concurrency_py3k.py\", line 132, in await_only"}
+{"TimeStamp": "2025-12-22T17:49:10.5262695+00:00", "Log": "F     return current.parent.switch(awaitable)  # type: ignore[no-any-return,attr-defined] # noqa: E501"}
+{"TimeStamp": "2025-12-22T17:49:10.5262716+00:00", "Log": "F            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^"}
+{"TimeStamp": "2025-12-22T17:49:10.5262738+00:00", "Log": "F   File \"/opt/venv/lib/python3.11/site-packages/sqlalchemy/util/_concurrency_py3k.py\", line 196, in greenlet_spawn"}
+{"TimeStamp": "2025-12-22T17:49:10.526276+00:00", "Log": "F     value = await result"}
+{"TimeStamp": "2025-12-22T17:49:10.5262781+00:00", "Log": "F             ^^^^^^^^^^^^"}
+{"TimeStamp": "2025-12-22T17:49:10.5262813+00:00", "Log": "F   File \"/opt/venv/lib/python3.11/site-packages/sqlalchemy/dialects/postgresql/asyncpg.py\", line 563, in _prepare_and_execute"}
+{"TimeStamp": "2025-12-22T17:49:10.5262834+00:00", "Log": "F     self._handle_exception(error)"}
+{"TimeStamp": "2025-12-22T17:49:10.5262856+00:00", "Log": "F   File \"/opt/venv/lib/python3.11/site-packages/sqlalchemy/dialects/postgresql/asyncpg.py\", line 513, in _handle_exception"}
+{"TimeStamp": "2025-12-22T17:49:10.5262878+00:00", "Log": "F     self._adapt_connection._handle_exception(error)"}
+{"TimeStamp": "2025-12-22T17:49:10.5262898+00:00", "Log": "F   File \"/opt/venv/lib/python3.11/site-packages/sqlalchemy/dialects/postgresql/asyncpg.py\", line 797, in _handle_exception"}
+{"TimeStamp": "2025-12-22T17:49:10.526292+00:00", "Log": "F     raise translated_error from error"}
+{"TimeStamp": "2025-12-22T17:49:10.5262993+00:00", "Log": "F sqlalchemy.exc.IntegrityError: (sqlalchemy.dialects.postgresql.asyncpg.IntegrityError) <class 'asyncpg.exceptions.NotNullViolationError'>: null value in column \"sms_notifications\" of relation \"users\" violates not-null constraint"}
+{"TimeStamp": "2025-12-22T17:49:10.5263026+00:00", "Log": "F DETAIL:  Failing row contains (f4b14ce0-886f-42ba-84f3-4bbcc6395234, kevin.rabun@gmail.com, kevin.rabun, t, f, f, null, null, 100, 1, 0, 0, 0, 0, 0, 0, 0, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, t, f, t, t, t, system, f, null, null, null, null, t, t, 5, 0, null, 0, 0, 0, 0, null, 2025-12-22 17:49:10.49456+00, 2025-12-22 17:49:10.49456+00, null, null, null, t)."}
+{"TimeStamp": "2025-12-22T17:49:10.5263196+00:00", "Log": "F [SQL: INSERT INTO users (id, email, username, is_active, is_verified, is_admin, avatar_url, bio, total_points, level, current_streak, longest_streak, votes_cast, total_shares, ad_views, ad_clicks, ad_view_streak, last_ad_view_at, age_range, gender, country, state_province, city, region, education_level, employment_status, industry, political_leaning, marital_status, religious_affiliation, ethnicity, household_income, parental_status, housing_status, email_notifications, push_notifications, daily_poll_reminder, show_on_leaderboard, share_anonymous_demographics, theme_preference, email_verified, passkey_only, pulse_poll_notifications, flash_poll_notifications, flash_polls_per_day, flash_polls_notified_today, flash_notification_reset_date, pulse_polls_voted, flash_polls_voted, pulse_poll_streak, longest_pulse_streak, last_pulse_vote_date, last_login_at, last_vote_at, deleted_at) VALUES ($1::UUID, $2::VARCHAR, $3::VARCHAR, $4::BOOLEAN, $5::BOOLEAN, $6::BOOLEAN, $7::VARCHAR, $8::VARCHAR, $9::INTEGER, $10::INTEGER, $11::INTEGER, $12::INTEGER, $13::INTEGER, $14::INTEGER, $15::INTEGER, $16::INTEGER, $17::INTEGER, $18::TIMESTAMP WITH TIME ZONE, $19::VARCHAR, $20::VARCHAR, $21::VARCHAR, $22::VARCHAR, $23::VARCHAR, $24::VARCHAR, $25::VARCHAR, $26::VARCHAR, $27::VARCHAR, $28::VARCHAR, $29::VARCHAR, $30::VARCHAR, $31::VARCHAR, $32::VARCHAR, $33::VARCHAR, $34::VARCHAR, $35::BOOLEAN, $36::BOOLEAN, $37::BOOLEAN, $38::BOOLEAN, $39::BOOLEAN, $40::VARCHAR, $41::BOOLEAN, $42::BOOLEAN, $43::BOOLEAN, $44::BOOLEAN, $45::INTEGER, $46::INTEGER, $47::TIMESTAMP WITH TIME ZONE, $48::INTEGER, $49::INTEGER, $50::INTEGER, $51::INTEGER, $52::TIMESTAMP WITH TIME ZONE, $53::TIMESTAMP WITH TIME ZONE, $54::TIMESTAMP WITH TIME ZONE, $55::TIMESTAMP WITH TIME ZONE) RETURNING users.created_at, users.updated_at]"}
+{"TimeStamp": "2025-12-22T17:49:10.5263242+00:00", "Log": "F [parameters: ('f4b14ce0-886f-42ba-84f3-4bbcc6395234', 'kevin.rabun@gmail.com', 'kevin.rabun', True, False, False, None, None, 100, 1, 0, 0, 0, 0, 0, 0, 0, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, True, False, True, True, True, 'system', False, True, True, True, 5, 0, None, 0, 0, 0, 0, None, None, None, None)]"}
+{"TimeStamp": "2025-12-22T17:49:10.5263389+00:00", "Log": "F (Background on this error at: https://sqlalche.me/e/20/gkpj)"}
+{"TimeStamp": "2025-12-22T17:49:10.5263426+00:00", "Log": "F INFO:     24.197.113.216:0 - \"POST /api/v1/auth/register HTTP/1.1\" 500 Internal Server Error"}
+{"TimeStamp": "2025-12-22T17:49:10.5307607+00:00", "Log": "F ERROR:    Exception in ASGI application"}
+{"TimeStamp": "2025-12-22T17:49:10.5307925+00:00", "Log": "F Traceback (most recent call last):"}
+{"TimeStamp": "2025-12-22T17:49:10.5308033+00:00", "Log": "F   File \"/opt/venv/lib/python3.11/site-packages/sqlalchemy/dialects/postgresql/asyncpg.py\", line 550, in _prepare_and_execute"}
+{"TimeStamp": "2025-12-22T17:49:10.5308061+00:00", "Log": "F     self._rows = deque(await prepared_stmt.fetch(*parameters))"}
+{"TimeStamp": "2025-12-22T17:49:10.5308084+00:00", "Log": "F                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^"}
+{"TimeStamp": "2025-12-22T17:49:10.5308104+00:00", "Log": "F   File \"/opt/venv/lib/python3.11/site-packages/asyncpg/prepared_stmt.py\", line 177, in fetch"}
+{"TimeStamp": "2025-12-22T17:49:10.5308123+00:00", "Log": "F     data = await self.__bind_execute(args, 0, timeout)"}
+{"TimeStamp": "2025-12-22T17:49:10.5308142+00:00", "Log": "F            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^"}
+{"TimeStamp": "2025-12-22T17:49:10.530816+00:00", "Log": "F   File \"/opt/venv/lib/python3.11/site-packages/asyncpg/prepared_stmt.py\", line 268, in __bind_execute"}
+{"TimeStamp": "2025-12-22T17:49:10.5308181+00:00", "Log": "F     data, status, _ = await self.__do_execute("}
+{"TimeStamp": "2025-12-22T17:49:10.53082+00:00", "Log": "F                       ^^^^^^^^^^^^^^^^^^^^^^^^"}
+{"TimeStamp": "2025-12-22T17:49:10.5308234+00:00", "Log": "F   File \"/opt/venv/lib/python3.11/site-packages/asyncpg/prepared_stmt.py\", line 257, in __do_execute"}
+{"TimeStamp": "2025-12-22T17:49:10.5308256+00:00", "Log": "F     return await executor(protocol)"}
+{"TimeStamp": "2025-12-22T17:49:10.5308275+00:00", "Log": "F            ^^^^^^^^^^^^^^^^^^^^^^^^"}
+{"TimeStamp": "2025-12-22T17:49:10.5308295+00:00", "Log": "F   File \"asyncpg/protocol/protocol.pyx\", line 205, in bind_execute"}
+{"TimeStamp": "2025-12-22T17:49:10.5308847+00:00", "Log": "F asyncpg.exceptions.NotNullViolationError: null value in column \"sms_notifications\" of relation \"users\" violates not-null constraint"}
+{"TimeStamp": "2025-12-22T17:49:10.5308908+00:00", "Log": "F DETAIL:  Failing row contains (f4b14ce0-886f-42ba-84f3-4bbcc6395234, kevin.rabun@gmail.com, kevin.rabun, t, f, f, null, null, 100, 1, 0, 0, 0, 0, 0, 0, 0, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, t, f, t, t, t, system, f, null, null, null, null, t, t, 5, 0, null, 0, 0, 0, 0, null, 2025-12-22 17:49:10.49456+00, 2025-12-22 17:49:10.49456+00, null, null, null, t)."}
+{"TimeStamp": "2025-12-22T17:49:10.5309385+00:00", "Log": "F"}
+{"TimeStamp": "2025-12-22T17:49:10.5309553+00:00", "Log": "F The above exception was the direct cause of the following exception:"}
+{"TimeStamp": "2025-12-22T17:49:10.530958+00:00", "Log": "F"}
+{"TimeStamp": "2025-12-22T17:49:10.5309603+00:00", "Log": "F Traceback (most recent call last):"}
+{"TimeStamp": "2025-12-22T17:49:10.5309624+00:00", "Log": "F   File \"/opt/venv/lib/python3.11/site-packages/sqlalchemy/engine/base.py\", line 1967, in _exec_single_context"}
+{"TimeStamp": "2025-12-22T17:49:10.5309647+00:00", "Log": "F     self.dialect.do_execute("}
+{"TimeStamp": "2025-12-22T17:49:10.5309669+00:00", "Log": "F   File \"/opt/venv/lib/python3.11/site-packages/sqlalchemy/engine/default.py\", line 952, in do_execute"}
+{"TimeStamp": "2025-12-22T17:49:10.5309694+00:00", "Log": "F     cursor.execute(statement, parameters)"}
+{"TimeStamp": "2025-12-22T17:49:10.5309717+00:00", "Log": "F   File \"/opt/venv/lib/python3.11/site-packages/sqlalchemy/dialects/postgresql/asyncpg.py\", line 585, in execute"}
+{"TimeStamp": "2025-12-22T17:49:10.531023+00:00", "Log": "F     self._adapt_connection.await_("}
+{"TimeStamp": "2025-12-22T17:49:10.5310284+00:00", "Log": "F   File \"/opt/venv/lib/python3.11/site-packages/sqlalchemy/util/_concurrency_py3k.py\", line 132, in await_only"}
+{"TimeStamp": "2025-12-22T17:49:10.5310342+00:00", "Log": "F     return current.parent.switch(awaitable)  # type: ignore[no-any-return,attr-defined] # noqa: E501"}
+{"TimeStamp": "2025-12-22T17:49:10.5310365+00:00", "Log": "F            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^"}
+{"TimeStamp": "2025-12-22T17:49:10.5310387+00:00", "Log": "F   File \"/opt/venv/lib/python3.11/site-packages/sqlalchemy/util/_concurrency_py3k.py\", line 196, in greenlet_spawn"}
+{"TimeStamp": "2025-12-22T17:49:10.5310407+00:00", "Log": "F     value = await result"}
+{"TimeStamp": "2025-12-22T17:49:10.5310429+00:00", "Log": "F             ^^^^^^^^^^^^"}
+{"TimeStamp": "2025-12-22T17:49:10.5310451+00:00", "Log": "F   File \"/opt/venv/lib/python3.11/site-packages/sqlalchemy/dialects/postgresql/asyncpg.py\", line 563, in _prepare_and_execute"}
+{"TimeStamp": "2025-12-22T17:49:10.5310472+00:00", "Log": "F     self._handle_exception(error)"}
+{"TimeStamp": "2025-12-22T17:49:10.5310494+00:00", "Log": "F   File \"/opt/venv/lib/python3.11/site-packages/sqlalchemy/dialects/postgresql/asyncpg.py\", line 513, in _handle_exception"}
+{"TimeStamp": "2025-12-22T17:49:10.5310515+00:00", "Log": "F     self._adapt_connection._handle_exception(error)"}
+{"TimeStamp": "2025-12-22T17:49:10.5310537+00:00", "Log": "F   File \"/opt/venv/lib/python3.11/site-packages/sqlalchemy/dialects/postgresql/asyncpg.py\", line 797, in _handle_exception"}
+{"TimeStamp": "2025-12-22T17:49:10.5310572+00:00", "Log": "F     raise translated_error from error"}
+{"TimeStamp": "2025-12-22T17:49:10.5310724+00:00", "Log": "F sqlalchemy.dialects.postgresql.asyncpg.AsyncAdapt_asyncpg_dbapi.IntegrityError: <class 'asyncpg.exceptions.NotNullViolationError'>: null value in column \"sms_notifications\" of relation \"users\" violates not-null constraint"}
+{"TimeStamp": "2025-12-22T17:49:10.5310824+00:00", "Log": "F DETAIL:  Failing row contains (f4b14ce0-886f-42ba-84f3-4bbcc6395234, kevin.rabun@gmail.com, kevin.rabun, t, f, f, null, null, 100, 1, 0, 0, 0, 0, 0, 0, 0, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, t, f, t, t, t, system, f, null, null, null, null, t, t, 5, 0, null, 0, 0, 0, 0, null, 2025-12-22 17:49:10.49456+00, 2025-12-22 17:49:10.49456+00, null, null, null, t)."}
+{"TimeStamp": "2025-12-22T17:49:10.5310868+00:00", "Log": "F"}
+{"TimeStamp": "2025-12-22T17:49:10.5310885+00:00", "Log": "F The above exception was the direct cause of the following exception:"}
+{"TimeStamp": "2025-12-22T17:49:10.5310897+00:00", "Log": "F"}
+{"TimeStamp": "2025-12-22T17:49:10.5310909+00:00", "Log": "F Traceback (most recent call last):"}
+{"TimeStamp": "2025-12-22T17:49:10.5310921+00:00", "Log": "F   File \"/opt/venv/lib/python3.11/site-packages/uvicorn/protocols/http/httptools_impl.py\", line 416, in run_asgi"}
+{"TimeStamp": "2025-12-22T17:49:10.5310934+00:00", "Log": "F     result = await app(  # type: ignore[func-returns-value]"}
+{"TimeStamp": "2025-12-22T17:49:10.5310946+00:00", "Log": "F              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^"}
+{"TimeStamp": "2025-12-22T17:49:10.5310958+00:00", "Log": "F   File \"/opt/venv/lib/python3.11/site-packages/uvicorn/middleware/proxy_headers.py\", line 60, in __call__"}
+{"TimeStamp": "2025-12-22T17:49:10.5311176+00:00", "Log": "F     return await self.app(scope, receive, send)"}
+{"TimeStamp": "2025-12-22T17:49:10.5311196+00:00", "Log": "F            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^"}
+{"TimeStamp": "2025-12-22T17:49:10.5311213+00:00", "Log": "F   File \"/opt/venv/lib/python3.11/site-packages/fastapi/applications.py\", line 1135, in __call__"}
+{"TimeStamp": "2025-12-22T17:49:10.5311226+00:00", "Log": "F     await super().__call__(scope, receive, send)"}
+{"TimeStamp": "2025-12-22T17:49:10.5311238+00:00", "Log": "F   File \"/opt/venv/lib/python3.11/site-packages/starlette/applications.py\", line 107, in __call__"}
+{"TimeStamp": "2025-12-22T17:49:10.5311251+00:00", "Log": "F     await self.middleware_stack(scope, receive, send)"}
+{"TimeStamp": "2025-12-22T17:49:10.5311263+00:00", "Log": "F   File \"/opt/venv/lib/python3.11/site-packages/starlette/middleware/errors.py\", line 186, in __call__"}
+{"TimeStamp": "2025-12-22T17:49:10.5311275+00:00", "Log": "F     raise exc"}
+{"TimeStamp": "2025-12-22T17:49:10.5311287+00:00", "Log": "F   File \"/opt/venv/lib/python3.11/site-packages/starlette/middleware/errors.py\", line 164, in __call__"}
+{"TimeStamp": "2025-12-22T17:49:10.5311299+00:00", "Log": "F     await self.app(scope, receive, _send)"}
+{"TimeStamp": "2025-12-22T17:49:10.531131+00:00", "Log": "F   File \"/opt/venv/lib/python3.11/site-packages/starlette/middleware/gzip.py\", line 29, in __call__"}
+{"TimeStamp": "2025-12-22T17:49:10.5311334+00:00", "Log": "F     await responder(scope, receive, send)"}
+{"TimeStamp": "2025-12-22T17:49:10.5311346+00:00", "Log": "F   File \"/opt/venv/lib/python3.11/site-packages/starlette/middleware/gzip.py\", line 130, in __call__"}
+{"TimeStamp": "2025-12-22T17:49:10.5311359+00:00", "Log": "F     await super().__call__(scope, receive, send)"}
+{"TimeStamp": "2025-12-22T17:49:10.5311371+00:00", "Log": "F   File \"/opt/venv/lib/python3.11/site-packages/starlette/middleware/gzip.py\", line 46, in __call__"}
+{"TimeStamp": "2025-12-22T17:49:10.5311457+00:00", "Log": "F     await self.app(scope, receive, self.send_with_compression)"}
+{"TimeStamp": "2025-12-22T17:49:10.5311502+00:00", "Log": "F   File \"/opt/venv/lib/python3.11/site-packages/starlette/middleware/cors.py\", line 93, in __call__"}
+{"TimeStamp": "2025-12-22T17:49:10.5311531+00:00", "Log": "F     await self.simple_response(scope, receive, send, request_headers=headers)"}
+{"TimeStamp": "2025-12-22T17:49:10.5311554+00:00", "Log": "F   File \"/opt/venv/lib/python3.11/site-packages/starlette/middleware/cors.py\", line 144, in simple_response"}
+{"TimeStamp": "2025-12-22T17:49:10.5311577+00:00", "Log": "F     await self.app(scope, receive, send)"}
+{"TimeStamp": "2025-12-22T17:49:10.5311599+00:00", "Log": "F   File \"/opt/venv/lib/python3.11/site-packages/starlette/middleware/base.py\", line 191, in __call__"}
+{"TimeStamp": "2025-12-22T17:49:10.5311621+00:00", "Log": "F     with recv_stream, send_stream, collapse_excgroups():"}
+{"TimeStamp": "2025-12-22T17:49:10.5311643+00:00", "Log": "F   File \"/usr/local/lib/python3.11/contextlib.py\", line 158, in __exit__"}
+{"TimeStamp": "2025-12-22T17:49:10.5311679+00:00", "Log": "F     self.gen.throw(typ, value, traceback)"}
+{"TimeStamp": "2025-12-22T17:49:10.53117+00:00", "Log": "F   File \"/opt/venv/lib/python3.11/site-packages/starlette/_utils.py\", line 85, in collapse_excgroups"}
+{"TimeStamp": "2025-12-22T17:49:10.5311721+00:00", "Log": "F     raise exc"}
+{"TimeStamp": "2025-12-22T17:49:10.5311741+00:00", "Log": "F   File \"/opt/venv/lib/python3.11/site-packages/starlette/middleware/base.py\", line 193, in __call__"}
+{"TimeStamp": "2025-12-22T17:49:10.5311762+00:00", "Log": "F     response = await self.dispatch_func(request, call_next)"}
+{"TimeStamp": "2025-12-22T17:49:10.5311784+00:00", "Log": "F                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^"}
+{"TimeStamp": "2025-12-22T17:49:10.5311846+00:00", "Log": "F   File \"/app/core/middleware.py\", line 96, in dispatch"}
+{"TimeStamp": "2025-12-22T17:49:10.5311867+00:00", "Log": "F     return await call_next(request)"}
+{"TimeStamp": "2025-12-22T17:49:10.5311882+00:00", "Log": "F            ^^^^^^^^^^^^^^^^^^^^^^^^"}
+{"TimeStamp": "2025-12-22T17:49:10.5311895+00:00", "Log": "F   File \"/opt/venv/lib/python3.11/site-packages/starlette/middleware/base.py\", line 168, in call_next"}
+{"TimeStamp": "2025-12-22T17:49:10.5311907+00:00", "Log": "F     raise app_exc from app_exc.__cause__ or app_exc.__context__"}
+{"TimeStamp": "2025-12-22T17:49:10.5311919+00:00", "Log": "F   File \"/opt/venv/lib/python3.11/site-packages/starlette/middleware/base.py\", line 144, in coro"}
+{"TimeStamp": "2025-12-22T17:49:10.5311942+00:00", "Log": "F     await self.app(scope, receive_or_disconnect, send_no_error)"}
+{"TimeStamp": "2025-12-22T17:49:10.5311954+00:00", "Log": "F   File \"/opt/venv/lib/python3.11/site-packages/starlette/middleware/base.py\", line 191, in __call__"}
+{"TimeStamp": "2025-12-22T17:49:10.5311966+00:00", "Log": "F     with recv_stream, send_stream, collapse_excgroups():"}
+{"TimeStamp": "2025-12-22T17:49:10.5312086+00:00", "Log": "F   File \"/usr/local/lib/python3.11/contextlib.py\", line 158, in __exit__"}
+{"TimeStamp": "2025-12-22T17:49:10.5312117+00:00", "Log": "F     self.gen.throw(typ, value, traceback)"}
+{"TimeStamp": "2025-12-22T17:49:10.5312139+00:00", "Log": "F   File \"/opt/venv/lib/python3.11/site-packages/starlette/_utils.py\", line 85, in collapse_excgroups"}
+{"TimeStamp": "2025-12-22T17:49:10.5312161+00:00", "Log": "F     raise exc"}
+{"TimeStamp": "2025-12-22T17:49:10.5312197+00:00", "Log": "F   File \"/opt/venv/lib/python3.11/site-packages/starlette/middleware/base.py\", line 193, in __call__"}
+{"TimeStamp": "2025-12-22T17:49:10.5312219+00:00", "Log": "F     response = await self.dispatch_func(request, call_next)"}
+{"TimeStamp": "2025-12-22T17:49:10.531224+00:00", "Log": "F                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^"}
+{"TimeStamp": "2025-12-22T17:49:10.5312309+00:00", "Log": "F   File \"/app/core/middleware.py\", line 35, in dispatch"}
+{"TimeStamp": "2025-12-22T17:49:10.5312326+00:00", "Log": "F     response = await call_next(request)"}
+{"TimeStamp": "2025-12-22T17:49:10.5312341+00:00", "Log": "F                ^^^^^^^^^^^^^^^^^^^^^^^^"}
+{"TimeStamp": "2025-12-22T17:49:10.5312352+00:00", "Log": "F   File \"/opt/venv/lib/python3.11/site-packages/starlette/middleware/base.py\", line 168, in call_next"}
+{"TimeStamp": "2025-12-22T17:49:10.5312364+00:00", "Log": "F     raise app_exc from app_exc.__cause__ or app_exc.__context__"}
+{"TimeStamp": "2025-12-22T17:49:10.5312375+00:00", "Log": "F   File \"/opt/venv/lib/python3.11/site-packages/starlette/middleware/base.py\", line 144, in coro"}
+{"TimeStamp": "2025-12-22T17:49:10.5312387+00:00", "Log": "F     await self.app(scope, receive_or_disconnect, send_no_error)"}
+{"TimeStamp": "2025-12-22T17:49:10.5312399+00:00", "Log": "F   File \"/opt/venv/lib/python3.11/site-packages/starlette/middleware/exceptions.py\", line 63, in __call__"}
+{"TimeStamp": "2025-12-22T17:49:10.5312415+00:00", "Log": "F     await wrap_app_handling_exceptions(self.app, conn)(scope, receive, send)"}
+{"TimeStamp": "2025-12-22T17:49:10.5312432+00:00", "Log": "F   File \"/opt/venv/lib/python3.11/site-packages/starlette/_exception_handler.py\", line 53, in wrapped_app"}
+{"TimeStamp": "2025-12-22T17:49:10.5312454+00:00", "Log": "F     raise exc"}
+{"TimeStamp": "2025-12-22T17:49:10.5312467+00:00", "Log": "F   File \"/opt/venv/lib/python3.11/site-packages/starlette/_exception_handler.py\", line 42, in wrapped_app"}
+{"TimeStamp": "2025-12-22T17:49:10.5312479+00:00", "Log": "F     await app(scope, receive, sender)"}
+{"TimeStamp": "2025-12-22T17:49:10.531249+00:00", "Log": "F   File \"/opt/venv/lib/python3.11/site-packages/fastapi/middleware/asyncexitstack.py\", line 18, in __call__"}
+{"TimeStamp": "2025-12-22T17:49:10.5312566+00:00", "Log": "F     await self.app(scope, receive, send)"}
+{"TimeStamp": "2025-12-22T17:49:10.5312599+00:00", "Log": "F   File \"/opt/venv/lib/python3.11/site-packages/starlette/routing.py\", line 716, in __call__"}
+{"TimeStamp": "2025-12-22T17:49:10.5312627+00:00", "Log": "F     await self.middleware_stack(scope, receive, send)"}
+{"TimeStamp": "2025-12-22T17:49:10.531265+00:00", "Log": "F   File \"/opt/venv/lib/python3.11/site-packages/starlette/routing.py\", line 736, in app"}
+{"TimeStamp": "2025-12-22T17:49:10.5312672+00:00", "Log": "F     await route.handle(scope, receive, send)"}
+{"TimeStamp": "2025-12-22T17:49:10.5312694+00:00", "Log": "F   File \"/opt/venv/lib/python3.11/site-packages/starlette/routing.py\", line 290, in handle"}
+{"TimeStamp": "2025-12-22T17:49:10.5312716+00:00", "Log": "F     await self.app(scope, receive, send)"}
+{"TimeStamp": "2025-12-22T17:49:10.5312749+00:00", "Log": "F   File \"/opt/venv/lib/python3.11/site-packages/fastapi/routing.py\", line 119, in app"}
+{"TimeStamp": "2025-12-22T17:49:10.5312771+00:00", "Log": "F     await wrap_app_handling_exceptions(app, request)(scope, receive, send)"}
+{"TimeStamp": "2025-12-22T17:49:10.5312793+00:00", "Log": "F   File \"/opt/venv/lib/python3.11/site-packages/starlette/_exception_handler.py\", line 53, in wrapped_app"}
+{"TimeStamp": "2025-12-22T17:49:10.5312815+00:00", "Log": "F     raise exc"}
+{"TimeStamp": "2025-12-22T17:49:10.5312837+00:00", "Log": "F   File \"/opt/venv/lib/python3.11/site-packages/starlette/_exception_handler.py\", line 42, in wrapped_app"}
+{"TimeStamp": "2025-12-22T17:49:10.5312859+00:00", "Log": "F     await app(scope, receive, sender)"}
+{"TimeStamp": "2025-12-22T17:49:10.531288+00:00", "Log": "F   File \"/opt/venv/lib/python3.11/site-packages/fastapi/routing.py\", line 105, in app"}
+{"TimeStamp": "2025-12-22T17:49:10.5312902+00:00", "Log": "F     response = await f(request)"}
+{"TimeStamp": "2025-12-22T17:49:10.5312925+00:00", "Log": "F                ^^^^^^^^^^^^^^^^"}
+{"TimeStamp": "2025-12-22T17:49:10.5313192+00:00", "Log": "F   File \"/opt/venv/lib/python3.11/site-packages/fastapi/routing.py\", line 426, in app"}
+{"TimeStamp": "2025-12-22T17:49:10.5313235+00:00", "Log": "F     raw_response = await run_endpoint_function("}
+{"TimeStamp": "2025-12-22T17:49:10.5313472+00:00", "Log": "F                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^"}
+{"TimeStamp": "2025-12-22T17:49:10.531351+00:00", "Log": "F   File \"/opt/venv/lib/python3.11/site-packages/fastapi/routing.py\", line 312, in run_endpoint_function"}
+{"TimeStamp": "2025-12-22T17:49:10.5313523+00:00", "Log": "F     return await dependant.call(**values)"}
+{"TimeStamp": "2025-12-22T17:49:10.5313535+00:00", "Log": "F            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^"}
+{"TimeStamp": "2025-12-22T17:49:10.5313547+00:00", "Log": "F   File \"/app/api/v1/auth.py\", line 85, in register"}
+{"TimeStamp": "2025-12-22T17:49:10.5313558+00:00", "Log": "F     await db.commit()"}
+{"TimeStamp": "2025-12-22T17:49:10.5313586+00:00", "Log": "F   File \"/opt/venv/lib/python3.11/site-packages/sqlalchemy/ext/asyncio/session.py\", line 1000, in commit"}
+{"TimeStamp": "2025-12-22T17:49:10.5313598+00:00", "Log": "F     await greenlet_spawn(self.sync_session.commit)"}
+{"TimeStamp": "2025-12-22T17:49:10.531361+00:00", "Log": "F   File \"/opt/venv/lib/python3.11/site-packages/sqlalchemy/util/_concurrency_py3k.py\", line 203, in greenlet_spawn"}
+{"TimeStamp": "2025-12-22T17:49:10.5313622+00:00", "Log": "F     result = context.switch(value)"}
+{"TimeStamp": "2025-12-22T17:49:10.5313634+00:00", "Log": "F              ^^^^^^^^^^^^^^^^^^^^^"}
+{"TimeStamp": "2025-12-22T17:49:10.5313646+00:00", "Log": "F   File \"/opt/venv/lib/python3.11/site-packages/sqlalchemy/orm/session.py\", line 2030, in commit"}
+{"TimeStamp": "2025-12-22T17:49:10.5313658+00:00", "Log": "F     trans.commit(_to_root=True)"}
+{"TimeStamp": "2025-12-22T17:49:10.531367+00:00", "Log": "F   File \"<string>\", line 2, in commit"}
+{"TimeStamp": "2025-12-22T17:49:10.5313681+00:00", "Log": "F   File \"/opt/venv/lib/python3.11/site-packages/sqlalchemy/orm/state_changes.py\", line 137, in _go"}
+{"TimeStamp": "2025-12-22T17:49:10.5313753+00:00", "Log": "F     ret_value = fn(self, *arg, **kw)"}
+{"TimeStamp": "2025-12-22T17:49:10.5313783+00:00", "Log": "F                 ^^^^^^^^^^^^^^^^^^^^"}
+{"TimeStamp": "2025-12-22T17:49:10.5313809+00:00", "Log": "F   File \"/opt/venv/lib/python3.11/site-packages/sqlalchemy/orm/session.py\", line 1311, in commit"}
+{"TimeStamp": "2025-12-22T17:49:10.5313832+00:00", "Log": "F     self._prepare_impl()"}
+{"TimeStamp": "2025-12-22T17:49:10.5313854+00:00", "Log": "F   File \"<string>\", line 2, in _prepare_impl"}
+{"TimeStamp": "2025-12-22T17:49:10.5313876+00:00", "Log": "F   File \"/opt/venv/lib/python3.11/site-packages/sqlalchemy/orm/state_changes.py\", line 137, in _go"}
+{"TimeStamp": "2025-12-22T17:49:10.5313898+00:00", "Log": "F     ret_value = fn(self, *arg, **kw)"}
+{"TimeStamp": "2025-12-22T17:49:10.5313919+00:00", "Log": "F                 ^^^^^^^^^^^^^^^^^^^^"}
+{"TimeStamp": "2025-12-22T17:49:10.531394+00:00", "Log": "F   File \"/opt/venv/lib/python3.11/site-packages/sqlalchemy/orm/session.py\", line 1286, in _prepare_impl"}
+{"TimeStamp": "2025-12-22T17:49:10.5313962+00:00", "Log": "F     self.session.flush()"}
+{"TimeStamp": "2025-12-22T17:49:10.5313983+00:00", "Log": "F   File \"/opt/venv/lib/python3.11/site-packages/sqlalchemy/orm/session.py\", line 4331, in flush"}
+{"TimeStamp": "2025-12-22T17:49:10.5314015+00:00", "Log": "F     self._flush(objects)"}
+{"TimeStamp": "2025-12-22T17:49:10.5314038+00:00", "Log": "F   File \"/opt/venv/lib/python3.11/site-packages/sqlalchemy/orm/session.py\", line 4466, in _flush"}
+{"TimeStamp": "2025-12-22T17:49:10.531406+00:00", "Log": "F     with util.safe_reraise():"}
+{"TimeStamp": "2025-12-22T17:49:10.5314082+00:00", "Log": "F   File \"/opt/venv/lib/python3.11/site-packages/sqlalchemy/util/langhelpers.py\", line 224, in __exit__"}
+{"TimeStamp": "2025-12-22T17:49:10.5314104+00:00", "Log": "F     raise exc_value.with_traceback(exc_tb)"}
+{"TimeStamp": "2025-12-22T17:49:10.5314126+00:00", "Log": "F   File \"/opt/venv/lib/python3.11/site-packages/sqlalchemy/orm/session.py\", line 4427, in _flush"}
+{"TimeStamp": "2025-12-22T17:49:10.5314386+00:00", "Log": "F     flush_context.execute()"}
+{"TimeStamp": "2025-12-22T17:49:10.5314418+00:00", "Log": "F   File \"/opt/venv/lib/python3.11/site-packages/sqlalchemy/orm/unitofwork.py\", line 466, in execute"}
+{"TimeStamp": "2025-12-22T17:49:10.5314441+00:00", "Log": "F     rec.execute(self)"}
+{"TimeStamp": "2025-12-22T17:49:10.531446+00:00", "Log": "F   File \"/opt/venv/lib/python3.11/site-packages/sqlalchemy/orm/unitofwork.py\", line 642, in execute"}
+{"TimeStamp": "2025-12-22T17:49:10.5314479+00:00", "Log": "F     util.preloaded.orm_persistence.save_obj("}
+{"TimeStamp": "2025-12-22T17:49:10.5314511+00:00", "Log": "F   File \"/opt/venv/lib/python3.11/site-packages/sqlalchemy/orm/persistence.py\", line 93, in save_obj"}
+{"TimeStamp": "2025-12-22T17:49:10.531453+00:00", "Log": "F     _emit_insert_statements("}
+{"TimeStamp": "2025-12-22T17:49:10.531455+00:00", "Log": "F   File \"/opt/venv/lib/python3.11/site-packages/sqlalchemy/orm/persistence.py\", line 1233, in _emit_insert_statements"}
+{"TimeStamp": "2025-12-22T17:49:10.531457+00:00", "Log": "F     result = connection.execute("}
+{"TimeStamp": "2025-12-22T17:49:10.5314803+00:00", "Log": "F              ^^^^^^^^^^^^^^^^^^^"}
+{"TimeStamp": "2025-12-22T17:49:10.5314872+00:00", "Log": "F   File \"/opt/venv/lib/python3.11/site-packages/sqlalchemy/engine/base.py\", line 1419, in execute"}
+{"TimeStamp": "2025-12-22T17:49:10.5314893+00:00", "Log": "F     return meth("}
+{"TimeStamp": "2025-12-22T17:49:10.5314915+00:00", "Log": "F            ^^^^^"}
+{"TimeStamp": "2025-12-22T17:49:10.5314936+00:00", "Log": "F   File \"/opt/venv/lib/python3.11/site-packages/sqlalchemy/sql/elements.py\", line 527, in _execute_on_connection"}
+{"TimeStamp": "2025-12-22T17:49:10.5314958+00:00", "Log": "F     return connection._execute_clauseelement("}
+{"TimeStamp": "2025-12-22T17:49:10.5314979+00:00", "Log": "F            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^"}
+{"TimeStamp": "2025-12-22T17:49:10.5315065+00:00", "Log": "F   File \"/opt/venv/lib/python3.11/site-packages/sqlalchemy/engine/base.py\", line 1641, in _execute_clauseelement"}
+{"TimeStamp": "2025-12-22T17:49:10.5315093+00:00", "Log": "F     ret = self._execute_context("}
+{"TimeStamp": "2025-12-22T17:49:10.5315121+00:00", "Log": "F           ^^^^^^^^^^^^^^^^^^^^^^"}
+{"TimeStamp": "2025-12-22T17:49:10.5315142+00:00", "Log": "F   File \"/opt/venv/lib/python3.11/site-packages/sqlalchemy/engine/base.py\", line 1846, in _execute_context"}
+{"TimeStamp": "2025-12-22T17:49:10.5315163+00:00", "Log": "F     return self._exec_single_context("}
+{"TimeStamp": "2025-12-22T17:49:10.5315182+00:00", "Log": "F            ^^^^^^^^^^^^^^^^^^^^^^^^^^"}
+{"TimeStamp": "2025-12-22T17:49:10.5315202+00:00", "Log": "F   File \"/opt/venv/lib/python3.11/site-packages/sqlalchemy/engine/base.py\", line 1986, in _exec_single_context"}
+{"TimeStamp": "2025-12-22T17:49:10.5315237+00:00", "Log": "F     self._handle_dbapi_exception("}
+{"TimeStamp": "2025-12-22T17:49:10.5315258+00:00", "Log": "F   File \"/opt/venv/lib/python3.11/site-packages/sqlalchemy/engine/base.py\", line 2363, in _handle_dbapi_exception"}
+{"TimeStamp": "2025-12-22T17:49:10.5315278+00:00", "Log": "F     raise sqlalchemy_exception.with_traceback(exc_info[2]) from e"}
+{"TimeStamp": "2025-12-22T17:49:10.5315298+00:00", "Log": "F   File \"/opt/venv/lib/python3.11/site-packages/sqlalchemy/engine/base.py\", line 1967, in _exec_single_context"}
+{"TimeStamp": "2025-12-22T17:49:10.5315319+00:00", "Log": "F     self.dialect.do_execute("}
+{"TimeStamp": "2025-12-22T17:49:10.5315339+00:00", "Log": "F   File \"/opt/venv/lib/python3.11/site-packages/sqlalchemy/engine/default.py\", line 952, in do_execute"}
+{"TimeStamp": "2025-12-22T17:49:10.5315359+00:00", "Log": "F     cursor.execute(statement, parameters)"}
+{"TimeStamp": "2025-12-22T17:49:10.531538+00:00", "Log": "F   File \"/opt/venv/lib/python3.11/site-packages/sqlalchemy/dialects/postgresql/asyncpg.py\", line 585, in execute"}
+{"TimeStamp": "2025-12-22T17:49:10.53154+00:00", "Log": "F     self._adapt_connection.await_("}
+{"TimeStamp": "2025-12-22T17:49:10.5315522+00:00", "Log": "F   File \"/opt/venv/lib/python3.11/site-packages/sqlalchemy/util/_concurrency_py3k.py\", line 132, in await_only"}
+{"TimeStamp": "2025-12-22T17:49:10.5315576+00:00", "Log": "F     return current.parent.switch(awaitable)  # type: ignore[no-any-return,attr-defined] # noqa: E501"}
+{"TimeStamp": "2025-12-22T17:49:10.5315782+00:00", "Log": "F            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^"}
+{"TimeStamp": "2025-12-22T17:49:10.5315814+00:00", "Log": "F   File \"/opt/venv/lib/python3.11/site-packages/sqlalchemy/util/_concurrency_py3k.py\", line 196, in greenlet_spawn"}
+{"TimeStamp": "2025-12-22T17:49:10.5315854+00:00", "Log": "F     value = await result"}
+{"TimeStamp": "2025-12-22T17:49:10.5315874+00:00", "Log": "F             ^^^^^^^^^^^^"}
+{"TimeStamp": "2025-12-22T17:49:10.5315894+00:00", "Log": "F   File \"/opt/venv/lib/python3.11/site-packages/sqlalchemy/dialects/postgresql/asyncpg.py\", line 563, in _prepare_and_execute"}
+{"TimeStamp": "2025-12-22T17:49:10.5315917+00:00", "Log": "F     self._handle_exception(error)"}
+{"TimeStamp": "2025-12-22T17:49:10.5315939+00:00", "Log": "F   File \"/opt/venv/lib/python3.11/site-packages/sqlalchemy/dialects/postgresql/asyncpg.py\", line 513, in _handle_exception"}
+{"TimeStamp": "2025-12-22T17:49:10.5315958+00:00", "Log": "F     self._adapt_connection._handle_exception(error)"}
+{"TimeStamp": "2025-12-22T17:49:10.5315976+00:00", "Log": "F   File \"/opt/venv/lib/python3.11/site-packages/sqlalchemy/dialects/postgresql/asyncpg.py\", line 797, in _handle_exception"}
+{"TimeStamp": "2025-12-22T17:49:10.5315999+00:00", "Log": "F     raise translated_error from error"}
+{"TimeStamp": "2025-12-22T17:49:10.5316092+00:00", "Log": "F sqlalchemy.exc.IntegrityError: (sqlalchemy.dialects.postgresql.asyncpg.IntegrityError) <class 'asyncpg.exceptions.NotNullViolationError'>: null value in column \"sms_notifications\" of relation \"users\" violates not-null constraint"}
+{"TimeStamp": "2025-12-22T17:49:10.5316131+00:00", "Log": "F DETAIL:  Failing row contains (f4b14ce0-886f-42ba-84f3-4bbcc6395234, kevin.rabun@gmail.com, kevin.rabun, t, f, f, null, null, 100, 1, 0, 0, 0, 0, 0, 0, 0, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, t, f, t, t, t, system, f, null, null, null, null, t, t, 5, 0, null, 0, 0, 0, 0, null, 2025-12-22 17:49:10.49456+00, 2025-12-22 17:49:10.49456+00, null, null, null, t)."}
+{"TimeStamp": "2025-12-22T17:49:10.5316472+00:00", "Log": "F [SQL: INSERT INTO users (id, email, username, is_active, is_verified, is_admin, avatar_url, bio, total_points, level, current_streak, longest_streak, votes_cast, total_shares, ad_views, ad_clicks, ad_view_streak, last_ad_view_at, age_range, gender, country, state_province, city, region, education_level, employment_status, industry, political_leaning, marital_status, religious_affiliation, ethnicity, household_income, parental_status, housing_status, email_notifications, push_notifications, daily_poll_reminder, show_on_leaderboard, share_anonymous_demographics, theme_preference, email_verified, passkey_only, pulse_poll_notifications, flash_poll_notifications, flash_polls_per_day, flash_polls_notified_today, flash_notification_reset_date, pulse_polls_voted, flash_polls_voted, pulse_poll_streak, longest_pulse_streak, last_pulse_vote_date, last_login_at, last_vote_at, deleted_at) VALUES ($1::UUID, $2::VARCHAR, $3::VARCHAR, $4::BOOLEAN, $5::BOOLEAN, $6::BOOLEAN, $7::VARCHAR, $8::VARCHAR, $9::INTEGER, $10::INTEGER, $11::INTEGER, $12::INTEGER, $13::INTEGER, $14::INTEGER, $15::INTEGER, $16::INTEGER, $17::INTEGER, $18::TIMESTAMP WITH TIME ZONE, $19::VARCHAR, $20::VARCHAR, $21::VARCHAR, $22::VARCHAR, $23::VARCHAR, $24::VARCHAR, $25::VARCHAR, $26::VARCHAR, $27::VARCHAR, $28::VARCHAR, $29::VARCHAR, $30::VARCHAR, $31::VARCHAR, $32::VARCHAR, $33::VARCHAR, $34::VARCHAR, $35::BOOLEAN, $36::BOOLEAN, $37::BOOLEAN, $38::BOOLEAN, $39::BOOLEAN, $40::VARCHAR, $41::BOOLEAN, $42::BOOLEAN, $43::BOOLEAN, $44::BOOLEAN, $45::INTEGER, $46::INTEGER, $47::TIMESTAMP WITH TIME ZONE, $48::INTEGER, $49::INTEGER, $50::INTEGER, $51::INTEGER, $52::TIMESTAMP WITH TIME ZONE, $53::TIMESTAMP WITH TIME ZONE, $54::TIMESTAMP WITH TIME ZONE, $55::TIMESTAMP WITH TIME ZONE) RETURNING users.created_at, users.updated_at]"}
+{"TimeStamp": "2025-12-22T17:49:10.5316755+00:00", "Log": "F [parameters: ('f4b14ce0-886f-42ba-84f3-4bbcc6395234', 'kevin.rabun@gmail.com', 'kevin.rabun', True, False, False, None, None, 100, 1, 0, 0, 0, 0, 0, 0, 0, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, True, False, True, True, True, 'system', False, True, True, True, 5, 0, None, 0, 0, 0, 0, None, None, None, None)]"}
+{"TimeStamp": "2025-12-22T17:49:10.5316794+00:00", "Log": "F (Background on this error at: https://sqlalche.me/e/20/gkpj)"}
+{"TimeStamp": "2025-12-22T17:49:12.4129354+00:00", "Log": "F INFO:     127.0.0.1:53184 - \"GET /health HTTP/1.1\" 200 OK"}
+{"TimeStamp": "2025-12-22T17:49:17.4164692+00:00", "Log": "F INFO:     127.0.0.1:43836 - \"GET /health HTTP/1.1\" 200 OK"}
+{"TimeStamp": "2025-12-22T17:49:17.4184637+00:00", "Log": "F INFO:     127.0.0.1:43840 - \"GET /health HTTP/1.1\" 200 OK"}
+{"TimeStamp": "2025-12-22T17:49:22.4147849+00:00", "Log": "F INFO:     127.0.0.1:43844 - \"GET /health HTTP/1.1\" 200 OK"}
+{"TimeStamp": "2025-12-22T17:49:23.0283867+00:00", "Log": "F 2025-12-22 17:49:23 [debug    ] Running lock cleanup job..."}
+{"TimeStamp": "2025-12-22T17:49:23.028782+00:00", "Log": "F 2025-12-22 17:49:23 [debug    ] Running lock cleanup job..."}
+{"TimeStamp": "2025-12-22T17:49:23.0379412+00:00", "Log": "F 2025-12-22 17:49:23 [debug    ] Running lock cleanup job..."}
+{"TimeStamp": "2025-12-22T17:49:23.0491037+00:00", "Log": "F 2025-12-22 17:49:23 [debug    ] Running lock cleanup job..."}
+{"TimeStamp": "2025-12-22T17:49:27.4125537+00:00", "Log": "F INFO:     127.0.0.1:53906 - \"GET /health HTTP/1.1\" 200 OK"}
+{"TimeStamp": "2025-12-22T17:49:27.4130495+00:00", "Log": "F INFO:     127.0.0.1:53908 - \"GET /health HTTP/1.1\" 200 OK"}
+{"TimeStamp": "2025-12-22T17:49:32.4094325+00:00", "Log": "F INFO:     127.0.0.1:53910 - \"GET /health HTTP/1.1\" 200 OK"}
+{"TimeStamp": "2025-12-22T17:49:37.4123589+00:00", "Log": "F INFO:     127.0.0.1:55626 - \"GET /health HTTP/1.1\" 200 OK"}
+{"TimeStamp": "2025-12-22T17:49:37.4129534+00:00", "Log": "F INFO:     127.0.0.1:55614 - \"GET /health HTTP/1.1\" 200 OK"}
+{"TimeStamp": "2025-12-22T17:49:42.4117363+00:00", "Log": "F INFO:     127.0.0.1:55642 - \"GET /health HTTP/1.1\" 200 OK"}
+{"TimeStamp": "2025-12-22T17:49:47.4117935+00:00", "Log": "F INFO:     127.0.0.1:55554 - \"GET /health HTTP/1.1\" 200 OK"}
+{"TimeStamp": "2025-12-22T17:49:47.4119592+00:00", "Log": "F INFO:     127.0.0.1:55538 - \"GET /health HTTP/1.1\" 200 OK"}
+{"TimeStamp": "2025-12-22T17:49:49.1092083+00:00", "Log": "F INFO:     24.197.113.216:0 - \"GET /api/v1/stats/ HTTP/1.1\" 200 OK"}
+{"TimeStamp": "2025-12-22T17:49:49.1199355+00:00", "Log": "F INFO:     24.197.113.216:0 - \"GET /api/v1/polls/flash/current HTTP/1.1\" 200 OK"}
+{"TimeStamp": "2025-12-22T17:49:49.2155017+00:00", "Log": "F INFO:     24.197.113.216:0 - \"GET /api/v1/polls/pulse/current HTTP/1.1\" 200 OK"}
+{"TimeStamp": "2025-12-22T17:49:49.2731979+00:00", "Log": "F INFO:     24.197.113.216:0 - \"GET /api/v1/polls/flash/previous HTTP/1.1\" 200 OK"}
+{"TimeStamp": "2025-12-22T17:49:52.4093276+00:00", "Log": "F INFO:     127.0.0.1:55594 - \"GET /health HTTP/1.1\" 200 OK"}
+{"TimeStamp": "2025-12-22T17:49:57.4105214+00:00", "Log": "F INFO:     127.0.0.1:45354 - \"GET /health HTTP/1.1\" 200 OK"}
+{"TimeStamp": "2025-12-22T17:49:57.4108765+00:00", "Log": "F INFO:     127.0.0.1:45364 - \"GET /health HTTP/1.1\" 200 OK"}
+{"TimeStamp": "2025-12-22T17:50:02.4088763+00:00", "Log": "F INFO:     127.0.0.1:45366 - \"GET /health HTTP/1.1\" 200 OK"}
+{"TimeStamp": "2025-12-22T17:50:07.4129729+00:00", "Log": "F INFO:     127.0.0.1:60744 - \"GET /health HTTP/1.1\" 200 OK"}
+{"TimeStamp": "2025-12-22T17:50:07.4139025+00:00", "Log": "F INFO:     127.0.0.1:60758 - \"GET /health HTTP/1.1\" 200 OK"}
+{"TimeStamp": "2025-12-22T17:50:12.409903+00:00", "Log": "F INFO:     127.0.0.1:60768 - \"GET /health HTTP/1.1\" 200 OK"}
+{"TimeStamp": "2025-12-22T17:50:17.4103232+00:00", "Log": "F INFO:     127.0.0.1:47516 - \"GET /health HTTP/1.1\" 200 OK"}
+{"TimeStamp": "2025-12-22T17:50:17.4211026+00:00", "Log": "F INFO:     127.0.0.1:47524 - \"GET /health HTTP/1.1\" 200 OK"}
+{"TimeStamp": "2025-12-22T17:50:22.4093674+00:00", "Log": "F INFO:     127.0.0.1:47536 - \"GET /health HTTP/1.1\" 200 OK"}
+{"TimeStamp": "2025-12-22T17:50:28.2985522+00:00", "Log": "F INFO:     127.0.0.1:49416 - \"GET /health HTTP/1.1\" 200 OK"}
+{"TimeStamp": "2025-12-22T17:50:28.2985966+00:00", "Log": "F INFO:     127.0.0.1:49424 - \"GET /health HTTP/1.1\" 200 OK"}
+{"TimeStamp": "2025-12-22T17:50:32.4101342+00:00", "Log": "F INFO:     127.0.0.1:49440 - \"GET /health HTTP/1.1\" 200 OK"}
+{"TimeStamp": "2025-12-22T17:50:37.4112977+00:00", "Log": "F INFO:     127.0.0.1:52532 - \"GET /health HTTP/1.1\" 200 OK"}
+{"TimeStamp": "2025-12-22T17:50:37.4115996+00:00", "Log": "F INFO:     127.0.0.1:52534 - \"GET /health HTTP/1.1\" 200 OK"}
+{"TimeStamp": "2025-12-22T17:50:41.4114479+00:00", "Log": "F INFO:     64.236.134.209:0 - \"GET / HTTP/1.1\" 200 OK"}
+{"TimeStamp": "2025-12-22T17:50:42.4143712+00:00", "Log": "F INFO:     127.0.0.1:52548 - \"GET /health HTTP/1.1\" 200 OK"}
