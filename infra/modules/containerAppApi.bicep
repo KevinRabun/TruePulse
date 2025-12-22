@@ -306,6 +306,10 @@ module containerApp 'br/public:avm/res/app/container-app:0.19.0' = if (!usePlace
             name: 'AZURE_COMMUNICATION_SERVICE_NAME'
             value: communicationServicesName
           }
+          {
+            name: 'AZURE_COMMUNICATION_CONNECTION_STRING'
+            secretRef: 'communication-services-connection-string'
+          }
           // Azure Email Communication Services
           {
             name: 'AZURE_EMAIL_SERVICE_NAME'
@@ -423,6 +427,11 @@ module containerApp 'br/public:avm/res/app/container-app:0.19.0' = if (!usePlace
       {
         name: 'frontend-api-secret'
         keyVaultUrl: '${keyVaultUri}secrets/frontend-api-secret'
+        identity: managedIdentity.id
+      }
+      {
+        name: 'communication-services-connection-string'
+        keyVaultUrl: '${keyVaultUri}secrets/communication-services-connection-string'
         identity: managedIdentity.id
       }
     ]
