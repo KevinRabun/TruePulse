@@ -524,7 +524,7 @@ async def verify_captcha_token(token: str, ip_address: str) -> bool:
     - Free for unlimited use
     - Better UX (invisible option)
     - GDPR compliant
-    
+
     SECURITY NOTE: CAPTCHA is REQUIRED in production. Only development
     environments can bypass CAPTCHA verification when not configured.
     """
@@ -543,7 +543,7 @@ async def verify_captcha_token(token: str, ip_address: str) -> bool:
                 message="CAPTCHA is required in production but TURNSTILE_SECRET_KEY is not set",
             )
             return False
-        
+
         # Allow bypass only in development/test
         logger.warning(
             "captcha_bypassed_in_development",

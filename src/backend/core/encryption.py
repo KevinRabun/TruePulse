@@ -18,13 +18,11 @@ Design Principles:
 
 import base64
 import hashlib
-import os
 import secrets
 from functools import lru_cache
 from typing import Optional
 
 import structlog
-from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
 from core.config import settings

@@ -13,35 +13,8 @@ param budgetStartDate string
 @description('Email addresses to receive budget alerts')
 param contactEmails array
 
-@description('Tags to apply to resources')
-param tags object = {}
-
 @description('Resource group scope (optional - if not provided, uses subscription scope)')
 param resourceGroupScope string = ''
-
-// Budget thresholds - alert at these percentages
-var thresholds = [
-  {
-    name: 'Threshold50'
-    threshold: 50
-    operator: 'GreaterThanOrEqualTo'
-  }
-  {
-    name: 'Threshold80'
-    threshold: 80
-    operator: 'GreaterThanOrEqualTo'
-  }
-  {
-    name: 'Threshold100'
-    threshold: 100
-    operator: 'GreaterThanOrEqualTo'
-  }
-  {
-    name: 'ForecastThreshold100'
-    threshold: 100
-    operator: 'GreaterThanOrEqualTo'
-  }
-]
 
 // Budget resource - subscription scope
 resource budget 'Microsoft.Consumption/budgets@2023-11-01' = {

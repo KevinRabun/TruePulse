@@ -7,10 +7,11 @@ Tests the hourly poll rotation system including:
 - Poll activation and closing
 """
 
-import pytest
-from datetime import datetime, timezone, timedelta
-from unittest.mock import AsyncMock, MagicMock, patch
 import os
+from datetime import datetime, timedelta, timezone
+from unittest.mock import AsyncMock, MagicMock, patch
+
+import pytest
 
 # Set test environment before imports
 os.environ.setdefault("SECRET_KEY", "test-secret-key")
@@ -31,16 +32,16 @@ class TestPollSchedulerWindowCalculations:
     def test_get_current_poll_window_on_hour(self, mock_settings):
         """Test window calculation when time is exactly on the hour."""
         from services.poll_scheduler import PollScheduler
-        
+
         # Mock current time to be exactly 10:00 UTC
         fixed_time = datetime(2024, 1, 15, 10, 0, 0, tzinfo=timezone.utc)
-        
+
         with patch('services.poll_scheduler.datetime') as mock_dt:
             mock_dt.now.return_value = fixed_time
             mock_dt.side_effect = lambda *args, **kw: datetime(*args, **kw)
-            
+
             start, end = PollScheduler.get_current_poll_window()
-            
+
             assert start.hour == 10
             assert start.minute == 0
             assert end.hour == 11
@@ -49,16 +50,16 @@ class TestPollSchedulerWindowCalculations:
     def test_get_current_poll_window_mid_hour(self, mock_settings):
         """Test window calculation when time is mid-hour."""
         from services.poll_scheduler import PollScheduler
-        
+
         # Mock current time to be 10:30 UTC
         fixed_time = datetime(2024, 1, 15, 10, 30, 0, tzinfo=timezone.utc)
-        
+
         with patch('services.poll_scheduler.datetime') as mock_dt:
             mock_dt.now.return_value = fixed_time
             mock_dt.side_effect = lambda *args, **kw: datetime(*args, **kw)
-            
+
             start, end = PollScheduler.get_current_poll_window()
-            
+
             # Should still be in the 10:00-11:00 window
             assert start.hour == 10
             assert end.hour == 11
@@ -66,15 +67,15 @@ class TestPollSchedulerWindowCalculations:
     def test_get_previous_poll_window(self, mock_settings):
         """Test previous window calculation."""
         from services.poll_scheduler import PollScheduler
-        
+
         fixed_time = datetime(2024, 1, 15, 10, 30, 0, tzinfo=timezone.utc)
-        
+
         with patch('services.poll_scheduler.datetime') as mock_dt:
             mock_dt.now.return_value = fixed_time
             mock_dt.side_effect = lambda *args, **kw: datetime(*args, **kw)
-            
+
             start, end = PollScheduler.get_previous_poll_window()
-            
+
             # Previous window should be 9:00-10:00
             assert start.hour == 9
             assert end.hour == 10
@@ -82,15 +83,15 @@ class TestPollSchedulerWindowCalculations:
     def test_get_next_poll_window(self, mock_settings):
         """Test next window calculation."""
         from services.poll_scheduler import PollScheduler
-        
+
         fixed_time = datetime(2024, 1, 15, 10, 30, 0, tzinfo=timezone.utc)
-        
+
         with patch('services.poll_scheduler.datetime') as mock_dt:
             mock_dt.now.return_value = fixed_time
             mock_dt.side_effect = lambda *args, **kw: datetime(*args, **kw)
-            
+
             start, end = PollScheduler.get_next_poll_window()
-            
+
             # Next window should be 11:00-12:00
             assert start.hour == 11
             assert end.hour == 12
@@ -109,16 +110,16 @@ class TestPollSchedulerTwoHourDuration:
     def test_get_current_poll_window_two_hour(self, mock_settings_2h):
         """Test 2-hour window calculation."""
         from services.poll_scheduler import PollScheduler
-        
+
         # Mock current time to be 10:30 UTC
         fixed_time = datetime(2024, 1, 15, 10, 30, 0, tzinfo=timezone.utc)
-        
+
         with patch('services.poll_scheduler.datetime') as mock_dt:
             mock_dt.now.return_value = fixed_time
             mock_dt.side_effect = lambda *args, **kw: datetime(*args, **kw)
-            
+
             start, end = PollScheduler.get_current_poll_window()
-            
+
             # With 2-hour windows, 10:30 is in 10:00-12:00 window
             assert start.hour == 10
             assert end.hour == 12
@@ -126,16 +127,16 @@ class TestPollSchedulerTwoHourDuration:
     def test_get_current_poll_window_odd_hour(self, mock_settings_2h):
         """Test 2-hour window at odd hour."""
         from services.poll_scheduler import PollScheduler
-        
+
         # Mock current time to be 11:30 UTC (odd hour)
         fixed_time = datetime(2024, 1, 15, 11, 30, 0, tzinfo=timezone.utc)
-        
+
         with patch('services.poll_scheduler.datetime') as mock_dt:
             mock_dt.now.return_value = fixed_time
             mock_dt.side_effect = lambda *args, **kw: datetime(*args, **kw)
-            
+
             start, end = PollScheduler.get_current_poll_window()
-            
+
             # With 2-hour windows, 11:30 is still in 10:00-12:00 window
             assert start.hour == 10
             assert end.hour == 12
@@ -165,17 +166,17 @@ class TestPollSchedulerDatabase:
     async def test_get_current_poll_returns_active(self, scheduler, mock_db_session):
         """Test that get_current_poll returns active poll."""
         from models.poll import Poll, PollStatus
-        
+
         mock_poll = MagicMock(spec=Poll)
         mock_poll.id = "poll-123"
         mock_poll.status = PollStatus.ACTIVE
-        
+
         mock_result = MagicMock()
         mock_result.scalar_one_or_none.return_value = mock_poll
         mock_db_session.execute.return_value = mock_result
-        
+
         result = await scheduler.get_current_poll()
-        
+
         assert result is not None
         assert result.id == "poll-123"
 
@@ -185,9 +186,9 @@ class TestPollSchedulerDatabase:
         mock_result = MagicMock()
         mock_result.scalar_one_or_none.return_value = None
         mock_db_session.execute.return_value = mock_result
-        
+
         result = await scheduler.get_current_poll()
-        
+
         assert result is None
 
 
@@ -215,7 +216,7 @@ class TestPollSchedulerPollManagement:
     async def test_close_expired_polls(self, scheduler, mock_db_session):
         """Test that expired polls are closed."""
         from models.poll import Poll, PollStatus
-        
+
         # Create an expired poll
         mock_poll = MagicMock(spec=Poll)
         mock_poll.id = "expired-poll"
@@ -223,22 +224,22 @@ class TestPollSchedulerPollManagement:
         mock_poll.ends_at = datetime.now(timezone.utc) - timedelta(hours=1)
         mock_poll.question = "Test question for expired poll"
         mock_poll.total_votes = 100
-        
+
         # Mock the execute result chain: result.scalars().all()
         mock_scalars_result = MagicMock()
         mock_scalars_result.all.return_value = [mock_poll]
-        
+
         mock_execute_result = MagicMock()
         mock_execute_result.scalars.return_value = mock_scalars_result
-        
+
         # Make execute return an awaitable that resolves to our mock
         async def mock_execute(*args, **kwargs):
             return mock_execute_result
-        
+
         mock_db_session.execute = mock_execute
-        
+
         await scheduler.close_expired_polls()
-        
+
         # Verify status was updated
         assert mock_poll.status == PollStatus.CLOSED.value
         mock_db_session.commit.assert_called()
@@ -250,39 +251,39 @@ class TestPollSchedulerIntegration:
     def test_window_boundaries_are_contiguous(self):
         """Test that poll windows don't have gaps."""
         from services.poll_scheduler import PollScheduler
-        
+
         with patch('services.poll_scheduler.settings') as mock_settings:
             mock_settings.POLL_DURATION_HOURS = 1
-            
+
             fixed_time = datetime(2024, 1, 15, 10, 30, 0, tzinfo=timezone.utc)
-            
+
             with patch('services.poll_scheduler.datetime') as mock_dt:
                 mock_dt.now.return_value = fixed_time
                 mock_dt.side_effect = lambda *args, **kw: datetime(*args, **kw)
-                
+
                 prev_start, prev_end = PollScheduler.get_previous_poll_window()
                 curr_start, curr_end = PollScheduler.get_current_poll_window()
                 next_start, next_end = PollScheduler.get_next_poll_window()
-                
+
                 # Previous end should equal current start
                 assert prev_end == curr_start
-                
+
                 # Current end should equal next start
                 assert curr_end == next_start
 
     def test_windows_have_correct_duration(self):
         """Test that all windows have the correct duration."""
         from services.poll_scheduler import PollScheduler
-        
+
         with patch('services.poll_scheduler.settings') as mock_settings:
             mock_settings.POLL_DURATION_HOURS = 2
-            
+
             fixed_time = datetime(2024, 1, 15, 10, 30, 0, tzinfo=timezone.utc)
-            
+
             with patch('services.poll_scheduler.datetime') as mock_dt:
                 mock_dt.now.return_value = fixed_time
                 mock_dt.side_effect = lambda *args, **kw: datetime(*args, **kw)
-                
+
                 for window_fn in [
                     PollScheduler.get_previous_poll_window,
                     PollScheduler.get_current_poll_window,

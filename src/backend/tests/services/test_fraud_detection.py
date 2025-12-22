@@ -9,23 +9,22 @@ Tests the multi-layered fraud prevention system including:
 - IP intelligence
 """
 
-import pytest
-from datetime import datetime, timezone, timedelta
-from unittest.mock import AsyncMock, MagicMock, patch
 import os
+
+import pytest
 
 # Set test environment before imports
 os.environ.setdefault("SECRET_KEY", "test-secret-key")
 os.environ.setdefault("APP_ENV", "test")
 
 from services.fraud_detection import (
-    DeviceFingerprint,
     BehavioralSignals,
-    RiskLevel,
     ChallengeType,
+    DeviceFingerprint,
     FraudConfig,
-    VoteRiskAssessment,
+    RiskLevel,
     UserReputationScore,
+    VoteRiskAssessment,
 )
 
 
@@ -46,17 +45,17 @@ class TestDeviceFingerprint:
             audio_hash="def456",
             hardware_concurrency=8,
         )
-        
+
         salt = "test-salt"
         fp_id1 = fingerprint.compute_fingerprint_id(salt)
         fp_id2 = fingerprint.compute_fingerprint_id(salt)
-        
+
         # Should be deterministic
         assert fp_id1 == fp_id2
-        
+
         # Should be a hex string
         assert all(c in "0123456789abcdef" for c in fp_id1)
-        
+
         # Should be 64 chars (SHA-256)
         assert len(fp_id1) == 64
 
@@ -69,10 +68,10 @@ class TestDeviceFingerprint:
             language="en-US",
             platform="Win32",
         )
-        
+
         fp_id1 = fingerprint.compute_fingerprint_id("salt1")
         fp_id2 = fingerprint.compute_fingerprint_id("salt2")
-        
+
         assert fp_id1 != fp_id2
 
     def test_fingerprint_id_different_with_different_device(self):
@@ -84,7 +83,7 @@ class TestDeviceFingerprint:
             language="en-US",
             platform="Win32",
         )
-        
+
         fingerprint2 = DeviceFingerprint(
             user_agent="Mozilla/5.0",
             screen_resolution="1366x768",  # Different resolution
@@ -92,7 +91,7 @@ class TestDeviceFingerprint:
             language="en-US",
             platform="Win32",
         )
-        
+
         salt = "test-salt"
         assert fingerprint1.compute_fingerprint_id(salt) != fingerprint2.compute_fingerprint_id(salt)
 
@@ -114,7 +113,7 @@ class TestBehavioralSignals:
             is_touch_device=False,
             js_execution_time_ms=150,
         )
-        
+
         assert signals.page_load_to_vote_ms == 5000
         assert signals.time_on_poll_ms == 3000
         assert signals.changed_choice is True
@@ -139,7 +138,7 @@ class TestUserReputationScore:
             email_verified=True,
             phone_verified=True,
         )
-        
+
         assert reputation.trust_tier == "trusted"
 
     def test_trust_tier_verified(self):
@@ -148,7 +147,7 @@ class TestUserReputationScore:
             user_id="user-1",
             reputation_score=65,
         )
-        
+
         assert reputation.trust_tier == "verified"
 
     def test_trust_tier_standard(self):
@@ -157,7 +156,7 @@ class TestUserReputationScore:
             user_id="user-1",
             reputation_score=45,
         )
-        
+
         assert reputation.trust_tier == "standard"
 
     def test_trust_tier_limited(self):
@@ -166,7 +165,7 @@ class TestUserReputationScore:
             user_id="user-1",
             reputation_score=25,
         )
-        
+
         assert reputation.trust_tier == "limited"
 
     def test_trust_tier_restricted(self):
@@ -175,7 +174,7 @@ class TestUserReputationScore:
             user_id="user-1",
             reputation_score=15,
         )
-        
+
         assert reputation.trust_tier == "restricted"
 
 
@@ -185,7 +184,7 @@ class TestVoteRiskAssessment:
     def test_default_values(self):
         """Test default values for risk assessment."""
         assessment = VoteRiskAssessment()
-        
+
         assert assessment.risk_score == 0
         assert assessment.risk_level == RiskLevel.LOW
         assert assessment.required_challenge == ChallengeType.NONE
@@ -205,7 +204,7 @@ class TestVoteRiskAssessment:
             risk_factors=["vpn_detected", "rapid_voting", "new_account"],
             confidence=0.95,
         )
-        
+
         assert assessment.allow_vote is False
         assert assessment.block_reason == "Suspicious activity detected"
         assert len(assessment.risk_factors) == 3
@@ -219,7 +218,7 @@ class TestVoteRiskAssessment:
             allow_vote=True,
             risk_factors=["new_account", "first_vote"],
         )
-        
+
         assert assessment.allow_vote is True
         assert assessment.required_challenge == ChallengeType.CAPTCHA
 
@@ -243,7 +242,7 @@ class TestFraudConfig:
         # Minute < Hour < Day
         assert FraudConfig.MAX_VOTES_PER_MINUTE < FraudConfig.MAX_VOTES_PER_HOUR
         assert FraudConfig.MAX_VOTES_PER_HOUR < FraudConfig.MAX_VOTES_PER_DAY
-        
+
         # Minute * 60 should not exceed hour (with some buffer)
         assert FraudConfig.MAX_VOTES_PER_MINUTE * 60 > FraudConfig.MAX_VOTES_PER_HOUR
 
