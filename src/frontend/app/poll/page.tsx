@@ -341,7 +341,7 @@ function PollDetailContent() {
                             initial={{ width: 0 }}
                             animate={{ width: `${percentage}%` }}
                             transition={{ duration: 0.5, ease: 'easeOut' }}
-                            className="h-full bg-gradient-to-r from-blue-500 to-blue-600 rounded-full"
+                            className="h-full bg-linear-to-r from-blue-500 to-blue-600 rounded-full"
                           />
                         </div>
                         <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">

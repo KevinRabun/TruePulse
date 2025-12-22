@@ -219,7 +219,7 @@ function SearchableDropdown({
       <div className="relative">
         <div
           onClick={() => !disabled && setIsOpen(!isOpen)}
-          className={`w-full bg-gray-50 dark:bg-slate-900/50 border border-gray-300 dark:border-slate-700 rounded-lg px-4 py-2.5 text-gray-900 dark:text-white cursor-pointer flex items-center justify-between focus:outline-none focus:ring-2 focus:ring-primary-500/50 dark:focus:ring-cyan-500/50 ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+          className={`w-full bg-gray-50 dark:bg-slate-900/50 border border-gray-300 dark:border-slate-700 rounded-lg px-4 py-2.5 text-gray-900 dark:text-white cursor-pointer flex items-center justify-between focus:outline-hidden focus:ring-2 focus:ring-primary-500/50 dark:focus:ring-cyan-500/50 ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
         >
           <span className={value ? 'text-gray-900 dark:text-white' : 'text-gray-500 dark:text-slate-500'}>
             {value ? selectedLabel : placeholder}
@@ -252,7 +252,7 @@ function SearchableDropdown({
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   placeholder="Search..."
-                  className="w-full bg-gray-50 dark:bg-slate-900/50 border border-gray-300 dark:border-slate-600 rounded-lg pl-9 pr-4 py-2 text-sm text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-primary-500/50 dark:focus:ring-cyan-500/50"
+                  className="w-full bg-gray-50 dark:bg-slate-900/50 border border-gray-300 dark:border-slate-600 rounded-lg pl-9 pr-4 py-2 text-sm text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-slate-500 focus:outline-hidden focus:ring-2 focus:ring-primary-500/50 dark:focus:ring-cyan-500/50"
                   autoFocus
                 />
               </div>
@@ -467,7 +467,7 @@ export function DemographicsForm({ onUpdate }: DemographicsFormProps) {
           <select
             value={formData.age_range || ''}
             onChange={(e) => handleChange('age_range', e.target.value)}
-            className="w-full bg-gray-50 dark:bg-slate-900/50 border border-gray-300 dark:border-slate-700 rounded-lg px-4 py-2.5 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500/50 dark:focus:ring-cyan-500/50"
+            className="w-full bg-gray-50 dark:bg-slate-900/50 border border-gray-300 dark:border-slate-700 rounded-lg px-4 py-2.5 text-gray-900 dark:text-white focus:outline-hidden focus:ring-2 focus:ring-primary-500/50 dark:focus:ring-cyan-500/50"
           >
             {AGE_RANGES.map(opt => (
               <option key={opt.value} value={opt.value}>{opt.label}</option>
@@ -486,7 +486,7 @@ export function DemographicsForm({ onUpdate }: DemographicsFormProps) {
           <select
             value={formData.gender || ''}
             onChange={(e) => handleChange('gender', e.target.value)}
-            className="w-full bg-gray-50 dark:bg-slate-900/50 border border-gray-300 dark:border-slate-700 rounded-lg px-4 py-2.5 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500/50 dark:focus:ring-cyan-500/50"
+            className="w-full bg-gray-50 dark:bg-slate-900/50 border border-gray-300 dark:border-slate-700 rounded-lg px-4 py-2.5 text-gray-900 dark:text-white focus:outline-hidden focus:ring-2 focus:ring-primary-500/50 dark:focus:ring-cyan-500/50"
           >
             {GENDERS.map(opt => (
               <option key={opt.value} value={opt.value}>{opt.label}</option>
@@ -540,7 +540,7 @@ export function DemographicsForm({ onUpdate }: DemographicsFormProps) {
           <select
             value={formData.education_level || ''}
             onChange={(e) => handleChange('education_level', e.target.value)}
-            className="w-full bg-gray-50 dark:bg-slate-900/50 border border-gray-300 dark:border-slate-700 rounded-lg px-4 py-2.5 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500/50 dark:focus:ring-cyan-500/50"
+            className="w-full bg-gray-50 dark:bg-slate-900/50 border border-gray-300 dark:border-slate-700 rounded-lg px-4 py-2.5 text-gray-900 dark:text-white focus:outline-hidden focus:ring-2 focus:ring-primary-500/50 dark:focus:ring-cyan-500/50"
           >
             {EDUCATION_LEVELS.map(opt => (
               <option key={opt.value} value={opt.value}>{opt.label}</option>
@@ -559,7 +559,7 @@ export function DemographicsForm({ onUpdate }: DemographicsFormProps) {
           <select
             value={formData.employment_status || ''}
             onChange={(e) => handleChange('employment_status', e.target.value)}
-            className="w-full bg-gray-50 dark:bg-slate-900/50 border border-gray-300 dark:border-slate-700 rounded-lg px-4 py-2.5 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500/50 dark:focus:ring-cyan-500/50"
+            className="w-full bg-gray-50 dark:bg-slate-900/50 border border-gray-300 dark:border-slate-700 rounded-lg px-4 py-2.5 text-gray-900 dark:text-white focus:outline-hidden focus:ring-2 focus:ring-primary-500/50 dark:focus:ring-cyan-500/50"
           >
             {EMPLOYMENT_STATUSES.map(opt => (
               <option key={opt.value} value={opt.value}>{opt.label}</option>
@@ -580,7 +580,7 @@ export function DemographicsForm({ onUpdate }: DemographicsFormProps) {
             value={formData.industry || ''}
             onChange={(e) => handleChange('industry', e.target.value)}
             placeholder="Enter your industry"
-            className="w-full bg-gray-50 dark:bg-slate-900/50 border border-gray-300 dark:border-slate-700 rounded-lg px-4 py-2.5 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-primary-500/50 dark:focus:ring-cyan-500/50"
+            className="w-full bg-gray-50 dark:bg-slate-900/50 border border-gray-300 dark:border-slate-700 rounded-lg px-4 py-2.5 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-slate-500 focus:outline-hidden focus:ring-2 focus:ring-primary-500/50 dark:focus:ring-cyan-500/50"
           />
         </div>
 
@@ -595,7 +595,7 @@ export function DemographicsForm({ onUpdate }: DemographicsFormProps) {
           <select
             value={formData.political_leaning || ''}
             onChange={(e) => handleChange('political_leaning', e.target.value)}
-            className="w-full bg-gray-50 dark:bg-slate-900/50 border border-gray-300 dark:border-slate-700 rounded-lg px-4 py-2.5 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500/50 dark:focus:ring-cyan-500/50"
+            className="w-full bg-gray-50 dark:bg-slate-900/50 border border-gray-300 dark:border-slate-700 rounded-lg px-4 py-2.5 text-gray-900 dark:text-white focus:outline-hidden focus:ring-2 focus:ring-primary-500/50 dark:focus:ring-cyan-500/50"
           >
             {POLITICAL_LEANINGS.map(opt => (
               <option key={opt.value} value={opt.value}>{opt.label}</option>
@@ -614,7 +614,7 @@ export function DemographicsForm({ onUpdate }: DemographicsFormProps) {
           <select
             value={formData.marital_status || ''}
             onChange={(e) => handleChange('marital_status', e.target.value)}
-            className="w-full bg-gray-50 dark:bg-slate-900/50 border border-gray-300 dark:border-slate-700 rounded-lg px-4 py-2.5 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500/50 dark:focus:ring-cyan-500/50"
+            className="w-full bg-gray-50 dark:bg-slate-900/50 border border-gray-300 dark:border-slate-700 rounded-lg px-4 py-2.5 text-gray-900 dark:text-white focus:outline-hidden focus:ring-2 focus:ring-primary-500/50 dark:focus:ring-cyan-500/50"
           >
             {MARITAL_STATUSES.map(opt => (
               <option key={opt.value} value={opt.value}>{opt.label}</option>
@@ -633,7 +633,7 @@ export function DemographicsForm({ onUpdate }: DemographicsFormProps) {
           <select
             value={formData.religious_affiliation || ''}
             onChange={(e) => handleChange('religious_affiliation', e.target.value)}
-            className="w-full bg-gray-50 dark:bg-slate-900/50 border border-gray-300 dark:border-slate-700 rounded-lg px-4 py-2.5 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500/50 dark:focus:ring-cyan-500/50"
+            className="w-full bg-gray-50 dark:bg-slate-900/50 border border-gray-300 dark:border-slate-700 rounded-lg px-4 py-2.5 text-gray-900 dark:text-white focus:outline-hidden focus:ring-2 focus:ring-primary-500/50 dark:focus:ring-cyan-500/50"
           >
             {RELIGIOUS_AFFILIATIONS.map(opt => (
               <option key={opt.value} value={opt.value}>{opt.label}</option>
@@ -652,7 +652,7 @@ export function DemographicsForm({ onUpdate }: DemographicsFormProps) {
           <select
             value={formData.ethnicity || ''}
             onChange={(e) => handleChange('ethnicity', e.target.value)}
-            className="w-full bg-gray-50 dark:bg-slate-900/50 border border-gray-300 dark:border-slate-700 rounded-lg px-4 py-2.5 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500/50 dark:focus:ring-cyan-500/50"
+            className="w-full bg-gray-50 dark:bg-slate-900/50 border border-gray-300 dark:border-slate-700 rounded-lg px-4 py-2.5 text-gray-900 dark:text-white focus:outline-hidden focus:ring-2 focus:ring-primary-500/50 dark:focus:ring-cyan-500/50"
           >
             {ETHNICITIES.map(opt => (
               <option key={opt.value} value={opt.value}>{opt.label}</option>
@@ -671,7 +671,7 @@ export function DemographicsForm({ onUpdate }: DemographicsFormProps) {
           <select
             value={formData.household_income || ''}
             onChange={(e) => handleChange('household_income', e.target.value)}
-            className="w-full bg-gray-50 dark:bg-slate-900/50 border border-gray-300 dark:border-slate-700 rounded-lg px-4 py-2.5 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500/50 dark:focus:ring-cyan-500/50"
+            className="w-full bg-gray-50 dark:bg-slate-900/50 border border-gray-300 dark:border-slate-700 rounded-lg px-4 py-2.5 text-gray-900 dark:text-white focus:outline-hidden focus:ring-2 focus:ring-primary-500/50 dark:focus:ring-cyan-500/50"
           >
             {HOUSEHOLD_INCOMES.map(opt => (
               <option key={opt.value} value={opt.value}>{opt.label}</option>
@@ -690,7 +690,7 @@ export function DemographicsForm({ onUpdate }: DemographicsFormProps) {
           <select
             value={formData.parental_status || ''}
             onChange={(e) => handleChange('parental_status', e.target.value)}
-            className="w-full bg-gray-50 dark:bg-slate-900/50 border border-gray-300 dark:border-slate-700 rounded-lg px-4 py-2.5 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500/50 dark:focus:ring-cyan-500/50"
+            className="w-full bg-gray-50 dark:bg-slate-900/50 border border-gray-300 dark:border-slate-700 rounded-lg px-4 py-2.5 text-gray-900 dark:text-white focus:outline-hidden focus:ring-2 focus:ring-primary-500/50 dark:focus:ring-cyan-500/50"
           >
             {PARENTAL_STATUSES.map(opt => (
               <option key={opt.value} value={opt.value}>{opt.label}</option>
@@ -709,7 +709,7 @@ export function DemographicsForm({ onUpdate }: DemographicsFormProps) {
           <select
             value={formData.housing_status || ''}
             onChange={(e) => handleChange('housing_status', e.target.value)}
-            className="w-full bg-gray-50 dark:bg-slate-900/50 border border-gray-300 dark:border-slate-700 rounded-lg px-4 py-2.5 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500/50 dark:focus:ring-cyan-500/50"
+            className="w-full bg-gray-50 dark:bg-slate-900/50 border border-gray-300 dark:border-slate-700 rounded-lg px-4 py-2.5 text-gray-900 dark:text-white focus:outline-hidden focus:ring-2 focus:ring-primary-500/50 dark:focus:ring-cyan-500/50"
           >
             {HOUSING_STATUSES.map(opt => (
               <option key={opt.value} value={opt.value}>{opt.label}</option>
@@ -720,7 +720,7 @@ export function DemographicsForm({ onUpdate }: DemographicsFormProps) {
         <button
           type="submit"
           disabled={updateMutation.isPending}
-          className="w-full bg-gradient-to-r from-primary-500 to-accent-500 dark:from-cyan-500 dark:to-blue-500 text-white font-medium py-2.5 rounded-lg hover:from-primary-600 hover:to-accent-600 dark:hover:from-cyan-600 dark:hover:to-blue-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+          className="w-full bg-linear-to-r from-primary-500 to-accent-500 dark:from-cyan-500 dark:to-blue-500 text-white font-medium py-2.5 rounded-lg hover:from-primary-600 hover:to-accent-600 dark:hover:from-cyan-600 dark:hover:to-blue-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {updateMutation.isPending ? 'Saving...' : 'Save Demographics'}
         </button>

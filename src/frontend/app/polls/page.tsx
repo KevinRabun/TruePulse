@@ -124,7 +124,7 @@ export default function PollsPage() {
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       {/* Header */}
-      <div className="bg-gradient-to-r from-primary-600 to-primary-700 py-12">
+      <div className="bg-linear-to-r from-primary-600 to-primary-700 py-12">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <h1 className="text-3xl font-bold text-white sm:text-4xl">
             Previous Polls
@@ -152,7 +152,7 @@ export default function PollsPage() {
 
           {/* Category Filter */}
           <div className="flex items-center gap-2 overflow-x-auto pb-2 sm:pb-0">
-            <FunnelIcon className="h-5 w-5 text-gray-500 flex-shrink-0" />
+            <FunnelIcon className="h-5 w-5 text-gray-500 shrink-0" />
             <div className="flex gap-2">
               {categories.map((category) => (
                 <button
@@ -189,7 +189,7 @@ export default function PollsPage() {
               onClick={() => setSelectedPollType('pulse')}
               className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
                 selectedPollType === 'pulse'
-                  ? 'bg-gradient-to-r from-rose-500 to-pink-500 text-white shadow-lg shadow-rose-500/25'
+                  ? 'bg-linear-to-r from-rose-500 to-pink-500 text-white shadow-lg shadow-rose-500/25'
                   : 'bg-rose-100 dark:bg-rose-500/20 text-rose-700 dark:text-rose-400 hover:bg-rose-200 dark:hover:bg-rose-500/30'
               }`}
             >
@@ -200,7 +200,7 @@ export default function PollsPage() {
               onClick={() => setSelectedPollType('flash')}
               className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
                 selectedPollType === 'flash'
-                  ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-lg shadow-amber-500/25'
+                  ? 'bg-linear-to-r from-amber-500 to-orange-500 text-white shadow-lg shadow-amber-500/25'
                   : 'bg-amber-100 dark:bg-amber-500/20 text-amber-700 dark:text-amber-400 hover:bg-amber-200 dark:hover:bg-amber-500/30'
               }`}
             >

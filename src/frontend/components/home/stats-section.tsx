@@ -75,7 +75,7 @@ export function StatsSection() {
   return (
     <section className="relative py-20 overflow-hidden">
       {/* Background with globe pattern */}
-      <div className="absolute inset-0 bg-gradient-to-br from-gray-900 via-primary-950 to-gray-900" />
+      <div className="absolute inset-0 bg-linear-to-br from-gray-900 via-primary-950 to-gray-900" />
       <div className="absolute inset-0 opacity-10" style={{
         backgroundImage: `radial-gradient(circle at 1px 1px, rgba(255,255,255,0.15) 1px, transparent 0)`,
         backgroundSize: '40px 40px'
@@ -102,7 +102,7 @@ export function StatsSection() {
           viewport={{ once: true }}
         >
           <h2 className="text-3xl font-bold text-white sm:text-4xl">
-            A Truly <span className="bg-gradient-to-r from-primary-400 to-trust-400 bg-clip-text text-transparent">Global</span> Community
+            A Truly <span className="bg-linear-to-r from-primary-400 to-trust-400 bg-clip-text text-transparent">Global</span> Community
           </h2>
           <p className="mt-4 text-lg text-gray-400 max-w-2xl mx-auto">
             Voices from every corner of the world, united in shaping the conversation that matters.
@@ -120,9 +120,9 @@ export function StatsSection() {
               viewport={{ once: true }}
               className="relative group"
             >
-              <div className="relative bg-white/5 backdrop-blur-sm rounded-2xl p-6 border border-white/10 hover:border-white/20 transition-all hover:bg-white/10">
+              <div className="relative bg-white/5 backdrop-blur-xs rounded-2xl p-6 border border-white/10 hover:border-white/20 transition-all hover:bg-white/10">
                 {/* Icon */}
-                <div className={`inline-flex p-3 rounded-xl bg-gradient-to-br ${stat.color} shadow-lg mb-4`}>
+                <div className={`inline-flex p-3 rounded-xl bg-linear-to-br ${stat.color} shadow-lg mb-4`}>
                   <stat.icon className="h-6 w-6 text-white" />
                 </div>
                 
@@ -135,7 +135,7 @@ export function StatsSection() {
                   >
                     {stat.value}
                   </motion.span>
-                  <span className={`bg-gradient-to-r ${stat.color} bg-clip-text text-transparent`}>{stat.suffix}</span>
+                  <span className={`bg-linear-to-r ${stat.color} bg-clip-text text-transparent`}>{stat.suffix}</span>
                 </div>
                 
                 {/* Label */}

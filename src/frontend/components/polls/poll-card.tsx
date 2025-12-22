@@ -39,7 +39,7 @@ function PollTypeBadge({ pollType }: { pollType?: string }) {
   
   if (pollType === 'pulse') {
     return (
-      <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-bold bg-gradient-to-r from-rose-500 to-pink-500 text-white shadow-lg shadow-rose-500/25">
+      <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-bold bg-linear-to-r from-rose-500 to-pink-500 text-white shadow-lg shadow-rose-500/25">
         <Heart className="h-4 w-4 fill-current" />
         Pulse Poll
       </span>
@@ -48,7 +48,7 @@ function PollTypeBadge({ pollType }: { pollType?: string }) {
   
   if (pollType === 'flash') {
     return (
-      <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-bold bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-lg shadow-amber-500/25 animate-pulse">
+      <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-bold bg-linear-to-r from-amber-500 to-orange-500 text-white shadow-lg shadow-amber-500/25 animate-pulse">
         <Zap className="h-4 w-4 fill-current" />
         Flash Poll
       </span>
@@ -64,13 +64,13 @@ function PollTypeHeader({ pollType }: { pollType?: string }) {
   
   if (pollType === 'pulse') {
     return (
-      <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-rose-500 via-pink-500 to-rose-500 rounded-t-2xl" />
+      <div className="absolute top-0 left-0 right-0 h-1.5 bg-linear-to-r from-rose-500 via-pink-500 to-rose-500 rounded-t-2xl" />
     );
   }
   
   if (pollType === 'flash') {
     return (
-      <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-amber-500 via-orange-500 to-amber-500 rounded-t-2xl animate-pulse" />
+      <div className="absolute top-0 left-0 right-0 h-1.5 bg-linear-to-r from-amber-500 via-orange-500 to-amber-500 rounded-t-2xl animate-pulse" />
     );
   }
   
@@ -202,7 +202,7 @@ export function PollCard({ poll, showVoteButton = true }: PollCardProps) {
         <PollTypeHeader pollType={poll.pollType} />
         
         {/* Subtle gradient overlay on hover */}
-        <div className="absolute inset-0 bg-gradient-to-br from-primary-500/0 to-accent-500/0 group-hover:from-primary-500/5 group-hover:to-accent-500/5 transition-all duration-300 rounded-2xl pointer-events-none" />
+        <div className="absolute inset-0 bg-linear-to-br from-primary-500/0 to-accent-500/0 group-hover:from-primary-500/5 group-hover:to-accent-500/5 transition-all duration-300 rounded-2xl pointer-events-none" />
         
         {/* Header */}
         <div className="relative flex items-start justify-between mb-4">
@@ -301,7 +301,7 @@ export function PollCard({ poll, showVoteButton = true }: PollCardProps) {
                     initial={{ width: 0 }}
                     animate={{ width: `${choice.votePercentage}%` }}
                     transition={{ duration: 0.8, ease: 'easeOut', delay: 0.2 }}
-                    className="absolute bottom-0 left-0 h-1.5 bg-gradient-to-r from-primary-500 to-primary-400 rounded-b-xl"
+                    className="absolute bottom-0 left-0 h-1.5 bg-linear-to-r from-primary-500 to-primary-400 rounded-b-xl"
                   />
                 )}
               </motion.div>
@@ -361,7 +361,7 @@ export function PollCard({ poll, showVoteButton = true }: PollCardProps) {
           {showVoteButton && !isAuthenticated && !isPollClosed && (
             <Link
               href="/login"
-              className="inline-flex items-center px-4 py-2.5 border border-transparent text-sm font-medium rounded-xl text-white bg-gradient-to-r from-primary-600 to-primary-700 hover:from-primary-700 hover:to-primary-800 shadow-md hover:shadow-lg transition-all"
+              className="inline-flex items-center px-4 py-2.5 border border-transparent text-sm font-medium rounded-xl text-white bg-linear-to-r from-primary-600 to-primary-700 hover:from-primary-700 hover:to-primary-800 shadow-md hover:shadow-lg transition-all"
             >
               <Lock className="mr-1.5 h-4 w-4" />
               Sign in to vote
@@ -373,7 +373,7 @@ export function PollCard({ poll, showVoteButton = true }: PollCardProps) {
             <motion.button
               onClick={handleVote}
               disabled={!selectedChoice || isSubmitting}
-              className="inline-flex items-center px-5 py-2.5 border border-transparent text-sm font-medium rounded-xl text-white bg-gradient-to-r from-primary-600 to-primary-700 hover:from-primary-700 hover:to-primary-800 disabled:from-gray-400 disabled:to-gray-500 disabled:cursor-not-allowed shadow-md hover:shadow-lg transition-all"
+              className="inline-flex items-center px-5 py-2.5 border border-transparent text-sm font-medium rounded-xl text-white bg-linear-to-r from-primary-600 to-primary-700 hover:from-primary-700 hover:to-primary-800 disabled:from-gray-400 disabled:to-gray-500 disabled:cursor-not-allowed shadow-md hover:shadow-lg transition-all"
               whileHover={selectedChoice ? { scale: 1.02 } : {}}
               whileTap={selectedChoice ? { scale: 0.98 } : {}}
             >

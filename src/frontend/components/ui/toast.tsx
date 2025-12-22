@@ -79,10 +79,10 @@ function ToastItem({ toast, onRemove }: { toast: Toast; onRemove: () => void }) 
       animate={{ opacity: 1, y: 0, scale: 1 }}
       exit={{ opacity: 0, y: -20, scale: 0.95 }}
       transition={{ duration: 0.2 }}
-      className={`${styles.bg} ${styles.border} border rounded-xl p-4 shadow-lg backdrop-blur-sm min-w-[300px] max-w-[400px]`}
+      className={`${styles.bg} ${styles.border} border rounded-xl p-4 shadow-lg backdrop-blur-xs min-w-[300px] max-w-[400px]`}
     >
       <div className="flex items-start gap-3">
-        <Icon className={`h-5 w-5 ${styles.icon} flex-shrink-0 mt-0.5`} />
+        <Icon className={`h-5 w-5 ${styles.icon} shrink-0 mt-0.5`} />
         <div className="flex-1 min-w-0">
           <p className="text-white font-medium">{toast.title}</p>
           {toast.message && (
@@ -91,7 +91,7 @@ function ToastItem({ toast, onRemove }: { toast: Toast; onRemove: () => void }) 
         </div>
         <button
           onClick={onRemove}
-          className="text-slate-400 hover:text-white transition-colors flex-shrink-0"
+          className="text-slate-400 hover:text-white transition-colors shrink-0"
         >
           <XMarkIcon className="h-5 w-5" />
         </button>
@@ -156,7 +156,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     >
       {children}
       {/* Toast Container */}
-      <div className="fixed top-4 right-4 z-[100] flex flex-col gap-2">
+      <div className="fixed top-4 right-4 z-100 flex flex-col gap-2">
         <AnimatePresence mode="sync">
           {toasts.map((toast) => (
             <ToastItem

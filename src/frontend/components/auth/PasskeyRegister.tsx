@@ -93,7 +93,7 @@ export function PasskeyRegister({
     return (
       <div className={`p-4 bg-amber-50 dark:bg-amber-900/20 rounded-lg ${className}`}>
         <div className="flex items-start gap-3">
-          <AlertCircle className="h-5 w-5 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
+          <AlertCircle className="h-5 w-5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
           <div>
             <p className="text-sm text-amber-800 dark:text-amber-200">
               Your browser doesn&apos;t support passkeys. Please use a modern browser
@@ -117,7 +117,7 @@ export function PasskeyRegister({
   return (
     <div className={`space-y-6 ${className}`}>
       {/* Benefits section */}
-      <div className="bg-gradient-to-br from-indigo-50 to-purple-50 dark:from-indigo-900/20 dark:to-purple-900/20 rounded-xl p-5">
+      <div className="bg-linear-to-br from-indigo-50 to-purple-50 dark:from-indigo-900/20 dark:to-purple-900/20 rounded-xl p-5">
         <div className="flex items-center gap-3 mb-4">
           <div className="p-2 bg-indigo-100 dark:bg-indigo-800 rounded-lg">
             <Shield className="h-6 w-6 text-indigo-600 dark:text-indigo-400" />
@@ -130,19 +130,19 @@ export function PasskeyRegister({
         </div>
         <ul className="space-y-2 text-sm text-gray-700 dark:text-gray-300">
           <li className="flex items-start gap-2">
-            <CheckCircle className="h-4 w-4 text-green-500 mt-0.5 flex-shrink-0" />
+            <CheckCircle className="h-4 w-4 text-green-500 mt-0.5 shrink-0" />
             <span>
               <strong>Phishing-proof:</strong> Passkeys can&apos;t be stolen by fake websites
             </span>
           </li>
           <li className="flex items-start gap-2">
-            <CheckCircle className="h-4 w-4 text-green-500 mt-0.5 flex-shrink-0" />
+            <CheckCircle className="h-4 w-4 text-green-500 mt-0.5 shrink-0" />
             <span>
               <strong>No passwords:</strong> Sign in with Face ID, Touch ID, or Windows Hello
             </span>
           </li>
           <li className="flex items-start gap-2">
-            <CheckCircle className="h-4 w-4 text-green-500 mt-0.5 flex-shrink-0" />
+            <CheckCircle className="h-4 w-4 text-green-500 mt-0.5 shrink-0" />
             <span>
               <strong>Synced:</strong> Works across your devices via iCloud, Google, or Microsoft
             </span>
@@ -196,7 +196,7 @@ export function PasskeyRegister({
             type="button"
             onClick={handleRegister}
             disabled={isLoading}
-            className="w-full flex items-center justify-center gap-2 py-3 px-4 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-lg font-medium hover:from-indigo-700 hover:to-purple-700 shadow-lg hover:shadow-xl transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full flex items-center justify-center gap-2 py-3 px-4 bg-linear-to-r from-indigo-600 to-purple-600 text-white rounded-lg font-medium hover:from-indigo-700 hover:to-purple-700 shadow-lg hover:shadow-xl transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
           >
@@ -226,7 +226,7 @@ export function PasskeyRegister({
           animate={{ opacity: 1, y: 0 }}
           className="flex items-start gap-2 p-3 bg-red-50 dark:bg-red-900/20 rounded-lg"
         >
-          <AlertCircle className="h-5 w-5 text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5" />
+          <AlertCircle className="h-5 w-5 text-red-600 dark:text-red-400 shrink-0 mt-0.5" />
           <p className="text-sm text-red-700 dark:text-red-300">{errorMessage}</p>
         </motion.div>
       )}

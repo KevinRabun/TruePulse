@@ -51,7 +51,7 @@ export function NativeAd({ placement, className = '' }: NativeAdProps) {
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       onClick={handleClick}
-      className={`bg-gradient-to-br from-gray-50 to-gray-100 dark:from-slate-800/50 dark:to-slate-700/50 rounded-xl border border-gray-200 dark:border-slate-600/50 p-6 cursor-pointer hover:shadow-md transition-shadow ${className}`}
+      className={`bg-linear-to-br from-gray-50 to-gray-100 dark:from-slate-800/50 dark:to-slate-700/50 rounded-xl border border-gray-200 dark:border-slate-600/50 p-6 cursor-pointer hover:shadow-md transition-shadow ${className}`}
     >
       {/* Sponsored Label */}
       <div className="flex items-center gap-2 mb-3">
@@ -64,7 +64,7 @@ export function NativeAd({ placement, className = '' }: NativeAdProps) {
       {/* Ad Content Placeholder */}
       <div className="flex items-start gap-4">
         {/* Image Placeholder */}
-        <div className="w-16 h-16 rounded-lg bg-gradient-to-br from-primary-100 to-accent-100 dark:from-purple-900/30 dark:to-cyan-900/30 flex items-center justify-center flex-shrink-0">
+        <div className="w-16 h-16 rounded-lg bg-linear-to-br from-primary-100 to-accent-100 dark:from-purple-900/30 dark:to-cyan-900/30 flex items-center justify-center shrink-0">
           <SparklesIcon className="h-8 w-8 text-primary-400 dark:text-purple-400" />
         </div>
 
@@ -135,7 +135,7 @@ export function CompactNativeAd({ placement, className = '' }: NativeAdProps) {
       onClick={handleClick}
       className={`flex items-center gap-3 p-3 bg-gray-50 dark:bg-slate-800/30 rounded-lg border border-gray-200 dark:border-slate-700/50 cursor-pointer hover:bg-gray-100 dark:hover:bg-slate-700/50 transition-colors ${className}`}
     >
-      <SparklesIcon className="h-5 w-5 text-amber-500 flex-shrink-0" />
+      <SparklesIcon className="h-5 w-5 text-amber-500 shrink-0" />
       <div className="flex-1 min-w-0">
         <span className="text-xs text-gray-500 dark:text-slate-400">
           <span className="font-medium">Sponsored</span> · Partner with TruePulse

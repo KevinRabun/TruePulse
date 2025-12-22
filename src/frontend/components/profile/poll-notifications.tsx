@@ -87,7 +87,7 @@ export function PollNotifications({ onUpdate }: PollNotificationsProps) {
 
       <div className="space-y-4">
         {/* Pulse Poll Notifications */}
-        <div className="flex items-center justify-between p-4 bg-gradient-to-r from-rose-50 to-pink-50 dark:from-rose-500/10 dark:to-pink-500/10 rounded-lg border border-rose-200 dark:border-rose-500/30">
+        <div className="flex items-center justify-between p-4 bg-linear-to-r from-rose-50 to-pink-50 dark:from-rose-500/10 dark:to-pink-500/10 rounded-lg border border-rose-200 dark:border-rose-500/30">
           <div className="flex items-center gap-3">
             <HeartIcon className="h-5 w-5 text-rose-500 dark:text-rose-400" />
             <div>
@@ -110,7 +110,7 @@ export function PollNotifications({ onUpdate }: PollNotificationsProps) {
             }`}
           >
             <motion.div
-              className="absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow"
+              className="absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow-sm"
               animate={{ x: pulseNotifications ? 24 : 0 }}
               transition={{ type: 'spring', stiffness: 500, damping: 30 }}
             />
@@ -118,7 +118,7 @@ export function PollNotifications({ onUpdate }: PollNotificationsProps) {
         </div>
 
         {/* Flash Poll Notifications */}
-        <div className="p-4 bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-500/10 dark:to-orange-500/10 rounded-lg border border-amber-200 dark:border-amber-500/30">
+        <div className="p-4 bg-linear-to-r from-amber-50 to-orange-50 dark:from-amber-500/10 dark:to-orange-500/10 rounded-lg border border-amber-200 dark:border-amber-500/30">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-3">
               <BoltIcon className="h-5 w-5 text-amber-500 dark:text-amber-400" />
@@ -142,7 +142,7 @@ export function PollNotifications({ onUpdate }: PollNotificationsProps) {
               }`}
             >
               <motion.div
-                className="absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow"
+                className="absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow-sm"
                 animate={{ x: flashNotifications ? 24 : 0 }}
                 transition={{ type: 'spring', stiffness: 500, damping: 30 }}
               />

@@ -110,7 +110,7 @@ export function PasskeyManagement({ className = "", onUpdate }: PasskeyManagemen
     return (
       <div className={`p-4 bg-amber-50 dark:bg-amber-900/20 rounded-lg ${className}`}>
         <div className="flex items-start gap-3">
-          <AlertCircle className="h-5 w-5 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
+          <AlertCircle className="h-5 w-5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
           <p className="text-sm text-amber-800 dark:text-amber-200">
             Your browser doesn&apos;t support passkeys. Please use a modern browser to
             manage passkey authentication.
@@ -170,7 +170,7 @@ export function PasskeyManagement({ className = "", onUpdate }: PasskeyManagemen
       {/* Error state */}
       {error && (
         <div className="flex items-start gap-2 p-3 bg-red-50 dark:bg-red-900/20 rounded-lg">
-          <AlertCircle className="h-5 w-5 text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5" />
+          <AlertCircle className="h-5 w-5 text-red-600 dark:text-red-400 shrink-0 mt-0.5" />
           <p className="text-sm text-red-700 dark:text-red-300">{error}</p>
         </div>
       )}
@@ -182,7 +182,7 @@ export function PasskeyManagement({ className = "", onUpdate }: PasskeyManagemen
           animate={{ opacity: 1, y: 0 }}
           className="flex items-start gap-2 p-3 bg-red-50 dark:bg-red-900/20 rounded-lg"
         >
-          <AlertCircle className="h-5 w-5 text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5" />
+          <AlertCircle className="h-5 w-5 text-red-600 dark:text-red-400 shrink-0 mt-0.5" />
           <p className="text-sm text-red-700 dark:text-red-300">{deleteError}</p>
         </motion.div>
       )}
@@ -294,7 +294,7 @@ export function PasskeyManagement({ className = "", onUpdate }: PasskeyManagemen
           </p>
           <button
             onClick={() => setShowRegister(true)}
-            className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-lg font-medium hover:from-indigo-700 hover:to-purple-700 transition-all"
+            className="inline-flex items-center gap-2 px-6 py-3 bg-linear-to-r from-indigo-600 to-purple-600 text-white rounded-lg font-medium hover:from-indigo-700 hover:to-purple-700 transition-all"
           >
             <Plus className="h-5 w-5" />
             Add Your First Passkey

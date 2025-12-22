@@ -85,7 +85,7 @@ export function VerificationBanner({
       className={`rounded-lg border border-amber-200 bg-amber-50 p-4 ${className}`}
     >
       <div className="flex items-start gap-3">
-        <div className="flex-shrink-0">
+        <div className="shrink-0">
           <svg
             className="h-6 w-6 text-amber-500"
             fill="none"

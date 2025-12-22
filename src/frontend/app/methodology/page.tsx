@@ -121,7 +121,7 @@ export default function MethodologyPage() {
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       {/* Hero Section */}
-      <div className="bg-gradient-to-r from-primary-600 to-primary-700 py-16 sm:py-24">
+      <div className="bg-linear-to-r from-primary-600 to-primary-700 py-16 sm:py-24">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 text-center">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -418,7 +418,7 @@ export default function MethodologyPage() {
           <div className="mt-8">
             <Link
               href="/polls"
-              className="inline-flex items-center px-8 py-4 border border-transparent text-lg font-medium rounded-lg shadow-sm text-primary-600 bg-white hover:bg-gray-100 transition-colors"
+              className="inline-flex items-center px-8 py-4 border border-transparent text-lg font-medium rounded-lg shadow-xs text-primary-600 bg-white hover:bg-gray-100 transition-colors"
             >
               Browse Current Polls
             </Link>

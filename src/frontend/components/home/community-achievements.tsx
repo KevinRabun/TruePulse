@@ -35,7 +35,7 @@ export function CommunityAchievements({ showCompleted = true }: CommunityAchieve
   return (
     <div className="bg-white dark:bg-slate-800/50 rounded-2xl border border-gray-200 dark:border-slate-700/50 overflow-hidden">
       {/* Header */}
-      <div className="p-6 bg-gradient-to-r from-purple-500/10 to-blue-500/10 border-b border-gray-200 dark:border-slate-700/50">
+      <div className="p-6 bg-linear-to-r from-purple-500/10 to-blue-500/10 border-b border-gray-200 dark:border-slate-700/50">
         <div className="flex items-center gap-3">
           <div className="p-2 bg-purple-500/20 rounded-lg">
             <UsersIcon className="h-6 w-6 text-purple-500" />
@@ -139,7 +139,7 @@ function ActiveAchievementCard({
     <motion.div
       initial={{ opacity: 0, scale: 0.95 }}
       animate={{ opacity: 1, scale: 1 }}
-      className="p-4 bg-gradient-to-r from-purple-50 to-blue-50 dark:from-purple-500/10 dark:to-blue-500/10 rounded-xl border border-purple-200 dark:border-purple-500/30"
+      className="p-4 bg-linear-to-r from-purple-50 to-blue-50 dark:from-purple-500/10 dark:to-blue-500/10 rounded-xl border border-purple-200 dark:border-purple-500/30"
     >
       <div className="flex items-start gap-3">
         <span className="text-3xl">{ach.icon}</span>
@@ -161,7 +161,7 @@ function ActiveAchievementCard({
           {/* Progress bar */}
           <div className="relative h-3 bg-gray-200 dark:bg-slate-700 rounded-full overflow-hidden mb-2">
             <motion.div
-              className="absolute inset-y-0 left-0 bg-gradient-to-r from-purple-500 to-blue-500 rounded-full"
+              className="absolute inset-y-0 left-0 bg-linear-to-r from-purple-500 to-blue-500 rounded-full"
               initial={{ width: 0 }}
               animate={{ width: `${Math.min(100, progress_percentage)}%` }}
               transition={{ duration: 1, ease: 'easeOut' }}
@@ -223,7 +223,7 @@ function CompletedAchievementCard({
       animate={{ opacity: 1, scale: 1 }}
       className={`p-4 rounded-xl border ${
         event.user_earned_badge
-          ? 'bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-500/10 dark:to-emerald-500/10 border-green-200 dark:border-green-500/30'
+          ? 'bg-linear-to-r from-green-50 to-emerald-50 dark:from-green-500/10 dark:to-emerald-500/10 border-green-200 dark:border-green-500/30'
           : 'bg-gray-50 dark:bg-slate-800 border-gray-200 dark:border-slate-700/50'
       }`}
     >
@@ -310,7 +310,7 @@ export function CommunityAchievementsWidget() {
   }
 
   return (
-    <div className="bg-gradient-to-r from-purple-500/10 to-blue-500/10 dark:from-purple-500/20 dark:to-blue-500/20 rounded-xl p-4 border border-purple-200 dark:border-purple-500/30">
+    <div className="bg-linear-to-r from-purple-500/10 to-blue-500/10 dark:from-purple-500/20 dark:to-blue-500/20 rounded-xl p-4 border border-purple-200 dark:border-purple-500/30">
       <div className="flex items-center gap-2 mb-3">
         <UsersIcon className="h-5 w-5 text-purple-500" />
         <span className="text-sm font-semibold text-purple-700 dark:text-purple-300">
@@ -325,7 +325,7 @@ export function CommunityAchievementsWidget() {
       </div>
       <div className="relative h-2 bg-purple-200 dark:bg-purple-900/50 rounded-full overflow-hidden">
         <motion.div
-          className="absolute inset-y-0 left-0 bg-gradient-to-r from-purple-500 to-blue-500 rounded-full"
+          className="absolute inset-y-0 left-0 bg-linear-to-r from-purple-500 to-blue-500 rounded-full"
           initial={{ width: 0 }}
           animate={{ width: `${Math.min(100, topAchievement.progress_percentage)}%` }}
           transition={{ duration: 1, ease: 'easeOut' }}

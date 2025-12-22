@@ -79,7 +79,7 @@ export default function SecurityPage() {
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       {/* Hero Section */}
-      <div className="bg-gradient-to-r from-gray-900 to-gray-800 py-16 sm:py-24">
+      <div className="bg-linear-to-r from-gray-900 to-gray-800 py-16 sm:py-24">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 text-center">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -167,7 +167,7 @@ export default function SecurityPage() {
                   'Network isolation and private endpoints',
                 ].map((item) => (
                   <li key={item} className="flex items-start gap-3">
-                    <ShieldCheckIcon className="h-6 w-6 text-green-500 flex-shrink-0" />
+                    <ShieldCheckIcon className="h-6 w-6 text-green-500 shrink-0" />
                     <span className="text-gray-600 dark:text-gray-400">{item}</span>
                   </li>
                 ))}
@@ -275,7 +275,7 @@ export default function SecurityPage() {
               <div className="mt-8">
                 <a
                   href="https://github.com/KevinRabun/TruePulse/security/advisories/new"
-                  className="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-lg shadow-sm text-white bg-primary-600 hover:bg-primary-700 transition-colors"
+                  className="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-lg shadow-xs text-white bg-primary-600 hover:bg-primary-700 transition-colors"
                 >
                   Report a Vulnerability
                   <EnvelopeIcon className="ml-2 h-5 w-5" />
@@ -318,7 +318,7 @@ export default function SecurityPage() {
           <div className="mt-8 flex flex-col sm:flex-row gap-4 justify-center">
             <a
               href="https://github.com/KevinRabun/TruePulse/security/advisories/new"
-              className="inline-flex items-center justify-center px-6 py-3 border border-transparent text-base font-medium rounded-lg shadow-sm text-white bg-primary-600 hover:bg-primary-700 transition-colors"
+              className="inline-flex items-center justify-center px-6 py-3 border border-transparent text-base font-medium rounded-lg shadow-xs text-white bg-primary-600 hover:bg-primary-700 transition-colors"
             >
               Report Security Issue
             </a>

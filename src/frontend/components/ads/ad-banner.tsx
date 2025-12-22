@@ -91,7 +91,7 @@ export function AdBanner({
       {/* Ad Container - Placeholder for real ad content */}
       <div 
         onClick={handleClick}
-        className={`${sizeConfig.className} mx-auto bg-gradient-to-br from-gray-100 to-gray-200 dark:from-slate-800 dark:to-slate-700 rounded-lg border border-gray-200 dark:border-slate-600 flex items-center justify-center cursor-pointer hover:opacity-90 transition-opacity relative overflow-hidden group`}
+        className={`${sizeConfig.className} mx-auto bg-linear-to-br from-gray-100 to-gray-200 dark:from-slate-800 dark:to-slate-700 rounded-lg border border-gray-200 dark:border-slate-600 flex items-center justify-center cursor-pointer hover:opacity-90 transition-opacity relative overflow-hidden group`}
       >
         {/* Sponsor Indicator */}
         <div className="absolute top-1 left-1 px-1.5 py-0.5 bg-gray-500/20 dark:bg-slate-500/30 rounded text-[10px] text-gray-500 dark:text-slate-400 font-medium">
@@ -124,7 +124,7 @@ export function AdBanner({
         </div>
 
         {/* Hover Effect */}
-        <div className="absolute inset-0 bg-gradient-to-r from-primary-500/0 via-primary-500/5 to-accent-500/0 opacity-0 group-hover:opacity-100 transition-opacity" />
+        <div className="absolute inset-0 bg-linear-to-r from-primary-500/0 via-primary-500/5 to-accent-500/0 opacity-0 group-hover:opacity-100 transition-opacity" />
       </div>
 
       {/* Support Message */}

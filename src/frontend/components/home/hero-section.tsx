@@ -58,11 +58,11 @@ export function HeroSection() {
     fetchStats();
   }, []);
   return (
-    <section className="relative bg-gradient-to-br from-primary-600 via-primary-700 to-primary-800 overflow-hidden">
+    <section className="relative bg-linear-to-br from-primary-600 via-primary-700 to-primary-800 overflow-hidden">
       {/* Animated background elements */}
       <div className="absolute inset-0">
         {/* Grid pattern */}
-        <div className="absolute inset-0 bg-grid-white/[0.03] bg-[size:60px_60px]" />
+        <div className="absolute inset-0 bg-grid-white/[0.03] bg-size-[60px_60px]" />
         
         {/* Floating orbs for depth */}
         <motion.div
@@ -108,7 +108,7 @@ export function HeroSection() {
               className="text-4xl font-bold tracking-tight text-white sm:text-5xl lg:text-6xl"
             >
               The World&apos;s Voice.{' '}
-              <span className="bg-gradient-to-r from-trust-300 to-primary-200 bg-clip-text text-transparent">
+              <span className="bg-linear-to-r from-trust-300 to-primary-200 bg-clip-text text-transparent">
                 United.
               </span>
             </motion.h1>
@@ -134,7 +134,7 @@ export function HeroSection() {
             >
               <Link
                 href={isAuthenticated ? "/polls" : "/register"}
-                className="group relative inline-flex items-center gap-2 rounded-xl bg-white px-8 py-4 text-lg font-semibold text-primary-600 shadow-lg hover:shadow-xl hover:bg-primary-50 focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-primary-600 transition-all duration-300"
+                className="group relative inline-flex items-center gap-2 rounded-xl bg-white px-8 py-4 text-lg font-semibold text-primary-600 shadow-lg hover:shadow-xl hover:bg-primary-50 focus:outline-hidden focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-primary-600 transition-all duration-300"
               >
                 <span>{isAuthenticated ? "Vote Now" : "Add Your Voice"}</span>
                 <motion.span
@@ -146,7 +146,7 @@ export function HeroSection() {
                 </motion.span>
                 {/* Shimmer effect */}
                 <div className="absolute inset-0 rounded-xl overflow-hidden">
-                  <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent translate-x-[-200%] group-hover:translate-x-[200%] transition-transform duration-1000" />
+                  <div className="absolute inset-0 bg-linear-to-r from-transparent via-white/30 to-transparent translate-x-[-200%] group-hover:translate-x-[200%] transition-transform duration-1000" />
                 </div>
               </Link>
               <Link
@@ -190,7 +190,7 @@ export function HeroSection() {
               
               {/* Floating feature cards around globe */}
               <motion.div
-                className="absolute -top-4 -right-8 bg-white/95 dark:bg-gray-800/95 backdrop-blur-sm rounded-lg px-4 py-2 shadow-lg"
+                className="absolute -top-4 -right-8 bg-white/95 dark:bg-gray-800/95 backdrop-blur-xs rounded-lg px-4 py-2 shadow-lg"
                 animate={{ y: [0, -8, 0] }}
                 transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
               >
@@ -201,7 +201,7 @@ export function HeroSection() {
               </motion.div>
               
               <motion.div
-                className="absolute -bottom-4 -left-8 bg-white/95 dark:bg-gray-800/95 backdrop-blur-sm rounded-lg px-4 py-2 shadow-lg"
+                className="absolute -bottom-4 -left-8 bg-white/95 dark:bg-gray-800/95 backdrop-blur-xs rounded-lg px-4 py-2 shadow-lg"
                 animate={{ y: [0, 8, 0] }}
                 transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut', delay: 1 }}
               >
@@ -212,7 +212,7 @@ export function HeroSection() {
               </motion.div>
               
               <motion.div
-                className="absolute top-1/2 -right-16 bg-white/95 dark:bg-gray-800/95 backdrop-blur-sm rounded-lg px-4 py-2 shadow-lg"
+                className="absolute top-1/2 -right-16 bg-white/95 dark:bg-gray-800/95 backdrop-blur-xs rounded-lg px-4 py-2 shadow-lg"
                 animate={{ x: [0, 5, 0] }}
                 transition={{ duration: 3.5, repeat: Infinity, ease: 'easeInOut', delay: 0.5 }}
               >
@@ -254,13 +254,13 @@ export function HeroSection() {
           ].map((feature, index) => (
             <motion.div
               key={feature.title}
-              className="group relative bg-white/10 backdrop-blur-sm rounded-2xl p-6 hover:bg-white/15 transition-all duration-300"
+              className="group relative bg-white/10 backdrop-blur-xs rounded-2xl p-6 hover:bg-white/15 transition-all duration-300"
               whileHover={{ y: -4, scale: 1.02 }}
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.7 + index * 0.1 }}
             >
-              <div className={`inline-flex rounded-xl bg-gradient-to-br ${feature.color} p-3 shadow-lg`}>
+              <div className={`inline-flex rounded-xl bg-linear-to-br ${feature.color} p-3 shadow-lg`}>
                 <feature.icon className="h-6 w-6 text-white" />
               </div>
               <h3 className="mt-4 text-lg font-semibold text-white">{feature.title}</h3>

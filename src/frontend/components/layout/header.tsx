@@ -31,7 +31,7 @@ export function Header() {
   };
 
   return (
-    <header className="bg-white dark:bg-gray-800 shadow-sm sticky top-0 z-50">
+    <header className="bg-white dark:bg-gray-800 shadow-xs sticky top-0 z-50">
       <nav className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="flex h-16 items-center justify-between">
           {/* Logo */}
@@ -81,7 +81,7 @@ export function Header() {
                   className="flex items-center space-x-3 px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
                 >
                   {/* Avatar */}
-                  <div className="h-8 w-8 rounded-full bg-gradient-to-r from-purple-500 to-cyan-500 flex items-center justify-center text-white font-semibold text-sm">
+                  <div className="h-8 w-8 rounded-full bg-linear-to-r from-purple-500 to-cyan-500 flex items-center justify-center text-white font-semibold text-sm">
                     {user.display_name?.[0]?.toUpperCase() || user.email?.[0]?.toUpperCase() || 'U'}
                   </div>
                   <div className="text-left">
@@ -152,7 +152,7 @@ export function Header() {
                 </Link>
                 <Link
                   href="/register"
-                  className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
+                  className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-primary-600 hover:bg-primary-700 focus:outline-hidden focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
                 >
                   Get Started
                 </Link>
@@ -181,7 +181,7 @@ export function Header() {
           <div className="md:hidden py-4 space-y-4">
             {isAuthenticated && user && (
               <div className="flex items-center space-x-3 pb-4 border-b border-gray-200 dark:border-gray-700">
-                <div className="h-10 w-10 rounded-full bg-gradient-to-r from-purple-500 to-cyan-500 flex items-center justify-center text-white font-semibold">
+                <div className="h-10 w-10 rounded-full bg-linear-to-r from-purple-500 to-cyan-500 flex items-center justify-center text-white font-semibold">
                   {user.display_name?.[0]?.toUpperCase() || user.email?.[0]?.toUpperCase() || 'U'}
                 </div>
                 <div>

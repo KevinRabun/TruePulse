@@ -84,7 +84,7 @@ export function AdInterstitial({
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-xs"
         >
           <motion.div
             initial={{ scale: 0.9, opacity: 0 }}
@@ -95,7 +95,7 @@ export function AdInterstitial({
             {/* Ad Content */}
             <div
               onClick={handleClick}
-              className="bg-gradient-to-br from-gray-100 to-gray-200 dark:from-slate-800 dark:to-slate-700 rounded-2xl border border-gray-200 dark:border-slate-600 overflow-hidden cursor-pointer"
+              className="bg-linear-to-br from-gray-100 to-gray-200 dark:from-slate-800 dark:to-slate-700 rounded-2xl border border-gray-200 dark:border-slate-600 overflow-hidden cursor-pointer"
             >
               {/* Header */}
               <div className="flex items-center justify-between px-4 py-2 bg-gray-200/50 dark:bg-slate-700/50 border-b border-gray-200 dark:border-slate-600">
@@ -128,7 +128,7 @@ export function AdInterstitial({
               {/* Main Ad Area - Placeholder */}
               <div className="aspect-video flex items-center justify-center p-8">
                 <div className="text-center">
-                  <div className="w-20 h-20 mx-auto mb-4 rounded-full bg-gradient-to-br from-primary-500/20 to-accent-500/20 dark:from-purple-500/20 dark:to-cyan-500/20 flex items-center justify-center">
+                  <div className="w-20 h-20 mx-auto mb-4 rounded-full bg-linear-to-br from-primary-500/20 to-accent-500/20 dark:from-purple-500/20 dark:to-cyan-500/20 flex items-center justify-center">
                     <SparklesIcon className="h-10 w-10 text-primary-500 dark:text-purple-400" />
                   </div>
                   <h3 className="text-lg font-semibold text-gray-700 dark:text-slate-300 mb-2">
@@ -142,7 +142,7 @@ export function AdInterstitial({
 
               {/* Reward Indicator */}
               {onReward && (
-                <div className="px-4 py-3 bg-gradient-to-r from-amber-100 to-yellow-100 dark:from-amber-900/30 dark:to-yellow-900/30 border-t border-amber-200 dark:border-amber-800/50">
+                <div className="px-4 py-3 bg-linear-to-r from-amber-100 to-yellow-100 dark:from-amber-900/30 dark:to-yellow-900/30 border-t border-amber-200 dark:border-amber-800/50">
                   <div className="flex items-center justify-center gap-2">
                     <GiftIcon className={`h-5 w-5 ${hasWatchedFull ? 'text-amber-500' : 'text-amber-400/50'}`} />
                     <span className={`text-sm font-medium ${hasWatchedFull ? 'text-amber-700 dark:text-amber-400' : 'text-amber-500/50 dark:text-amber-500/50'}`}>

@@ -169,7 +169,7 @@ export default function AchievementsPage() {
   const hasActiveFilters = searchQuery || selectedCategory || selectedTier || showUnlockedOnly;
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white dark:from-slate-900 dark:to-slate-800">
+    <div className="min-h-screen bg-linear-to-b from-gray-50 to-white dark:from-slate-900 dark:to-slate-800">
       {/* Header */}
       <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-b border-gray-200 dark:border-slate-700 sticky top-0 z-10">
         <div className="max-w-6xl mx-auto px-4 py-4">
@@ -200,7 +200,7 @@ export default function AchievementsPage() {
                 placeholder="Search achievements..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-10 pr-4 py-2.5 bg-gray-100 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-lg text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-primary-500/50 dark:focus:ring-cyan-500/50"
+                className="w-full pl-10 pr-4 py-2.5 bg-gray-100 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-lg text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-slate-500 focus:outline-hidden focus:ring-2 focus:ring-primary-500/50 dark:focus:ring-cyan-500/50"
               />
               {searchQuery && (
                 <button
@@ -278,7 +278,7 @@ export default function AchievementsPage() {
                           className={`px-3 py-1.5 rounded-full text-sm font-medium capitalize transition-colors ${
                             selectedTier === tier
                               ? 'bg-primary-500 dark:bg-cyan-500 text-white'
-                              : `bg-gradient-to-r ${tierColors[tier].bg} ${tierColors[tier].border} border ${tierColors[tier].text}`
+                              : `bg-linear-to-r ${tierColors[tier].bg} ${tierColors[tier].border} border ${tierColors[tier].text}`
                           }`}
                         >
                           {tier}
@@ -356,7 +356,7 @@ export default function AchievementsPage() {
           <Link href="/community">
             <motion.div 
               whileHover={{ scale: 1.01 }}
-              className="p-4 bg-gradient-to-r from-purple-600 to-indigo-600 rounded-xl text-white cursor-pointer"
+              className="p-4 bg-linear-to-r from-purple-600 to-indigo-600 rounded-xl text-white cursor-pointer"
             >
               <div className="flex items-center gap-4">
                 <div className="p-3 bg-white/20 rounded-xl">
@@ -470,7 +470,7 @@ function AchievementCard({
     <motion.div
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
-      className={`relative p-4 rounded-xl border bg-gradient-to-br ${colors.bg} ${colors.border} ${
+      className={`relative p-4 rounded-xl border bg-linear-to-br ${colors.bg} ${colors.border} ${
         !isUnlocked && isAuthenticated ? 'opacity-60' : ''
       }`}
     >
@@ -494,7 +494,7 @@ function AchievementCard({
 
       <div className="flex items-start gap-3">
         {/* Icon */}
-        <div className="text-3xl flex-shrink-0">{achievement.icon}</div>
+        <div className="text-3xl shrink-0">{achievement.icon}</div>
 
         {/* Content */}
         <div className="flex-1 min-w-0">

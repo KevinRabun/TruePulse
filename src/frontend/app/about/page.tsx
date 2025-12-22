@@ -78,7 +78,7 @@ export default function AboutPage() {
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       {/* Hero Section */}
-      <div className="bg-gradient-to-r from-primary-600 to-primary-700 py-16 sm:py-24">
+      <div className="bg-linear-to-r from-primary-600 to-primary-700 py-16 sm:py-24">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 text-center">
           <motion.h1
             initial={{ opacity: 0, y: 20 }}
@@ -122,7 +122,7 @@ export default function AboutPage() {
               <div className="mt-8">
                 <Link
                   href="/polls"
-                  className="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-lg shadow-sm text-white bg-primary-600 hover:bg-primary-700 transition-colors"
+                  className="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-lg shadow-xs text-white bg-primary-600 hover:bg-primary-700 transition-colors"
                 >
                   Explore Polls
                   <ChartBarIcon className="ml-2 h-5 w-5" />
@@ -258,7 +258,7 @@ export default function AboutPage() {
                     {item.description}
                   </p>
                 </div>
-                <div className="flex-shrink-0">
+                <div className="shrink-0">
                   <div className="h-24 w-24 rounded-full bg-primary-100 dark:bg-primary-900 flex items-center justify-center">
                     <item.icon className="h-12 w-12 text-primary-600 dark:text-primary-400" />
                   </div>
@@ -313,7 +313,7 @@ export default function AboutPage() {
           <div className="mt-8">
             <Link
               href="/register"
-              className="inline-flex items-center px-8 py-4 border border-transparent text-lg font-medium rounded-lg shadow-sm text-white bg-primary-600 hover:bg-primary-700 transition-colors"
+              className="inline-flex items-center px-8 py-4 border border-transparent text-lg font-medium rounded-lg shadow-xs text-white bg-primary-600 hover:bg-primary-700 transition-colors"
             >
               Create Your Free Account
             </Link>

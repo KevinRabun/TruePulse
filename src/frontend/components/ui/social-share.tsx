@@ -341,7 +341,7 @@ export function SocialShare({ content, variant = 'button', size = 'md', classNam
               exit={{ opacity: 0, scale: 0.95, y: -10 }}
               transition={{ duration: 0.15 }}
               style={{ top: dropdownPosition.top, left: dropdownPosition.left }}
-              className="fixed w-56 rounded-xl bg-white dark:bg-gray-800 shadow-xl ring-1 ring-black/5 dark:ring-white/10 py-2 z-[9999] overflow-hidden"
+              className="fixed w-56 rounded-xl bg-white dark:bg-gray-800 shadow-xl ring-1 ring-black/5 dark:ring-white/10 py-2 z-9999 overflow-hidden"
             >
             {/* Header */}
             <div className="flex items-center justify-between px-4 py-2 border-b border-gray-100 dark:border-gray-700">

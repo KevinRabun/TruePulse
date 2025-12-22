@@ -89,7 +89,7 @@ export function LiveActivityIndicator({ className = '', variant = 'compact' }: L
   return (
     <div className={`relative ${className}`}>
       {/* Main indicator */}
-      <div className="flex items-center gap-4 px-4 py-3 bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
+      <div className="flex items-center gap-4 px-4 py-3 bg-white/80 dark:bg-gray-800/80 backdrop-blur-xs rounded-xl shadow-xs border border-gray-200 dark:border-gray-700">
         {/* Live pulse */}
         <div className="relative">
           <GlobeAltIcon className="h-8 w-8 text-primary-500" />
@@ -166,7 +166,7 @@ export function FloatingActivityBadge({ className = '' }: { className?: string }
     <motion.div
       initial={{ opacity: 0, scale: 0.8 }}
       animate={{ opacity: 1, scale: 1 }}
-      className={`inline-flex items-center gap-2 px-4 py-2 bg-white/90 dark:bg-gray-800/90 backdrop-blur-sm rounded-full shadow-lg border border-gray-200 dark:border-gray-700 ${className}`}
+      className={`inline-flex items-center gap-2 px-4 py-2 bg-white/90 dark:bg-gray-800/90 backdrop-blur-xs rounded-full shadow-lg border border-gray-200 dark:border-gray-700 ${className}`}
     >
       <span className="relative flex h-2 w-2">
         <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-trust-400 opacity-75" />

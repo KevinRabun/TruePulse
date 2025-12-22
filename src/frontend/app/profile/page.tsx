@@ -120,7 +120,7 @@ export default function ProfilePage() {
   // Show loading or redirect state
   if (!isAuthenticated) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-primary-50 via-white to-accent-50 dark:from-slate-900 dark:via-purple-900 dark:to-slate-900 flex items-center justify-center">
+      <div className="min-h-screen bg-linear-to-br from-primary-50 via-white to-accent-50 dark:from-slate-900 dark:via-purple-900 dark:to-slate-900 flex items-center justify-center">
         <div className="animate-spin h-12 w-12 border-4 border-primary-500 dark:border-purple-500 border-t-transparent rounded-full"></div>
       </div>
     );
@@ -128,14 +128,14 @@ export default function ProfilePage() {
 
   if (isLoading || !profile) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-primary-50 via-white to-accent-50 dark:from-slate-900 dark:via-purple-900 dark:to-slate-900 flex items-center justify-center">
+      <div className="min-h-screen bg-linear-to-br from-primary-50 via-white to-accent-50 dark:from-slate-900 dark:via-purple-900 dark:to-slate-900 flex items-center justify-center">
         <div className="animate-spin h-12 w-12 border-4 border-primary-500 dark:border-purple-500 border-t-transparent rounded-full"></div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary-50 via-white to-accent-50 dark:from-slate-900 dark:via-purple-900 dark:to-slate-900 py-12 px-4">
+    <div className="min-h-screen bg-linear-to-br from-primary-50 via-white to-accent-50 dark:from-slate-900 dark:via-purple-900 dark:to-slate-900 py-12 px-4">
       <div className="max-w-4xl mx-auto">
         {/* Back Button */}
         <Link
@@ -153,7 +153,7 @@ export default function ProfilePage() {
           className="bg-white dark:bg-slate-800/50 backdrop-blur-xl rounded-2xl border border-gray-200 dark:border-slate-700/50 overflow-hidden shadow-xl dark:shadow-2xl mb-8"
         >
           {/* Cover */}
-          <div className="h-32 bg-gradient-to-r from-primary-600 to-accent-600 dark:from-purple-600 dark:to-cyan-600 relative">
+          <div className="h-32 bg-linear-to-r from-primary-600 to-accent-600 dark:from-purple-600 dark:to-cyan-600 relative">
             <button className="absolute bottom-4 right-4 p-2 bg-black/20 rounded-lg text-white/70 hover:text-white hover:bg-black/40 transition-colors">
               <CameraIcon className="h-5 w-5" />
             </button>
@@ -178,7 +178,7 @@ export default function ProfilePage() {
                       type="text"
                       value={displayName}
                       onChange={(e) => setDisplayName(e.target.value)}
-                      className="text-2xl font-bold bg-gray-100 dark:bg-slate-900/50 border border-gray-300 dark:border-slate-700 rounded-lg px-3 py-1 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500 dark:focus:ring-purple-500"
+                      className="text-2xl font-bold bg-gray-100 dark:bg-slate-900/50 border border-gray-300 dark:border-slate-700 rounded-lg px-3 py-1 text-gray-900 dark:text-white focus:outline-hidden focus:ring-2 focus:ring-primary-500 dark:focus:ring-purple-500"
                       maxLength={50}
                     />
                     <button
@@ -263,7 +263,7 @@ export default function ProfilePage() {
               {activeTab === tab.id && (
                 <motion.div
                   layoutId="activeTab"
-                  className="absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-primary-600 to-accent-600 dark:from-purple-600 dark:to-cyan-600"
+                  className="absolute bottom-0 left-0 right-0 h-0.5 bg-linear-to-r from-primary-600 to-accent-600 dark:from-purple-600 dark:to-cyan-600"
                 />
               )}
             </button>
@@ -347,7 +347,7 @@ export default function ProfilePage() {
                             key={achievement.id}
                             className={`p-4 rounded-xl border text-center transition-all ${
                               isUnlocked
-                                ? `bg-gradient-to-br ${tierStyle || 'from-primary-100 to-accent-100 border-primary-300 dark:from-purple-500/10 dark:to-cyan-500/10 dark:border-purple-500/30'}`
+                                ? `bg-linear-to-br ${tierStyle || 'from-primary-100 to-accent-100 border-primary-300 dark:from-purple-500/10 dark:to-cyan-500/10 dark:border-purple-500/30'}`
                                 : 'bg-gray-100 dark:bg-slate-900/30 border-gray-200 dark:border-slate-700/30 opacity-50'
                             }`}
                           >

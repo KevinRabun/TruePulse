@@ -107,7 +107,7 @@ export function PasskeyLoginButton({
 
   const variantClasses =
     variant === "primary"
-      ? "bg-gradient-to-r from-indigo-600 to-purple-600 text-white hover:from-indigo-700 hover:to-purple-700 shadow-lg hover:shadow-xl"
+      ? "bg-linear-to-r from-indigo-600 to-purple-600 text-white hover:from-indigo-700 hover:to-purple-700 shadow-lg hover:shadow-xl"
       : "bg-white dark:bg-gray-800 border-2 border-indigo-200 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300 hover:border-indigo-400 dark:hover:border-indigo-600";
 
   return (
@@ -148,7 +148,7 @@ export function PasskeyLoginButton({
           animate={{ opacity: 1, y: 0 }}
           className="flex items-center gap-2 text-sm text-red-600 dark:text-red-400"
         >
-          <AlertCircle className="h-4 w-4 flex-shrink-0" />
+          <AlertCircle className="h-4 w-4 shrink-0" />
           <span>{errorMessage}</span>
         </motion.div>
       )}
@@ -188,10 +188,10 @@ export function PasskeyPromoBanner({ onSetup, onDismiss }: PasskeyPromoBannerPro
       initial={{ opacity: 0, y: -20 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -20 }}
-      className="bg-gradient-to-r from-indigo-500 to-purple-600 rounded-lg p-4 text-white shadow-lg"
+      className="bg-linear-to-r from-indigo-500 to-purple-600 rounded-lg p-4 text-white shadow-lg"
     >
       <div className="flex items-start gap-3">
-        <div className="flex-shrink-0 p-2 bg-white/20 rounded-full">
+        <div className="shrink-0 p-2 bg-white/20 rounded-full">
           <Fingerprint className="h-6 w-6" />
         </div>
         <div className="flex-1">

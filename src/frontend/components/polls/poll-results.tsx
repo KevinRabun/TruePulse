@@ -174,7 +174,7 @@ export function PollResults({ pollId, question: _question, choices, totalVotes, 
                     initial={{ width: 0 }}
                     animate={{ width: `${choice.percentage}%` }}
                     transition={{ duration: 1, ease: 'easeOut', delay: index * 0.1 }}
-                    className={`h-full bg-gradient-to-r ${colorSet.bar} rounded-full`}
+                    className={`h-full bg-linear-to-r ${colorSet.bar} rounded-full`}
                   />
                 </div>
               </div>
@@ -381,7 +381,7 @@ export function PollResults({ pollId, question: _question, choices, totalVotes, 
                                 initial={{ width: 0 }}
                                 animate={{ width: `${choice.percentage}%` }}
                                 transition={{ duration: 0.8, delay: segIndex * 0.05 + choiceIndex * 0.02 }}
-                                className={`h-full bg-gradient-to-r ${colorSet.bar} rounded-full`}
+                                className={`h-full bg-linear-to-r ${colorSet.bar} rounded-full`}
                               />
                             </div>
                           </div>
@@ -488,7 +488,7 @@ export function PollResults({ pollId, question: _question, choices, totalVotes, 
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.4 }}
-        className="bg-gradient-to-r from-purple-100 dark:from-purple-900/50 to-cyan-100 dark:to-cyan-900/50 backdrop-blur-xl rounded-2xl border border-purple-200 dark:border-purple-500/30 p-6"
+        className="bg-linear-to-r from-purple-100 dark:from-purple-900/50 to-cyan-100 dark:to-cyan-900/50 backdrop-blur-xl rounded-2xl border border-purple-200 dark:border-purple-500/30 p-6"
       >
         <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
           <span className="text-2xl">💡</span>

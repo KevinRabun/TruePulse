@@ -58,11 +58,11 @@ export function AnimatedGlobe({ size = 'lg', showActivity = true, className = ''
   return (
     <div className={`relative ${sizes[size]} ${className}`}>
       {/* Outer glow */}
-      <div className="absolute inset-0 rounded-full bg-gradient-to-br from-primary-400/30 to-trust-400/30 blur-xl animate-pulse-slow" />
+      <div className="absolute inset-0 rounded-full bg-linear-to-br from-primary-400/30 to-trust-400/30 blur-xl animate-pulse-slow" />
       
       {/* Main globe */}
       <motion.div
-        className="relative w-full h-full rounded-full bg-gradient-to-br from-primary-500 via-primary-600 to-primary-700 shadow-lg overflow-hidden"
+        className="relative w-full h-full rounded-full bg-linear-to-br from-primary-500 via-primary-600 to-primary-700 shadow-lg overflow-hidden"
         animate={{ rotateY: 360 }}
         transition={{ duration: 30, repeat: Infinity, ease: 'linear' }}
       >
@@ -132,7 +132,7 @@ export function AnimatedGlobe({ size = 'lg', showActivity = true, className = ''
         </svg>
         
         {/* Light reflection */}
-        <div className="absolute top-2 left-2 w-1/4 h-1/4 rounded-full bg-white/30 blur-sm" />
+        <div className="absolute top-2 left-2 w-1/4 h-1/4 rounded-full bg-white/30 blur-xs" />
       </motion.div>
       
       {/* Activity markers */}

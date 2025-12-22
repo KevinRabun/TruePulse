@@ -81,7 +81,7 @@ export function TrustBanner({ className = '' }: TrustBannerProps) {
   ];
 
   return (
-    <div className={`bg-gradient-to-r from-trust-50 to-primary-50 dark:from-trust-900/20 dark:to-primary-900/20 ${className}`}>
+    <div className={`bg-linear-to-r from-trust-50 to-primary-50 dark:from-trust-900/20 dark:to-primary-900/20 ${className}`}>
       <div className="mx-auto max-w-7xl px-4 py-3">
         <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2">
           {trustPoints.map((point, index) => (

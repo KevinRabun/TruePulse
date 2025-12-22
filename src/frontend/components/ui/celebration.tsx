@@ -191,7 +191,7 @@ export function PointsPopup({ points, trigger, onComplete }: PointsPopupProps) {
           exit={{ opacity: 0 }}
           transition={{ duration: 2, ease: 'easeOut' }}
         >
-          <div className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-primary-500 to-accent-500 rounded-full shadow-lg">
+          <div className="flex items-center gap-2 px-6 py-3 bg-linear-to-r from-primary-500 to-accent-500 rounded-full shadow-lg">
             <span className="text-2xl font-bold text-white">+{points}</span>
             <span className="text-lg text-white/90">points!</span>
           </div>
@@ -243,7 +243,7 @@ export function AchievementUnlock({ title, description, tier, trigger, onComplet
             exit={{ x: '-50%', y: -100, opacity: 0 }}
             transition={{ type: 'spring', damping: 15 }}
           >
-            <div className={`relative px-8 py-4 rounded-xl shadow-2xl bg-gradient-to-r ${tierColors[tier] || tierColors.bronze}`}>
+            <div className={`relative px-8 py-4 rounded-xl shadow-2xl bg-linear-to-r ${tierColors[tier] || tierColors.bronze}`}>
               {/* Glow effect */}
               <div className="absolute inset-0 rounded-xl bg-white/20 animate-pulse" />
               
