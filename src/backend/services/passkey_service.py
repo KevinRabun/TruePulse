@@ -109,16 +109,12 @@ class PasskeyService:
         # Verify user has verified phone (required for credential binding)
         if not user.phone_verified:
             raise PasskeyRegistrationError(
-                "Phone verification required before registering a passkey. "
-                "This helps ensure one person = one vote."
+                "Phone verification required before registering a passkey. This helps ensure one person = one vote."
             )
 
         # Get existing credentials to exclude
         existing_credentials = await self._get_user_credentials(user.id)
-        exclude_credentials = [
-            PublicKeyCredentialDescriptor(id=cred.credential_id)
-            for cred in existing_credentials
-        ]
+        exclude_credentials = [PublicKeyCredentialDescriptor(id=cred.credential_id) for cred in existing_credentials]
 
         # Generate registration options
         options = generate_registration_options(
@@ -166,11 +162,12 @@ class PasskeyService:
             "timeout": options.timeout,
             "attestation": options.attestation.value if hasattr(options.attestation, "value") else options.attestation,
             "excludeCredentials": [
-                {"type": "public-key", "id": bytes_to_base64url(cred.id)}
-                for cred in exclude_credentials
+                {"type": "public-key", "id": bytes_to_base64url(cred.id)} for cred in exclude_credentials
             ],
             "authenticatorSelection": {
-                "authenticatorAttachment": auth_selection.authenticator_attachment.value if auth_selection and auth_selection.authenticator_attachment else None,  # type: ignore[union-attr]
+                "authenticatorAttachment": auth_selection.authenticator_attachment.value
+                if auth_selection and auth_selection.authenticator_attachment
+                else None,  # type: ignore[union-attr]
                 "residentKey": auth_selection.resident_key.value if auth_selection else None,  # type: ignore[union-attr]
                 "userVerification": auth_selection.user_verification.value if auth_selection else None,  # type: ignore[union-attr]
             },
@@ -506,9 +503,7 @@ class PasskeyService:
 
     async def _get_user_credentials(self, user_id: str) -> list[PasskeyCredential]:
         """Get all passkey credentials for a user."""
-        result = await self.db.execute(
-            select(PasskeyCredential).where(PasskeyCredential.user_id == user_id)
-        )
+        result = await self.db.execute(select(PasskeyCredential).where(PasskeyCredential.user_id == user_id))
         return list(result.scalars().all())
 
     async def _get_credential_by_id(self, credential_id: bytes) -> PasskeyCredential | None:
@@ -520,9 +515,7 @@ class PasskeyService:
 
     async def _get_passkey_by_id(self, passkey_id: str) -> PasskeyCredential | None:
         """Get a passkey by its internal ID."""
-        result = await self.db.execute(
-            select(PasskeyCredential).where(PasskeyCredential.id == passkey_id)
-        )
+        result = await self.db.execute(select(PasskeyCredential).where(PasskeyCredential.id == passkey_id))
         return result.scalar_one_or_none()
 
     async def _get_user(self, user_id: str) -> User | None:
@@ -567,6 +560,7 @@ class PasskeyService:
 
         # Hash the fingerprint for storage
         import hashlib
+
         fingerprint_hash = hashlib.sha256(device_fingerprint.encode()).hexdigest()
 
         # Check for existing trust score

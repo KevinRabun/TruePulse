@@ -298,4 +298,3 @@ class UserRepository:
             )
         )
         return self._get_rowcount(result) > 0
-

@@ -295,6 +295,7 @@ class SilentMobileService:
         fingerprint_hash = None
         if device_fingerprint:
             import hashlib
+
             fingerprint_hash = hashlib.sha256(device_fingerprint.encode()).hexdigest()
 
         verification_record = SilentMobileVerification(
@@ -377,10 +378,7 @@ class SilentMobileService:
         )
 
         # Check if MCC/MNC matches
-        return (
-            current_result.success
-            and current_result.mcc_mnc == last_mcc_mnc
-        )
+        return current_result.success and current_result.mcc_mnc == last_mcc_mnc
 
     async def _get_recent_attempts(self, phone_hash: str) -> list[SilentMobileVerification]:
         """Get recent verification attempts for rate limiting."""
@@ -388,8 +386,7 @@ class SilentMobileService:
 
         cutoff = datetime.now(UTC) - timedelta(hours=1)
         result = await self.db.execute(
-            select(SilentMobileVerification)
-            .where(
+            select(SilentMobileVerification).where(
                 SilentMobileVerification.phone_hash == phone_hash,
                 SilentMobileVerification.created_at > cutoff,
             )

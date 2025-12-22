@@ -305,11 +305,7 @@ class DeviceTrustScore(Base):
     def calculate_trust_score(self) -> int:
         """Calculate composite trust score from components."""
         # Weighted average of components
-        score = (
-            self.verification_score * 0.4 +
-            self.behavioral_score * 0.3 +
-            self.history_score * 0.3
-        )
+        score = self.verification_score * 0.4 + self.behavioral_score * 0.3 + self.history_score * 0.3
 
         # Apply penalties
         score -= self.vpn_detected_count * 5
@@ -318,8 +314,8 @@ class DeviceTrustScore(Base):
 
         # Apply bonuses
         score += min(self.successful_votes * 0.5, 20)  # Cap at 20 bonus
-        score += min(self.successful_auths * 1, 10)     # Cap at 10 bonus
-        score += min(self.days_active * 0.5, 15)        # Cap at 15 bonus
+        score += min(self.successful_auths * 1, 10)  # Cap at 10 bonus
+        score += min(self.days_active * 0.5, 15)  # Cap at 15 bonus
 
         # Carrier verification bonus
         if self.carrier_verified:
