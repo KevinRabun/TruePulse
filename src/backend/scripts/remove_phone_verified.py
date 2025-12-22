@@ -76,8 +76,17 @@ async def run_migration(dry_run: bool = False) -> None:
         changes_needed = []
         changes_made = []
 
-        # List of phone-related columns to remove
-        phone_columns = ["phone_verified", "phone_number", "sms_notifications"]
+        # List of phone-related columns to remove (legacy columns not in the model)
+        phone_columns = [
+            "phone_verified",
+            "phone_number",
+            "sms_notifications",
+            "daily_poll_sms",  # Legacy SMS notification for daily polls
+            "flash_poll_sms",  # Legacy SMS notification for flash polls
+            "phone_carrier",  # Legacy carrier info
+            "phone_verification_code",  # Legacy verification
+            "phone_verification_sent_at",  # Legacy verification timestamp
+        ]
 
         for column in phone_columns:
             if await check_column_exists(conn, "users", column):
