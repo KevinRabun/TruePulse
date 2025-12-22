@@ -121,12 +121,12 @@ async def health_check() -> dict[str, str]:
 async def service_status() -> dict:
     """
     Service configuration status endpoint for deployment validation.
-    
+
     Returns the configuration status of all external services.
     Used by smoke tests to verify deployment completeness.
     """
     from services.email_service import email_service
-    
+
     services = {
         "email": {
             "configured": email_service.is_configured,
@@ -149,9 +149,9 @@ async def service_status() -> dict:
             }
         },
     }
-    
+
     all_configured = all(svc["configured"] for svc in services.values())
-    
+
     return {
         "status": "healthy" if all_configured else "degraded",
         "all_services_configured": all_configured,
