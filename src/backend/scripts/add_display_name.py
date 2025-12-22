@@ -14,12 +14,12 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from sqlalchemy import text
 
-from db.session import async_engine
+from db.session import engine
 
 
 async def add_display_name_column():
     """Add display_name column to users table and delete existing users."""
-    async with async_engine.begin() as conn:
+    async with engine.begin() as conn:
         # First, delete all existing users (cascades to related tables)
         print("Deleting all existing users...")
 
