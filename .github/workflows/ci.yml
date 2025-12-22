@@ -9,6 +9,12 @@ on:
   push:
     branches: [main, develop]
 
+# Explicit permissions following principle of least privilege
+permissions:
+  contents: read
+  security-events: write  # Required for CodeQL/Gitleaks SARIF upload
+  actions: read  # Required for workflow status checks
+
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true

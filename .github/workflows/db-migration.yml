@@ -62,9 +62,10 @@ on:
       AZURE_SUBSCRIPTION_ID:
         required: true
 
+# Explicit permissions following principle of least privilege
 permissions:
-  id-token: write
-  contents: read
+  id-token: write  # Required for Azure OIDC authentication
+  contents: read   # Required to checkout code
 
 env:
   AZURE_LOCATION: eastus2

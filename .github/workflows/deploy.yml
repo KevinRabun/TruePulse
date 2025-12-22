@@ -30,9 +30,11 @@ on:
           - staging
           - prod
 
+# Explicit permissions following principle of least privilege
 permissions:
-  id-token: write
-  contents: read
+  id-token: write  # Required for Azure OIDC authentication
+  contents: read   # Required to checkout code
+  actions: read    # Required for workflow_run trigger
 
 env:
   AZURE_LOCATION: eastus2
