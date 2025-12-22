@@ -359,9 +359,9 @@ async def verify_magic_link(
         )
 
     # Check if user has any passkeys
-    from models.passkey import Passkey
+    from models.passkey import PasskeyCredential
 
-    passkey_result = await db.execute(select(Passkey).where(Passkey.user_id == user.id).limit(1))
+    passkey_result = await db.execute(select(PasskeyCredential).where(PasskeyCredential.user_id == user.id).limit(1))
     has_passkey = passkey_result.scalar_one_or_none() is not None
 
     # Create tokens
