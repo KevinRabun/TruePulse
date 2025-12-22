@@ -329,14 +329,14 @@ module containerApp 'br/public:avm/res/app/container-app:0.19.0' = if (!usePlace
             name: 'CORS_ORIGINS'
             value: !empty(customDomain) ? (environmentName == 'prod' 
               ? 'https://${customDomain},https://www.${customDomain}' 
-              : 'https://${environmentName}.${customDomain},https://www.${environmentName}.${customDomain},https://${customDomain}') 
+              : 'https://${environmentName}.${customDomain},https://www.${environmentName}.${customDomain},https://${customDomain},https://www.${customDomain}') 
               : 'https://*.azurestaticapps.net'
           }
           {
             name: 'ALLOWED_ORIGINS'
             value: !empty(customDomain) ? (environmentName == 'prod' 
               ? 'https://${customDomain},https://www.${customDomain}' 
-              : 'https://${environmentName}.${customDomain},https://www.${environmentName}.${customDomain},https://${customDomain}') 
+              : 'https://${environmentName}.${customDomain},https://www.${environmentName}.${customDomain},https://${customDomain},https://www.${customDomain}') 
               : 'https://*.azurestaticapps.net'
           }
           {
