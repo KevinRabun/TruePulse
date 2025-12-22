@@ -1,6 +1,9 @@
 import asyncio
-from db.session import async_session
+
 from sqlalchemy import text
+
+from db.session import async_session
+
 
 async def query_users():
     async with async_session() as session:

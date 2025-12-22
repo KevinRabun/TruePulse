@@ -340,6 +340,13 @@ module containerApp 'br/public:avm/res/app/container-app:0.19.0' = if (!usePlace
               : 'https://*.azurestaticapps.net'
           }
           {
+            name: 'FRONTEND_URL'
+            value: !empty(customDomain) ? (environmentName == 'prod' 
+              ? 'https://${customDomain}' 
+              : 'https://${environmentName}.${customDomain}') 
+              : 'http://localhost:3000'
+          }
+          {
             name: 'FRONTEND_API_SECRET'
             secretRef: 'frontend-api-secret'
           }

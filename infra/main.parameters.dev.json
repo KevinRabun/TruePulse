@@ -13,6 +13,9 @@
     },
     "enableCMK": {
       "value": false
+    },
+    "emailSenderAddress": {
+      "value": "DoNotReply@dd655f4d-7954-42b0-883e-c1b0dbf465c9.azurecomm.net"
     }
   }
 }

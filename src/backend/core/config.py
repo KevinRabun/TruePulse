@@ -88,9 +88,10 @@ class Settings(BaseSettings):
     FOUNDRY_PROJECT_ENDPOINT: str | None = None
     FOUNDRY_MODEL_DEPLOYMENT: str = "gpt-4o-mini"
 
-    # Azure Communication Services (SMS)
+    # Azure Communication Services (SMS and Email)
     AZURE_COMMUNICATION_CONNECTION_STRING: str | None = None
     AZURE_COMMUNICATION_SENDER_NUMBER: str | None = None
+    AZURE_EMAIL_SENDER_ADDRESS: str | None = None  # e.g., DoNotReply@xxx.azurecomm.net
     SMS_VERIFICATION_CODE_EXPIRY_MINUTES: int = 10
 
     # Authentication
@@ -120,6 +121,9 @@ class Settings(BaseSettings):
     # CORS - stored as comma-separated string
     # Uses RawString to prevent pydantic-settings from auto-parsing as JSON
     CORS_ORIGINS: RawString = "http://localhost:3000"
+
+    # Frontend URL for email links (verification, password reset, etc.)
+    FRONTEND_URL: str = "http://localhost:3000"
 
     # Frontend-only API access
     # Secret shared between frontend and backend to prevent unauthorized API access

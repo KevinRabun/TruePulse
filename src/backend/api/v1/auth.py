@@ -18,12 +18,14 @@ from core.config import settings
 from core.security import (
     create_access_token,
     create_refresh_token,
+    create_verification_token,
     decode_token,
 )
 from db.session import get_db
 from models.user import User
 from schemas.auth import RefreshTokenRequest, TokenResponse
 from schemas.user import UserCreate, UserResponse
+from services.email_service import get_email_service
 from services.redis_service import RedisService, get_redis_service
 
 logger = structlog.get_logger(__name__)
@@ -107,6 +109,58 @@ async def register(user_data: UserCreate, db: AsyncSession = Depends(get_db)) ->
             has_passkey=False,
         ),
     )
+
+
+@router.post("/send-verification-email")
+async def send_verification_email(
+    email: EmailStr = Body(..., embed=True),
+    db: AsyncSession = Depends(get_db),
+) -> dict[str, str]:
+    """
+    Send a verification email to the user.
+
+    This endpoint can be used to:
+    - Send initial verification email after registration
+    - Resend verification email if the first one was lost/expired
+    """
+    # Find user by email
+    result = await db.execute(select(User).where(User.email == email.lower()))
+    user = result.scalar_one_or_none()
+
+    if not user:
+        # Don't reveal whether email exists for security
+        logger.info("verification_email_requested", email=email[:3] + "***", user_found=False)
+        return {"message": "If an account exists with this email, a verification link has been sent."}
+
+    if user.email_verified:
+        logger.info("verification_email_already_verified", user_id=user.id)
+        return {"message": "Email is already verified."}
+
+    # Create verification token
+    verification_token = create_verification_token(user.id)
+
+    # Send verification email
+    email_service = await get_email_service()
+
+    if email_service.is_available:
+        sent = await email_service.send_verification_email(
+            to_email=user.email,
+            verification_token=verification_token,
+            username=user.display_name or user.username,
+            frontend_url=settings.FRONTEND_URL if hasattr(settings, "FRONTEND_URL") else None,
+        )
+        logger.info(
+            "verification_email_sent",
+            user_id=user.id,
+            success=sent,
+        )
+    else:
+        logger.warning(
+            "verification_email_service_unavailable",
+            user_id=user.id,
+        )
+
+    return {"message": "If an account exists with this email, a verification link has been sent."}
 
 
 @router.post("/refresh", response_model=TokenResponse)
