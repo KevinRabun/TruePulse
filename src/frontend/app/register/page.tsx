@@ -14,6 +14,8 @@ import {
   EyeSlashIcon,
   CheckCircleIcon,
   XCircleIcon,
+  PhoneIcon,
+  ChatBubbleLeftIcon,
 } from '@heroicons/react/24/outline';
 
 const passwordRequirements = [
@@ -29,20 +31,31 @@ export default function RegisterPage() {
   const { success, error: showError } = useToast();
   const [displayName, setDisplayName] = useState('');
   const [email, setEmail] = useState('');
+  const [phoneNumber, setPhoneNumber] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [acceptTerms, setAcceptTerms] = useState(false);
+  const [acceptSms, setAcceptSms] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Validate phone number format (US format or international)
+  const isValidPhone = (phone: string) => {
+    const cleaned = phone.replace(/[\s\-\(\)\.]/g, '');
+    return /^\+?[0-9]{10,15}$/.test(cleaned);
+  };
 
   const passwordStrength = passwordRequirements.filter((req) => req.test(password)).length;
   const passwordsMatch = password === confirmPassword && password.length > 0;
+  const phoneValid = isValidPhone(phoneNumber);
   const isFormValid =
     displayName.length >= 2 &&
     email.includes('@') &&
+    phoneValid &&
     passwordStrength === passwordRequirements.length &&
     passwordsMatch &&
-    acceptTerms;
+    acceptTerms &&
+    acceptSms;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -54,8 +67,16 @@ export default function RegisterPage() {
     }
 
     try {
-      await register({ email, password, username: email.split('@')[0], display_name: displayName });
-      success('Account created!', 'Welcome to TruePulse. You can now vote on polls and earn points.');
+      // Clean phone number before sending
+      const cleanedPhone = phoneNumber.replace(/[\s\-\(\)\.]/g, '');
+      await register({ 
+        email, 
+        password, 
+        username: email.split('@')[0], 
+        phone_number: cleanedPhone,
+        display_name: displayName 
+      });
+      success('Account created!', 'Welcome to TruePulse. Please verify your phone number to start voting.');
       router.push('/');
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Registration failed. Please try again.';
@@ -148,6 +169,44 @@ export default function RegisterPage() {
                   placeholder="you@example.com"
                 />
               </div>
+            </div>
+
+            {/* Phone Number Field */}
+            <div>
+              <label htmlFor="phoneNumber" className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
+                Phone Number <span className="text-red-500">*</span>
+              </label>
+              <div className="relative">
+                <PhoneIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400 dark:text-slate-500" />
+                <input
+                  id="phoneNumber"
+                  type="tel"
+                  value={phoneNumber}
+                  onChange={(e) => setPhoneNumber(e.target.value)}
+                  required
+                  autoComplete="tel"
+                  className={`w-full pl-10 pr-4 py-3 bg-gray-50 dark:bg-slate-900/50 border rounded-lg text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:focus:ring-purple-500 focus:border-transparent transition-all ${
+                    phoneNumber.length > 0
+                      ? phoneValid
+                        ? 'border-green-500'
+                        : 'border-red-500'
+                      : 'border-gray-300 dark:border-slate-700'
+                  }`}
+                  placeholder="+1 (555) 123-4567"
+                />
+                {phoneNumber.length > 0 && (
+                  <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                    {phoneValid ? (
+                      <CheckCircleIcon className="h-5 w-5 text-green-500" />
+                    ) : (
+                      <XCircleIcon className="h-5 w-5 text-red-500" />
+                    )}
+                  </div>
+                )}
+              </div>
+              <p className="mt-1 text-xs text-gray-500 dark:text-slate-500">
+                Required for account verification. We use SMS to verify you&apos;re a real person.
+              </p>
             </div>
 
             {/* Password Field */}
@@ -260,6 +319,28 @@ export default function RegisterPage() {
                 <Link href="/privacy" className="text-primary-600 dark:text-purple-400 hover:text-primary-500 dark:hover:text-purple-300">
                   Privacy Policy
                 </Link>
+              </label>
+            </div>
+
+            {/* SMS Consent Checkbox */}
+            <div className="flex items-start gap-3 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+              <input
+                id="smsConsent"
+                type="checkbox"
+                checked={acceptSms}
+                onChange={(e) => setAcceptSms(e.target.checked)}
+                className="mt-1 h-4 w-4 rounded border-gray-300 dark:border-slate-700 bg-gray-50 dark:bg-slate-900/50 text-primary-600 dark:text-purple-600 focus:ring-primary-500 dark:focus:ring-purple-500 focus:ring-offset-white dark:focus:ring-offset-slate-900"
+              />
+              <label htmlFor="smsConsent" className="text-sm text-gray-700 dark:text-slate-300">
+                <span className="flex items-center gap-1.5 font-medium mb-1">
+                  <ChatBubbleLeftIcon className="h-4 w-4 text-blue-500" />
+                  SMS Verification Consent <span className="text-red-500">*</span>
+                </span>
+                <span className="text-gray-600 dark:text-slate-400">
+                  I consent to receive SMS messages from TruePulse for account verification purposes. 
+                  Phone verification is required to ensure one person = one vote and prevent fraud. 
+                  Standard message and data rates may apply.
+                </span>
               </label>
             </div>
 

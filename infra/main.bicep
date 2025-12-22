@@ -54,6 +54,10 @@ param newsApiOrgKey string = ''
 @secure()
 param frontendApiSecret string = ''
 
+@description('Field-level encryption key for PII (base64-encoded 256-bit key)')
+@secure()
+param fieldEncryptionKey string = ''
+
 // Communication settings
 @description('Azure Communication Services sender phone number')
 param communicationSenderNumber string = ''
@@ -241,6 +245,10 @@ module keyVault 'modules/keyVault.bicep' = {
         name: 'frontend-api-secret'
         value: !empty(frontendApiSecret) ? frontendApiSecret : jwtSecretKey
       }
+      {
+        name: 'field-encryption-key'
+        value: fieldEncryptionKey
+      }
     ]
   }
 }
@@ -372,6 +380,41 @@ module staticWebApp 'modules/staticWebApp.bicep' = {
     apiUrl: apiUrl
     customDomain: enableCustomDomain ? (environmentName == 'prod' ? customDomain : '${environmentName}.${customDomain}') : ''
     enableWwwSubdomain: environmentName == 'prod' // Only enable www for production
+  }
+}
+
+// Budget Alerts - cost management with email notifications
+// Monthly budget with alerts at 50%, 80%, and 100% thresholds
+module budget 'modules/budget.bicep' = {
+  scope: resourceGroup
+  name: 'budget-deployment'
+  params: {
+    budgetName: 'budget-${prefix}-${environmentName}'
+    // Set budget amounts per environment
+    // Dev: $300/month, Staging: $500/month, Prod: $1000/month
+    budgetAmount: environmentName == 'prod' ? 1000 : (environmentName == 'staging' ? 500 : 300)
+    // Budget starts from the first of the current month
+    budgetStartDate: '${substring(utcNow(), 0, 7)}-01'
+    // Contact emails for budget alerts - update this with your actual email
+    contactEmails: ['alerts@truepulse.net']
+    tags: tags
+    resourceGroupScope: resourceGroupName
+  }
+}
+
+// Monitoring and Alerting - SLO-based alerts for service health
+// Deploys action groups and metric alerts for Container App and database
+module monitoring 'modules/monitoring.bicep' = {
+  scope: resourceGroup
+  name: 'monitoring-deployment'
+  params: {
+    environmentName: environmentName
+    location: location
+    logAnalyticsWorkspaceId: sharedLogAnalyticsWorkspaceId
+    containerAppId: containerAppApi.outputs.resourceId
+    postgresServerId: postgres.outputs.resourceId
+    alertEmailAddresses: ['alerts@truepulse.net']
+    enableAlerts: environmentName != 'dev' // Enable alerts for staging and prod only
   }
 }
 

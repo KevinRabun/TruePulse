@@ -60,7 +60,11 @@ export default function PrivacyPolicyPage() {
               </p>
               <ul className="list-disc pl-6 text-gray-600 dark:text-gray-400 mt-2">
                 <li>Email address (for account verification and recovery)</li>
-                <li>Phone number (optional, for two-factor authentication)</li>
+                <li>
+                  <strong>Phone number (required)</strong> - Used for SMS verification to confirm your identity 
+                  and prevent fraudulent accounts. This is mandatory to ensure our &quot;one person = one vote&quot; 
+                  policy. We do not use your phone number for marketing purposes.
+                </li>
                 <li>Display name (can be a pseudonym)</li>
                 <li>Password (stored using industry-standard encryption)</li>
               </ul>

@@ -49,10 +49,10 @@ class Settings(BaseSettings):
 
     @property
     def POSTGRES_URL(self) -> str:
-        """Construct PostgreSQL connection URL."""
+        """Construct PostgreSQL connection URL with SSL required."""
         return (
             f"postgresql+asyncpg://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}"
-            f"@{self.POSTGRES_HOST}:{self.POSTGRES_PORT}/{self.POSTGRES_DB}"
+            f"@{self.POSTGRES_HOST}:{self.POSTGRES_PORT}/{self.POSTGRES_DB}?ssl=require"
         )
 
     # Azure Storage (Tables for votes, token blacklist, reset tokens)
@@ -79,6 +79,11 @@ class Settings(BaseSettings):
     JWT_ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
+
+    # Field-Level PII Encryption
+    # Base64-encoded 256-bit AES key for encrypting PII (email, phone)
+    # Generate with: python -c "from core.encryption import generate_encryption_key; print(generate_encryption_key())"
+    FIELD_ENCRYPTION_KEY: str | None = None
 
     # CORS - stored as comma-separated string to avoid pydantic-settings JSON parsing issues
     CORS_ORIGINS: str = "http://localhost:3000"

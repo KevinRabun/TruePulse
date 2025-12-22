@@ -170,7 +170,7 @@ export function PhoneVerification({ phoneNumber, phoneVerified, onUpdate }: Phon
         </div>
         <div>
           <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Phone Number</h3>
-          <p className="text-sm text-gray-600 dark:text-slate-400">Receive daily polls via SMS</p>
+          <p className="text-sm text-gray-600 dark:text-slate-400">Required for account verification</p>
         </div>
       </div>
 

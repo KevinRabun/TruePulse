@@ -58,9 +58,11 @@ POST /api/v1/auth/register
   "email": "user@example.com",
   "password": "secure_password",
   "display_name": "JohnDoe",
-  "date_of_birth": "1990-05-15"
+  "phone_number": "+15551234567"
 }
 ```
+
+> **Note:** Phone number is **mandatory** for registration. TruePulse enforces a "one person = one vote" policy, and phone verification is required to prevent duplicate accounts and ensure vote integrity. Users must verify their phone number via SMS before they can participate in polls.
 
 ### Logout
 

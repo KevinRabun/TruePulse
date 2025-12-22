@@ -78,6 +78,8 @@ export default function TermsOfServicePage() {
               </p>
               <ul className="list-disc pl-6 text-gray-600 dark:text-gray-400 mt-2">
                 <li>Provide accurate and complete registration information</li>
+                <li>Provide a valid phone number that you own and control</li>
+                <li>Consent to receiving SMS verification messages at the provided number</li>
                 <li>Maintain the security of your account credentials</li>
                 <li>Promptly notify us of any unauthorized access</li>
                 <li>Be responsible for all activities under your account</li>
@@ -131,11 +133,19 @@ export default function TermsOfServicePage() {
                 measures to ensure one-person-one-vote:
               </p>
               <ul className="list-disc pl-6 text-gray-600 dark:text-gray-400 mt-2">
-                <li>Email and/or phone verification</li>
+                <li>Mandatory email verification</li>
+                <li>Mandatory phone verification via SMS (required during registration)</li>
                 <li>Device fingerprinting</li>
                 <li>Behavioral analysis</li>
                 <li>CAPTCHA challenges</li>
               </ul>
+              <p className="text-gray-600 dark:text-gray-400 mt-4">
+                <strong>Phone Number Requirement:</strong> A valid phone number is required
+                to create an account. By providing your phone number, you consent to receiving
+                SMS messages for account verification purposes. Standard messaging rates may apply.
+                This requirement helps us prevent fraudulent accounts and ensures the integrity
+                of our polling results.
+              </p>
               <p className="text-gray-600 dark:text-gray-400 mt-4">
                 Attempts to circumvent these measures may result in immediate account
                 termination and potential legal action.

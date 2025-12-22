@@ -1,0 +1,30 @@
+# CODEOWNERS file for TruePulse
+# These owners will be requested for review when someone opens a pull request
+# that modifies code they own. Order matters - later patterns take precedence.
+
+# Default owner for everything not matched below
+* @KevinRabun
+
+# Infrastructure and DevOps
+/infra/ @KevinRabun
+/.github/ @KevinRabun
+/docker-compose.yml @KevinRabun
+/scripts/ @KevinRabun
+
+# Backend API
+/src/backend/ @KevinRabun
+
+# Frontend
+/src/frontend/ @KevinRabun
+
+# Documentation
+/docs/ @KevinRabun
+/README.md @KevinRabun
+/CONTRIBUTING.md @KevinRabun
+
+# Security-sensitive files (require explicit approval)
+/src/backend/core/security.py @KevinRabun
+/src/backend/services/fraud_detection.py @KevinRabun
+/src/backend/api/v1/secure_votes.py @KevinRabun
+/infra/modules/keyVault.bicep @KevinRabun
+/infra/modules/postgres.bicep @KevinRabun

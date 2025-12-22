@@ -17,7 +17,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request, status
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from api.deps import get_current_verified_user
+from api.deps import get_current_verified_user, rate_limit_vote
 from core.security import generate_vote_hash
 from db.session import get_db
 from models.poll import PollStatus
@@ -236,6 +236,7 @@ async def pre_check_vote(
     vote_data: SecureVoteRequest,
     current_user: Annotated[UserInDB, Depends(get_current_verified_user)],
     db: AsyncSession = Depends(get_db),
+    _rate_limit: None = Depends(rate_limit_vote),
 ) -> VoteRiskResponse:
     """
     Pre-check vote before submission.
@@ -313,6 +314,7 @@ async def cast_secure_vote(
     vote_data: SecureVoteRequest,
     current_user: Annotated[UserInDB, Depends(get_current_verified_user)],
     db: AsyncSession = Depends(get_db),
+    _rate_limit: None = Depends(rate_limit_vote),
 ) -> SecureVoteResponse:
     """
     Cast a vote with full fraud prevention.
@@ -484,6 +486,7 @@ async def verify_captcha(
     token: str,
     current_user: Annotated[UserInDB, Depends(get_current_verified_user)],
     db: AsyncSession = Depends(get_db),
+    _rate_limit: None = Depends(rate_limit_vote),
 ) -> dict:
     """
     Verify a CAPTCHA token.
@@ -521,6 +524,9 @@ async def verify_captcha_token(token: str, ip_address: str) -> bool:
     - Free for unlimited use
     - Better UX (invisible option)
     - GDPR compliant
+    
+    SECURITY NOTE: CAPTCHA is REQUIRED in production. Only development
+    environments can bypass CAPTCHA verification when not configured.
     """
     import httpx
 
@@ -528,7 +534,22 @@ async def verify_captcha_token(token: str, ip_address: str) -> bool:
 
     secret_key = settings.TURNSTILE_SECRET_KEY
     if not secret_key:
-        # If no CAPTCHA configured, allow (for development)
+        # Only allow bypassing CAPTCHA in development mode
+        # In production, CAPTCHA MUST be configured
+        if settings.APP_ENV in ("production", "prod", "staging"):
+            logger.error(
+                "captcha_not_configured_in_production",
+                app_env=settings.APP_ENV,
+                message="CAPTCHA is required in production but TURNSTILE_SECRET_KEY is not set",
+            )
+            return False
+        
+        # Allow bypass only in development/test
+        logger.warning(
+            "captcha_bypassed_in_development",
+            app_env=settings.APP_ENV,
+            message="CAPTCHA verification bypassed - only allowed in development",
+        )
         return True
 
     try:

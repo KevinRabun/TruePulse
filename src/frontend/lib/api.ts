@@ -253,6 +253,7 @@ export interface RegisterRequest {
   email: string;
   username: string;
   password: string;
+  phone_number: string;
   display_name?: string;
 }
 
