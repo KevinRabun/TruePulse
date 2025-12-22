@@ -369,7 +369,6 @@ jobs:
             --parameters voteHashSecret='${{ secrets.VOTE_HASH_SECRET }}' \
             --parameters newsDataApiKey='${{ secrets.NEWSDATA_API_KEY }}' \
             --parameters newsApiOrgKey='${{ secrets.NEWSAPI_ORG_KEY }}' \
-            --parameters communicationSenderNumber='${{ secrets.COMMUNICATION_SENDER_NUMBER }}' \
             --parameters fieldEncryptionKey='${{ secrets.FIELD_ENCRYPTION_KEY }}' \
             --parameters enableCMK=false \
             --parameters enableCustomDomain=true \
