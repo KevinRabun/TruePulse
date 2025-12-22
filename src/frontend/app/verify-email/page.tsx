@@ -29,7 +29,7 @@ function VerifyEmailContent() {
 
     const verifyEmail = async () => {
       try {
-        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://ca-truepulse-api-dev.icyplant-c5249e64.eastus2.azurecontainerapps.io'}/api/v1/auth/verify-email/${token}`, {
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://ca-truepulse-api-dev.icyplant-c5249e64.eastus2.azurecontainerapps.io/api/v1'}/auth/verify-email/${token}`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
