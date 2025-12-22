@@ -1,7 +1,7 @@
 'use client';
 
 import { motion, AnimatePresence } from 'framer-motion';
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 
 interface ConfettiPiece {
   id: number;
@@ -10,6 +10,12 @@ interface ConfettiPiece {
   delay: number;
   rotation: number;
   scale: number;
+  // Pre-computed random values for animation to avoid Math.random during render
+  yMultiplier: number;
+  xOffset: number;
+  durationOffset: number;
+  isCircle: boolean;
+  rotationDirection: number;
 }
 
 interface CelebrationProps {
@@ -44,6 +50,12 @@ export function Celebration({ trigger, variant = 'confetti', duration = 3000, on
         delay: Math.random() * 0.5,
         rotation: Math.random() * 360,
         scale: 0.5 + Math.random() * 1,
+        // Pre-compute all random values needed for animation
+        yMultiplier: 0.5 + Math.random() * 0.5,
+        xOffset: (Math.random() - 0.5) * 200,
+        durationOffset: Math.random(),
+        isCircle: Math.random() > 0.5,
+        rotationDirection: Math.random() > 0.5 ? 1 : -1,
       });
     }
     return newPieces;
@@ -64,7 +76,13 @@ export function Celebration({ trigger, variant = 'confetti', duration = 3000, on
     }
   }, [trigger, duration, onComplete, generatePieces, isActive]);
 
-  const renderPiece = (piece: ConfettiPiece) => {
+  // Pre-compute window height to avoid accessing during render
+  const windowHeight = useMemo(() => 
+    typeof window !== 'undefined' ? window.innerHeight : 800, 
+    []
+  );
+
+  const renderPiece = useCallback((piece: ConfettiPiece) => {
     if (variant === 'stars') {
       return (
         <motion.div
@@ -73,13 +91,13 @@ export function Celebration({ trigger, variant = 'confetti', duration = 3000, on
           style={{ left: `${piece.x}%`, bottom: '0%' }}
           initial={{ y: 0, opacity: 1, rotate: 0 }}
           animate={{
-            y: -window.innerHeight * (0.5 + Math.random() * 0.5),
+            y: -windowHeight * piece.yMultiplier,
             opacity: [1, 1, 0],
             rotate: piece.rotation + 360,
             scale: [piece.scale, piece.scale * 1.5, 0],
           }}
           transition={{
-            duration: 2 + Math.random(),
+            duration: 2 + piece.durationOffset,
             delay: piece.delay,
             ease: 'easeOut',
           }}
@@ -101,11 +119,11 @@ export function Celebration({ trigger, variant = 'confetti', duration = 3000, on
           animate={{
             scale: [0, piece.scale, 0],
             opacity: [0, 1, 0],
-            x: (Math.random() - 0.5) * 200,
-            y: (Math.random() - 0.5) * 200,
+            x: piece.xOffset,
+            y: piece.xOffset, // Reuse xOffset for y to avoid another random
           }}
           transition={{
-            duration: 1 + Math.random(),
+            duration: 1 + piece.durationOffset,
             delay: piece.delay,
             ease: 'easeOut',
           }}
@@ -126,23 +144,23 @@ export function Celebration({ trigger, variant = 'confetti', duration = 3000, on
           left: `${piece.x}%`, 
           bottom: '0%',
           backgroundColor: piece.color,
-          borderRadius: Math.random() > 0.5 ? '50%' : '2px',
+          borderRadius: piece.isCircle ? '50%' : '2px',
         }}
         initial={{ y: 0, opacity: 1, rotate: 0 }}
         animate={{
-          y: -window.innerHeight * (0.3 + Math.random() * 0.5),
+          y: -windowHeight * (0.3 + piece.yMultiplier * 0.4),
           opacity: [1, 1, 0],
-          rotate: piece.rotation + (Math.random() > 0.5 ? 360 : -360) * 2,
-          x: (Math.random() - 0.5) * 200,
+          rotate: piece.rotation + piece.rotationDirection * 360 * 2,
+          x: piece.xOffset,
         }}
         transition={{
-          duration: 2 + Math.random(),
+          duration: 2 + piece.durationOffset,
           delay: piece.delay,
           ease: [0.25, 0.46, 0.45, 0.94],
         }}
       />
     );
-  };
+  }, [variant, windowHeight]);
 
   return (
     <AnimatePresence>

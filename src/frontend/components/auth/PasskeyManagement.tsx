@@ -43,7 +43,10 @@ export function PasskeyManagement({ className = "", onUpdate }: PasskeyManagemen
   const [passkeys, setPasskeys] = useState<PasskeyInfo[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [isSupported, setIsSupported] = useState<boolean | null>(null);
+  // Initialize passkey support synchronously to avoid setState in effect
+  const [isSupported] = useState<boolean | null>(() => 
+    typeof window !== 'undefined' ? isPasskeySupported() : null
+  );
   const [showRegister, setShowRegister] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
@@ -68,7 +71,6 @@ export function PasskeyManagement({ className = "", onUpdate }: PasskeyManagemen
   }, [accessToken]);
 
   useEffect(() => {
-    setIsSupported(isPasskeySupported());
     loadPasskeys();
   }, [loadPasskeys]);
 

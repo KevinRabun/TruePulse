@@ -31,11 +31,17 @@ export function AdInterstitial({
   useEffect(() => {
     if (isOpen) {
       trackView('interstitial', 'fullscreen');
+    }
+  }, [isOpen, trackView]);
+
+  // Reset state when interstitial opens (separate effect to avoid setState during render)
+  useEffect(() => {
+    if (isOpen) {
       setCanSkip(false);
       setCountdown(skipDelay);
       setHasWatchedFull(false);
     }
-  }, [isOpen, skipDelay, trackView]);
+  }, [isOpen, skipDelay]);
 
   // Countdown timer
   useEffect(() => {

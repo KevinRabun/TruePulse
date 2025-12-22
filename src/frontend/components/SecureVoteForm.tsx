@@ -283,14 +283,17 @@ export function SecureVoteForm({
  */
 export function useSecureVote(pollId: string) {
   const [tracker] = useState(() => new BehavioralTracker(pollId));
-  const [isReady, setIsReady] = useState(false);
+  // Start tracking immediately and set ready state synchronously
+  const [isReady] = useState(() => {
+    // Tracker starts tracking on instantiation via the state initializer above
+    return true;
+  });
   const [riskAssessment, setRiskAssessment] = useState<RiskAssessment | null>(
     null
   );
 
   useEffect(() => {
     tracker.startTracking();
-    setIsReady(true);
     return () => tracker.stopTracking();
   }, [tracker]);
 

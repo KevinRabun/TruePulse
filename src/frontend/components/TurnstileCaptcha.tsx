@@ -98,7 +98,7 @@ export function TurnstileCaptcha({
 
     // Check if script is already loaded
     if (window.turnstile) {
-      setIsLoaded(true);
+      if (!isLoaded) setIsLoaded(true);
       return;
     }
 
@@ -107,8 +107,9 @@ export function TurnstileCaptcha({
       'script[src*="challenges.cloudflare.com"]'
     );
     if (existingScript) {
-      existingScript.addEventListener("load", () => setIsLoaded(true));
-      return;
+      const handleLoad = () => setIsLoaded(true);
+      existingScript.addEventListener("load", handleLoad);
+      return () => existingScript.removeEventListener("load", handleLoad);
     }
 
     // Load script
@@ -132,7 +133,7 @@ export function TurnstileCaptcha({
       // Cleanup callback
       delete window.onTurnstileLoad;
     };
-  }, []);
+  }, [isLoaded]);
 
   // Render widget when script is loaded
   useEffect(() => {

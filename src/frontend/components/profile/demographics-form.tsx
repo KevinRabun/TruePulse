@@ -330,12 +330,15 @@ export function DemographicsForm({ onUpdate }: DemographicsFormProps) {
   useEffect(() => {
     if (demographics) {
       setFormData(demographics);
-      // The country field stores the ISO code - use it directly
-      if (demographics.country) {
-        setSelectedCountryCode(demographics.country);
-      }
     }
   }, [demographics]);
+
+  // Set country code when demographics load (separate effect for country)
+  useEffect(() => {
+    if (demographics?.country) {
+      setSelectedCountryCode(demographics.country);
+    }
+  }, [demographics?.country]);
 
   // Find state ID when states load and we have a state_province name
   useEffect(() => {

@@ -40,12 +40,13 @@ const sizes = {
 };
 
 export function AnimatedGlobe({ size = 'lg', showActivity = true, className = '' }: AnimatedGlobeProps) {
-  const [activityPoints, setActivityPoints] = useState<ReturnType<typeof generateActivityPoints>>([]);
+  // Initialize activity points synchronously to avoid setState in effect
+  const [activityPoints, setActivityPoints] = useState<ReturnType<typeof generateActivityPoints>>(() => 
+    showActivity ? generateActivityPoints(8) : []
+  );
   
   useEffect(() => {
     if (showActivity) {
-      setActivityPoints(generateActivityPoints(8));
-      
       // Regenerate points periodically
       const interval = setInterval(() => {
         setActivityPoints(generateActivityPoints(8));

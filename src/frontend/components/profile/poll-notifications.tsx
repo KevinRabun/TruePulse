@@ -23,18 +23,23 @@ export function PollNotifications({ onUpdate }: PollNotificationsProps) {
     queryFn: () => api.getSettings(),
   });
 
+  // Initialize state with default values, then update when settings load
   const [pulseNotifications, setPulseNotifications] = useState(true);
   const [flashNotifications, setFlashNotifications] = useState(true);
   const [flashPollsPerDay, setFlashPollsPerDay] = useState(5);
 
-  // Sync with fetched settings
+  // Track if we've synced with server settings
+  const [hasSynced, setHasSynced] = useState(false);
+
+  // Sync with fetched settings only once when data first loads
   useEffect(() => {
-    if (settings) {
+    if (settings && !hasSynced) {
       setPulseNotifications(settings.pulse_poll_notifications ?? true);
       setFlashNotifications(settings.flash_poll_notifications ?? true);
       setFlashPollsPerDay(settings.flash_polls_per_day ?? 5);
+      setHasSynced(true);
     }
-  }, [settings]);
+  }, [settings, hasSynced]);
 
   const updateMutation = useMutation({
     mutationFn: (data: Partial<UserSettings>) => api.updateSettings(data),

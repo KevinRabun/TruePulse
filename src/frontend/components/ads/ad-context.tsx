@@ -28,15 +28,16 @@ export function AdProvider({ children }: { children: React.ReactNode }) {
   const { isAuthenticated } = useAuth();
   const [isLoading] = useState(false);
   const [showPersonalizedAds, setShowPersonalizedAds] = useState(false);
-  const [engagement, setEngagement] = useState<AdEngagement>({
-    totalViews: 0,
-    totalClicks: 0,
-    todayViews: 0,
-    todayClicks: 0,
-  });
-
-  // Load engagement from localStorage on mount
-  useEffect(() => {
+  // Initialize engagement from localStorage synchronously
+  const [engagement, setEngagement] = useState<AdEngagement>(() => {
+    if (typeof window === 'undefined') {
+      return {
+        totalViews: 0,
+        totalClicks: 0,
+        todayViews: 0,
+        todayClicks: 0,
+      };
+    }
     const stored = localStorage.getItem(AD_ENGAGEMENT_KEY);
     if (stored) {
       try {
@@ -48,12 +49,18 @@ export function AdProvider({ children }: { children: React.ReactNode }) {
           data.todayClicks = 0;
           data.date = today;
         }
-        setEngagement(data);
+        return data;
       } catch {
         // Invalid data, use defaults
       }
     }
-  }, []);
+    return {
+      totalViews: 0,
+      totalClicks: 0,
+      todayViews: 0,
+      todayClicks: 0,
+    };
+  });
 
   // Save engagement to localStorage whenever it changes
   useEffect(() => {

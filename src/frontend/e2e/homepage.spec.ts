@@ -7,7 +7,7 @@
 import { test, expect, samplePoll } from './fixtures';
 
 test.describe('Homepage', () => {
-  test.beforeEach(async ({ page, mockApi }) => {
+  test.beforeEach(async ({ mockApi }) => {
     // Mock the current poll API
     await mockApi.mockPoll(samplePoll);
   });

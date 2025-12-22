@@ -165,15 +165,15 @@ interface PasskeyPromoBannerProps {
 }
 
 export function PasskeyPromoBanner({ onSetup, onDismiss }: PasskeyPromoBannerProps) {
-  const [isSupported, setIsSupported] = useState<boolean | null>(null);
-  const [dismissed, setDismissed] = useState(false);
-
-  useEffect(() => {
-    setIsSupported(isPasskeySupported());
-    // Check if user has dismissed the banner before
-    const dismissed = localStorage.getItem("passkey-promo-dismissed");
-    if (dismissed) setDismissed(true);
-  }, []);
+  // Initialize passkey support synchronously to avoid setState in effect
+  const [isSupported] = useState<boolean | null>(() => 
+    typeof window !== 'undefined' ? isPasskeySupported() : null
+  );
+  // Initialize dismissed state synchronously from localStorage
+  const [dismissed, setDismissed] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    return localStorage.getItem("passkey-promo-dismissed") === "true";
+  });
 
   if (!isSupported || dismissed) return null;
 

@@ -15,12 +15,14 @@ export default function LoginPage() {
   const { isAuthenticated, refreshUser } = useAuth();
   const { success, error: showError } = useToast();
   const [error, setError] = useState<string | null>(null);
-  const [passkeySupported, setPasskeySupported] = useState<boolean | null>(null);
+  // Initialize passkey support synchronously to avoid setState in effect
+  const [passkeySupported] = useState<boolean | null>(() => 
+    typeof window !== 'undefined' ? isPasskeySupported() : null
+  );
   const [, setHasPlatform] = useState<boolean | null>(null);
 
   useEffect(() => {
-    // Check passkey support
-    setPasskeySupported(isPasskeySupported());
+    // Only check async platform authenticator in effect
     hasPlatformAuthenticator().then(setHasPlatform);
     
     // Redirect if already authenticated
