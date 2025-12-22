@@ -9,20 +9,21 @@ import {
   XCircleIcon,
   ArrowPathIcon,
 } from '@heroicons/react/24/outline';
-import { api } from '@/lib/api';
 
 export default function VerifyEmailPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const token = searchParams.get('token');
 
-  const [status, setStatus] = useState<'loading' | 'success' | 'error'>('loading');
-  const [message, setMessage] = useState('');
+  const [status, setStatus] = useState<'loading' | 'success' | 'error'>(
+    token ? 'loading' : 'error'
+  );
+  const [message, setMessage] = useState(
+    token ? '' : 'No verification token provided'
+  );
 
   useEffect(() => {
     if (!token) {
-      setStatus('error');
-      setMessage('No verification token provided');
       return;
     }
 
@@ -43,7 +44,7 @@ export default function VerifyEmailPage() {
           setStatus('error');
           setMessage(data.detail || 'Failed to verify email. The link may have expired.');
         }
-      } catch (err) {
+      } catch (_err) {
         setStatus('error');
         setMessage('An error occurred while verifying your email. Please try again.');
       }
