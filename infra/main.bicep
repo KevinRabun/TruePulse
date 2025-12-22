@@ -18,8 +18,8 @@ param location string = 'eastus2'
 @description('Resource name prefix')
 param prefix string = 'truepulse'
 
-@description('Current timestamp for budget start date (defaults to deployment time)')
-param deploymentTimestamp string = utcNow()
+@description('Current timestamp for budget start date (defaults to deployment time, format: yyyy-MM-dd)')
+param deploymentTimestamp string = utcNow('yyyy-MM-dd')
 
 @description('Tags to apply to all resources')
 param tags object = {
@@ -396,7 +396,7 @@ module budget 'modules/budget.bicep' = {
     // Set budget amounts per environment
     // Dev: $300/month, Staging: $500/month, Prod: $1000/month
     budgetAmount: environmentName == 'prod' ? 1000 : (environmentName == 'staging' ? 500 : 300)
-    // Budget starts from the first of the current month
+    // Budget starts from the first of the current month (deploymentTimestamp is yyyy-MM-dd)
     budgetStartDate: '${substring(deploymentTimestamp, 0, 7)}-01'
     // Contact emails for budget alerts - update this with your actual email
     contactEmails: ['alerts@truepulse.net']
