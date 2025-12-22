@@ -139,7 +139,6 @@ class TestUserReputationScore:
             user_id="user-1",
             reputation_score=85,
             email_verified=True,
-            phone_verified=True,
         )
 
         assert reputation.trust_tier == "trusted"

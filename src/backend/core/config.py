@@ -114,9 +114,8 @@ class Settings(BaseSettings):
     TURNSTILE_SITE_KEY: str | None = None
     TURNSTILE_SECRET_KEY: str | None = None
 
-    # Fraud Detection Settings
+    # Fraud Detection Settings (email + passkey auth provides identity assurance)
     FRAUD_REQUIRE_EMAIL_VERIFIED: bool = True  # Require email verification to vote
-    FRAUD_REQUIRE_PHONE_VERIFIED: bool = True  # Require phone verification to vote
 
     @property
     def cors_origins_list(self) -> list[str]:

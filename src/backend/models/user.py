@@ -162,8 +162,8 @@ class User(Base):
 
     @property
     def can_use_passwordless(self) -> bool:
-        """Check if user can authenticate without password (has passkey and verified phone)."""
-        return self.has_passkey and self.phone_verified
+        """Check if user can authenticate without password (passkey-only auth)."""
+        return self.has_passkey and self.is_verified
 
     def get_demographics_bucket(self) -> str | None:
         """

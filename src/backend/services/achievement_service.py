@@ -359,16 +359,10 @@ class AchievementService:
                 if newly_awarded:
                     awarded.append(achievement)
 
-        elif verification_type == "phone":
-            result = await self.db.execute(select(Achievement).where(Achievement.id == "phone_verified"))
-            achievement = result.scalar_one_or_none()
-            if achievement:
-                newly_awarded = await self._try_award_achievement(user, achievement)
-                if newly_awarded:
-                    awarded.append(achievement)
+        # Note: Phone verification achievements removed - TruePulse uses email + passkey auth only
 
-        # Check if fully verified (both email and phone)
-        if user.email_verified and user.phone_verified:
+        # Check if fully verified (email verified is our only verification requirement now)
+        if user.email_verified:
             result = await self.db.execute(select(Achievement).where(Achievement.id == "fully_verified"))
             achievement = result.scalar_one_or_none()
             if achievement:

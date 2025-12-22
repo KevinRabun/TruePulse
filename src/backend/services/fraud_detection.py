@@ -42,10 +42,8 @@ class FraudConfig:
     FINGERPRINT_SALT = getattr(settings, "FINGERPRINT_SALT", settings.SECRET_KEY)
 
     # Verification Requirements - CRITICAL for bot farm resistance
-    # These can be configured via environment variables
+    # Email verification + passkey authentication provides identity assurance
     REQUIRE_EMAIL_VERIFIED = getattr(settings, "FRAUD_REQUIRE_EMAIL_VERIFIED", True)
-    REQUIRE_PHONE_VERIFIED = getattr(settings, "FRAUD_REQUIRE_PHONE_VERIFIED", True)
-    REQUIRE_BOTH_VERIFIED = getattr(settings, "FRAUD_REQUIRE_BOTH_VERIFIED", True)
 
     # IP Intelligence
     BLOCK_VPN = True
@@ -236,10 +234,8 @@ class UserReputationScore(BaseModel):
     # Core reputation (0-100, starts at 50)
     reputation_score: int = 50
 
-    # Verification status - BOTH required for voting
+    # Verification status - email verified required for voting
     email_verified: bool = False
-    phone_verified: bool = False
-    both_verified: bool = False  # Computed: email AND phone both verified
     has_profile_photo: bool = False
 
     # Account age factors
@@ -786,16 +782,10 @@ class FraudDetectionService:
             reputation_adjustment = self._calculate_reputation_adjustment(user_reputation)
             risk_score += reputation_adjustment
 
-            # Bonus for fully verified users (both email + phone)
-            if user_reputation.email_verified and user_reputation.phone_verified:
-                risk_score -= 30  # Significant bonus for dual verification
-                assessment.debug_info["dual_verified_bonus"] = -30
-            elif user_reputation.phone_verified:
+            # Bonus for verified users (email verification provides identity assurance)
+            if user_reputation.email_verified:
                 risk_score -= 20
-                assessment.debug_info["phone_verified_bonus"] = -20
-            elif user_reputation.email_verified:
-                risk_score -= 10
-                assessment.debug_info["email_verified_bonus"] = -10
+                assessment.debug_info["email_verified_bonus"] = -20
 
             if user_reputation.account_age_days > 30:
                 risk_score -= 10
@@ -825,7 +815,7 @@ class FraudDetectionService:
             assessment.required_challenge = ChallengeType.CAPTCHA
         elif risk_score >= FraudConfig.MEDIUM_RISK_THRESHOLD:
             assessment.risk_level = RiskLevel.MEDIUM
-            if not user_reputation or not user_reputation.phone_verified:
+            if not user_reputation or not user_reputation.email_verified:
                 assessment.required_challenge = ChallengeType.CAPTCHA
         else:
             assessment.risk_level = RiskLevel.LOW
@@ -924,10 +914,10 @@ class FraudDetectionService:
         Check if user meets verification requirements for voting.
 
         This is THE MOST IMPORTANT check for bot farm resistance.
-        Bot farms struggle to:
-        1. Verify email addresses at scale (somewhat easy to bypass)
-        2. Verify phone numbers at scale (VERY hard - costs money per number)
-        3. Have BOTH verified on the same account (multiplicative difficulty)
+        TruePulse uses email verification + passkey authentication for identity:
+        1. Email verification confirms a valid email address
+        2. Passkeys provide cryptographic proof of device ownership
+        3. Combined, these make it hard to create fake accounts at scale
 
         Returns True if voting should be blocked (verification missing).
         """
@@ -939,54 +929,19 @@ class FraudDetectionService:
             assessment.risk_factors.append("no_user_reputation")
             return True
 
-        missing_verifications = []
-
-        # Check email verification requirement
+        # Check email verification requirement (our primary verification method)
         if FraudConfig.REQUIRE_EMAIL_VERIFIED and not user_reputation.email_verified:
-            missing_verifications.append("email")
-
-        # Check phone verification requirement
-        if FraudConfig.REQUIRE_PHONE_VERIFIED and not user_reputation.phone_verified:
-            missing_verifications.append("phone")
-
-        # If both are required, check that BOTH are present
-        if FraudConfig.REQUIRE_BOTH_VERIFIED:
-            if not user_reputation.email_verified or not user_reputation.phone_verified:
-                if not missing_verifications:
-                    # This handles edge case where individual requirements are disabled
-                    # but REQUIRE_BOTH_VERIFIED is True
-                    if not user_reputation.email_verified:
-                        missing_verifications.append("email")
-                    if not user_reputation.phone_verified:
-                        missing_verifications.append("phone")
-
-        if missing_verifications:
             assessment.allow_vote = False
-
-            if "phone" in missing_verifications and "email" in missing_verifications:
-                assessment.block_reason = (
-                    "Both email and phone verification required. "
-                    "This ensures one person = one vote and protects poll integrity."
-                )
-                assessment.required_challenge = ChallengeType.BLOCK
-                assessment.risk_factors.append("missing_email_verification")
-                assessment.risk_factors.append("missing_phone_verification")
-            elif "phone" in missing_verifications:
-                assessment.block_reason = "Phone verification required. This helps ensure one person = one vote."
-                assessment.required_challenge = ChallengeType.SMS_VERIFY
-                assessment.risk_factors.append("missing_phone_verification")
-            else:
-                assessment.block_reason = "Email verification required. Please check your inbox and verify your email."
-                assessment.required_challenge = ChallengeType.BLOCK
-                assessment.risk_factors.append("missing_email_verification")
-
+            assessment.block_reason = "Email verification required. Please check your inbox and verify your email."
+            assessment.required_challenge = ChallengeType.BLOCK
+            assessment.risk_factors.append("missing_email_verification")
             assessment.risk_level = RiskLevel.CRITICAL
-            assessment.debug_info["missing_verifications"] = missing_verifications
+            assessment.debug_info["missing_verifications"] = ["email"]
             return True
 
         # User is properly verified
         assessment.debug_info["verification_passed"] = True
-        assessment.debug_info["both_verified"] = user_reputation.email_verified and user_reputation.phone_verified
+        assessment.debug_info["email_verified"] = user_reputation.email_verified
         return False
 
 

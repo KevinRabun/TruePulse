@@ -330,7 +330,6 @@ async def verify_authentication(
                 "email": user.email,
                 "username": user.username,
                 "isVerified": user.is_verified,
-                "phoneVerified": user.phone_verified,
                 "emailVerified": user.email_verified,
                 "hasPasskey": True,
                 "passkeyOnly": user.passkey_only,

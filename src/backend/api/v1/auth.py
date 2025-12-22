@@ -43,11 +43,11 @@ async def register(user_data: UserCreate, db: AsyncSession = Depends(get_db)) ->
     Register a new user account.
 
     Registration flow:
-    1. User provides email, phone, and display name
+    1. User provides email and display name
     2. Account is created (unverified)
-    3. User must verify phone via SMS
+    3. User verifies email
     4. User creates a passkey for authentication
-    5. Once phone verified + passkey created, user can vote
+    5. Once email verified + passkey created, user can vote
 
     No passwords are used - authentication is passkey-only for maximum security.
     """
@@ -60,15 +60,6 @@ async def register(user_data: UserCreate, db: AsyncSession = Depends(get_db)) ->
             detail="Email already registered",
         )
 
-    # Check if phone number already exists
-    result = await db.execute(select(User).where(User.phone_number == user_data.phone_number))
-    existing_phone = result.scalar_one_or_none()
-    if existing_phone:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Phone number already registered",
-        )
-
     # Check if username already exists
     result = await db.execute(select(User).where(User.username == user_data.username))
     existing_username = result.scalar_one_or_none()
@@ -79,15 +70,13 @@ async def register(user_data: UserCreate, db: AsyncSession = Depends(get_db)) ->
         )
 
     # Create user in database (no password - passkey-only authentication)
-    # User starts unverified - must verify phone AND create passkey to vote
+    # User starts unverified - must verify email AND create passkey to vote
     new_user = User(
         email=user_data.email.lower(),
         username=user_data.username,
-        phone_number=user_data.phone_number,
         is_active=True,
-        is_verified=False,  # Will be True when phone verified
+        is_verified=False,  # Will be True when email verified
         email_verified=False,
-        phone_verified=False,
         total_points=100,  # Welcome bonus
         level=1,
     )
@@ -96,7 +85,7 @@ async def register(user_data: UserCreate, db: AsyncSession = Depends(get_db)) ->
     await db.commit()
     await db.refresh(new_user)
 
-    # Create tokens for immediate session (but user can't vote until phone verified + passkey created)
+    # Create tokens for immediate session (but user can't vote until email verified + passkey created)
     token_data = {"sub": str(new_user.id), "email": new_user.email}
     access_token = create_access_token(token_data)
     refresh_token = create_refresh_token(token_data)
@@ -112,8 +101,6 @@ async def register(user_data: UserCreate, db: AsyncSession = Depends(get_db)) ->
             display_name=user_data.display_name or new_user.username,
             is_active=new_user.is_active,
             is_verified=new_user.is_verified,
-            phone_number=new_user.phone_number,
-            phone_verified=new_user.phone_verified,
             points=new_user.total_points,
             level=new_user.level,
             has_passkey=False,
@@ -210,16 +197,12 @@ async def verify_email(
     # Update user to verified
     from sqlalchemy import update as sql_update
 
-    # First, set email_verified=True
-    await db.execute(sql_update(User).where(User.id == user_id).values(email_verified=True))
-
-    # Check if phone is also verified, if so set is_verified=True
-    result = await db.execute(select(User).where(User.id == user_id))
-    user = result.scalar_one_or_none()
-    if user and user.phone_verified:
-        await db.execute(sql_update(User).where(User.id == user_id).values(is_verified=True))
+    # Set email_verified=True and is_verified=True (email is our only verification now)
+    await db.execute(sql_update(User).where(User.id == user_id).values(email_verified=True, is_verified=True))
 
     # Award verification achievement
+    result = await db.execute(select(User).where(User.id == user_id))
+    user = result.scalar_one_or_none()
     if user:
         from services.achievement_service import AchievementService
 
@@ -232,4 +215,4 @@ async def verify_email(
 
 
 # Note: Password reset endpoints removed - TruePulse uses passkey-only authentication.
-# Account recovery is handled via phone verification + passkey re-registration.
+# Account recovery is handled via email verification + passkey re-registration.

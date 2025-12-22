@@ -62,10 +62,12 @@ class UserResponse(UserBase):
 
 
 class UserInDB(UserBase):
-    """Schema for user stored in database (internal use)."""
+    """Schema for user stored in database (internal use).
+
+    Note: TruePulse uses passkey-only authentication, so no password field.
+    """
 
     id: str
-    hashed_password: str
     is_active: bool = True
     is_verified: bool = False  # True when email is verified and passkey is set
     is_admin: bool = False

@@ -109,8 +109,6 @@ async def get_user_reputation(user: UserInDB, db: AsyncSession) -> UserReputatio
             user_id=user.id,
             reputation_score=0,
             email_verified=False,
-            phone_verified=False,
-            both_verified=False,
             account_age_days=0,
             total_votes=0,
             votes_last_24h=0,
@@ -120,14 +118,11 @@ async def get_user_reputation(user: UserInDB, db: AsyncSession) -> UserReputatio
     account_age = (datetime.now(timezone.utc) - db_user.created_at).days if db_user.created_at else 0
 
     email_verified = db_user.is_verified
-    phone_verified = getattr(db_user, "phone_verified", False)
 
     # Calculate reputation score based on user activity
     base_score = 50
     if email_verified:
-        base_score += 15
-    if phone_verified:
-        base_score += 20
+        base_score += 20  # Increased bonus since email is our primary verification
     if account_age > 30:
         base_score += 10
     if db_user.votes_cast > 10:
@@ -137,8 +132,6 @@ async def get_user_reputation(user: UserInDB, db: AsyncSession) -> UserReputatio
         user_id=user.id,
         reputation_score=min(100, base_score),
         email_verified=email_verified,
-        phone_verified=phone_verified,
-        both_verified=email_verified and phone_verified,
         account_age_days=account_age,
         total_votes=db_user.votes_cast,
         votes_last_24h=0,  # Would need separate query with time filter
@@ -156,73 +149,15 @@ def check_verification_status(user: UserInDB) -> tuple[bool, Optional[dict]]:
     from services.fraud_detection import FraudConfig
 
     email_verified = user.is_verified
-    phone_verified = getattr(user, "phone_verified", False)
-
-    missing = []
 
     if FraudConfig.REQUIRE_EMAIL_VERIFIED and not email_verified:
-        missing.append("email")
-
-    if FraudConfig.REQUIRE_PHONE_VERIFIED and not phone_verified:
-        missing.append("phone")
-
-    if FraudConfig.REQUIRE_BOTH_VERIFIED:
-        if not email_verified:
-            missing.append("email") if "email" not in missing else None
-        if not phone_verified:
-            missing.append("phone") if "phone" not in missing else None
-
-    if not missing:
-        return True, None
-
-    # Build helpful error response
-    if "email" in missing and "phone" in missing:
         return False, {
             "error": "verification_required",
-            "missing_verifications": ["email", "phone"],
-            "message": (
-                "Both email and phone verification are required to vote. "
-                "This ensures one person = one vote and protects poll integrity from bots."
-            ),
-            "actions": [
-                {
-                    "type": "verify_email",
-                    "label": "Verify Email",
-                    "url": "/settings/verify-email",
-                },
-                {
-                    "type": "verify_phone",
-                    "label": "Verify Phone",
-                    "url": "/settings/verify-phone",
-                },
-            ],
+            "message": "Email verification required to vote. Please check your inbox.",
+            "missing": ["email"],
         }
-    elif "phone" in missing:
-        return False, {
-            "error": "phone_verification_required",
-            "missing_verifications": ["phone"],
-            "message": ("Phone verification is required to vote. This helps ensure one person = one vote."),
-            "actions": [
-                {
-                    "type": "verify_phone",
-                    "label": "Verify Phone",
-                    "url": "/settings/verify-phone",
-                },
-            ],
-        }
-    else:
-        return False, {
-            "error": "email_verification_required",
-            "missing_verifications": ["email"],
-            "message": "Please verify your email address to vote.",
-            "actions": [
-                {
-                    "type": "verify_email",
-                    "label": "Verify Email",
-                    "url": "/settings/verify-email",
-                },
-            ],
-        }
+
+    return True, None
 
 
 # =============================================================================
@@ -292,13 +227,7 @@ async def pre_check_vote(
             },
         )
 
-    if assessment.required_challenge == ChallengeType.SMS_VERIFY:
-        return VoteRiskResponse(
-            allow_vote=True,
-            risk_level=assessment.risk_level.value,
-            required_challenge="sms_verify",
-            message="Please verify your phone number to continue",
-        )
+    # Note: SMS verification removed - TruePulse uses email + passkey auth only
 
     return VoteRiskResponse(
         allow_vote=True,
@@ -391,17 +320,8 @@ async def cast_secure_vote(
         # Record successful CAPTCHA
         fraud_detection_service.record_captcha_result(current_user.id, passed=True)
 
-    # Check if phone verification is required
-    if assessment.required_challenge == ChallengeType.SMS_VERIFY:
-        if not getattr(current_user, "phone_verified", False):
-            raise HTTPException(
-                status_code=status.HTTP_428_PRECONDITION_REQUIRED,
-                detail={
-                    "error": "phone_verification_required",
-                    "message": "Please verify your phone number to vote",
-                    "challenge_type": "sms_verify",
-                },
-            )
+    # Note: SMS verification removed - TruePulse uses email + passkey auth only
+    # Email verification is checked by get_current_verified_user dependency
 
     # Initialize repositories
     poll_repo = PollRepository(db)

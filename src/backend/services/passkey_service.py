@@ -106,10 +106,10 @@ class PasskeyService:
         Raises:
             PasskeyRegistrationError: If user is not eligible for passkey registration
         """
-        # Verify user has verified phone (required for credential binding)
-        if not user.phone_verified:
+        # Verify user has verified email (required for credential binding)
+        if not user.email_verified:
             raise PasskeyRegistrationError(
-                "Phone verification required before registering a passkey. This helps ensure one person = one vote."
+                "Email verification required before registering a passkey. This helps ensure one person = one vote."
             )
 
         # Get existing credentials to exclude
@@ -223,8 +223,8 @@ class PasskeyService:
                 require_user_verification=True,
             )
 
-            # Hash the phone number for binding
-            phone_hash = self._hash_phone(user.phone_number) if user.phone_number else None
+            # No phone binding - passkeys are bound to email-verified user identity
+            phone_hash = None
 
             # Determine transports
             transports = []

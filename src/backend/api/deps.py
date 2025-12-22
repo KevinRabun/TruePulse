@@ -90,12 +90,9 @@ async def get_current_user(
         id=str(user.id),
         email=user.email,
         username=user.username,
-        hashed_password=user.hashed_password,
         is_active=user.is_active,
         is_verified=user.is_verified,
         is_admin=user.is_admin,
-        phone_number=user.phone_number,
-        phone_verified=user.phone_verified,
         email_verified=user.email_verified,
         points=user.total_points,
         level=user.level,
@@ -141,12 +138,9 @@ async def get_current_user_optional(
         id=str(user.id),
         email=user.email,
         username=user.username,
-        hashed_password=user.hashed_password,
         is_active=user.is_active,
         is_verified=user.is_verified,
         is_admin=user.is_admin,
-        phone_number=user.phone_number,
-        phone_verified=user.phone_verified,
         email_verified=user.email_verified,
         points=user.total_points,
         level=user.level,
@@ -175,20 +169,12 @@ async def get_current_verified_user(
     """
     Ensure the current user is fully verified.
 
-    Verification requires BOTH:
-    - Email verified
-    - Phone verified
-
-    This is required for voting to ensure one person = one vote.
+    Verification requires email verification.
+    This is required for voting to ensure account authenticity.
     """
     if not current_user.is_verified:
-        # Check what's missing for a helpful error message
-        if not current_user.email_verified and not current_user.phone_verified:
-            detail = "Please verify both your email and phone number to vote"
-        elif not current_user.email_verified:
+        if not current_user.email_verified:
             detail = "Please verify your email address to vote"
-        elif not current_user.phone_verified:
-            detail = "Please verify your phone number to vote"
         else:
             detail = "Account verification required to vote"
 
