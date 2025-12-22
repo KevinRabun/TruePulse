@@ -89,8 +89,8 @@ class ChallengeType(str, Enum):
 
     NONE = "none"
     CAPTCHA = "captcha"
-    SMS_VERIFY = "sms_verify"
     EMAIL_VERIFY = "email_verify"
+    PASSKEY_VERIFY = "passkey_verify"  # Replaces SMS verification
     BLOCK = "block"
 
 

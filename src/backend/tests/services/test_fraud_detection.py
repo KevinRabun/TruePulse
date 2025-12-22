@@ -268,7 +268,7 @@ class TestChallengeTypeEnum:
         """Test that all expected challenge types exist."""
         assert ChallengeType.NONE == "none"
         assert ChallengeType.CAPTCHA == "captcha"
-        assert ChallengeType.SMS_VERIFY == "sms_verify"
+        assert ChallengeType.PASSKEY_VERIFY == "passkey_verify"
         assert ChallengeType.EMAIL_VERIFY == "email_verify"
         assert ChallengeType.BLOCK == "block"
 

@@ -61,10 +61,7 @@ param frontendApiSecret string = ''
 @secure()
 param fieldEncryptionKey string = ''
 
-// Communication settings
-@description('Azure Communication Services sender phone number')
-param communicationSenderNumber string = ''
-
+// Email settings
 @description('Email sender address for verification emails')
 param emailSenderAddress string = ''
 
@@ -349,7 +346,6 @@ module containerAppApi 'modules/containerAppApi.bicep' = {
     storageAccountUrl: storageAccount.outputs.primaryBlobEndpoint
     environmentName: environmentName
     communicationServicesName: sharedCommunicationServiceName
-    communicationSenderNumber: communicationSenderNumber
     emailServiceName: ''  // Email handled via shared services
     emailSenderAddress: emailSenderAddress
     customDomain: enableCustomDomain ? customDomain : ''

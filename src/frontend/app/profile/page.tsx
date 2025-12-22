@@ -18,13 +18,10 @@ import {
   LockClosedIcon,
   PencilIcon,
   CameraIcon,
-  DevicePhoneMobileIcon,
   ShieldCheckIcon,
   EnvelopeIcon,
 } from '@heroicons/react/24/outline';
 import { CheckBadgeIcon as CheckBadgeSolidIcon } from '@heroicons/react/24/solid';
-import { PhoneVerification } from '@/components/profile/phone-verification';
-import { SMSPreferences } from '@/components/profile/sms-preferences';
 import { DemographicsForm } from '@/components/profile/demographics-form';
 import { ThemeSettings } from '@/components/profile/theme-settings';
 import { PollNotifications } from '@/components/profile/poll-notifications';
@@ -55,7 +52,7 @@ const achievementIcons: Record<string, React.ReactNode> = {
   yearly_rank_3: <TrophyIcon className="h-8 w-8 text-amber-800" />,
   // Verification achievements
   email_verified: <EnvelopeIcon className="h-8 w-8 text-blue-400" />,
-  phone_verified: <DevicePhoneMobileIcon className="h-8 w-8 text-green-400" />,
+  passkey_verified: <ShieldCheckIcon className="h-8 w-8 text-green-400" />,
   fully_verified: <ShieldCheckIcon className="h-8 w-8 text-green-500" />,
 };
 
@@ -490,24 +487,8 @@ export default function ProfilePage() {
                 onUpdate={() => queryClient.invalidateQueries({ queryKey: ['profile'] })}
               />
 
-              {/* Phone Verification */}
-              <PhoneVerification
-                phoneNumber={profile.phone_number}
-                phoneVerified={profile.phone_verified}
-                onUpdate={() => queryClient.invalidateQueries({ queryKey: ['profile'] })}
-              />
-
               {/* Passkey Management */}
               <PasskeyManagement
-                phoneVerified={profile.phone_verified}
-                onUpdate={() => queryClient.invalidateQueries({ queryKey: ['profile'] })}
-              />
-
-              {/* SMS Preferences */}
-              <SMSPreferences
-                smsNotifications={profile.sms_notifications}
-                dailyPollSms={profile.daily_poll_sms}
-                phoneVerified={profile.phone_verified}
                 onUpdate={() => queryClient.invalidateQueries({ queryKey: ['profile'] })}
               />
 

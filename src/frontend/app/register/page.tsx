@@ -12,8 +12,6 @@ import {
   EnvelopeIcon,
   CheckCircleIcon,
   XCircleIcon,
-  PhoneIcon,
-  ChatBubbleLeftIcon,
   ShieldCheckIcon,
   FingerPrintIcon,
   DevicePhoneMobileIcon,
@@ -25,9 +23,7 @@ export default function RegisterPage() {
   const { success, error: showError } = useToast();
   const [displayName, setDisplayName] = useState('');
   const [email, setEmail] = useState('');
-  const [phoneNumber, setPhoneNumber] = useState('');
   const [acceptTerms, setAcceptTerms] = useState(false);
-  const [acceptSms, setAcceptSms] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [passkeySupported, setPasskeySupported] = useState<boolean | null>(null);
 
@@ -42,19 +38,10 @@ export default function RegisterPage() {
     checkSupport();
   }, []);
 
-  // Validate phone number format (US format or international)
-  const isValidPhone = (phone: string) => {
-    const cleaned = phone.replace(/[\s\-\(\)\.]/g, '');
-    return /^\+?[0-9]{10,15}$/.test(cleaned);
-  };
-
-  const phoneValid = isValidPhone(phoneNumber);
   const isFormValid =
     displayName.length >= 2 &&
     email.includes('@') &&
-    phoneValid &&
     acceptTerms &&
-    acceptSms &&
     passkeySupported;
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -72,17 +59,14 @@ export default function RegisterPage() {
     }
 
     try {
-      // Clean phone number before sending
-      const cleanedPhone = phoneNumber.replace(/[\s\-\(\)\.]/g, '');
       await register({ 
         email, 
-        username: email.split('@')[0], 
-        phone_number: cleanedPhone,
+        username: email.split('@')[0],
         display_name: displayName 
       });
-      success('Account created!', 'Now let\'s verify your phone and set up your passkey.');
-      // Redirect to phone verification first, then passkey setup
-      router.push('/verify-phone?setup=true');
+      success('Account created!', 'Now let\'s set up your passkey for secure login.');
+      // Redirect to passkey setup
+      router.push('/setup-passkey');
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Registration failed. Please try again.';
       setError(errorMessage);
@@ -205,44 +189,6 @@ export default function RegisterPage() {
               </div>
             </div>
 
-            {/* Phone Number Field */}
-            <div>
-              <label htmlFor="phoneNumber" className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
-                Phone Number <span className="text-red-500">*</span>
-              </label>
-              <div className="relative">
-                <PhoneIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400 dark:text-slate-500" />
-                <input
-                  id="phoneNumber"
-                  type="tel"
-                  value={phoneNumber}
-                  onChange={(e) => setPhoneNumber(e.target.value)}
-                  required
-                  autoComplete="tel"
-                  className={`w-full pl-10 pr-4 py-3 bg-gray-50 dark:bg-slate-900/50 border rounded-lg text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:focus:ring-purple-500 focus:border-transparent transition-all ${
-                    phoneNumber.length > 0
-                      ? phoneValid
-                        ? 'border-green-500'
-                        : 'border-red-500'
-                      : 'border-gray-300 dark:border-slate-700'
-                  }`}
-                  placeholder="+1 (555) 123-4567"
-                />
-                {phoneNumber.length > 0 && (
-                  <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                    {phoneValid ? (
-                      <CheckCircleIcon className="h-5 w-5 text-green-500" />
-                    ) : (
-                      <XCircleIcon className="h-5 w-5 text-red-500" />
-                    )}
-                  </div>
-                )}
-              </div>
-              <p className="mt-1 text-xs text-gray-500 dark:text-slate-500">
-                Required for verification. We verify you&apos;re a real person to ensure one person = one vote.
-              </p>
-            </div>
-
             {/* Terms Checkbox */}
             <div className="flex items-start gap-3">
               <input
@@ -264,35 +210,13 @@ export default function RegisterPage() {
               </label>
             </div>
 
-            {/* SMS Consent Checkbox */}
-            <div className="flex items-start gap-3 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
-              <input
-                id="smsConsent"
-                type="checkbox"
-                checked={acceptSms}
-                onChange={(e) => setAcceptSms(e.target.checked)}
-                className="mt-1 h-4 w-4 rounded border-gray-300 dark:border-slate-700 bg-gray-50 dark:bg-slate-900/50 text-primary-600 dark:text-purple-600 focus:ring-primary-500 dark:focus:ring-purple-500 focus:ring-offset-white dark:focus:ring-offset-slate-900"
-              />
-              <label htmlFor="smsConsent" className="text-sm text-gray-700 dark:text-slate-300">
-                <span className="flex items-center gap-1.5 font-medium mb-1">
-                  <ChatBubbleLeftIcon className="h-4 w-4 text-blue-500" />
-                  SMS Verification Consent <span className="text-red-500">*</span>
-                </span>
-                <span className="text-gray-600 dark:text-slate-400">
-                  I consent to receive SMS messages from TruePulse for account verification purposes. 
-                  Phone verification is required to ensure one person = one vote and prevent fraud. 
-                  Standard message and data rates may apply.
-                </span>
-              </label>
-            </div>
-
             {/* What happens next */}
             <div className="p-4 bg-gray-50 dark:bg-slate-900/30 rounded-lg">
               <p className="text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">What happens next:</p>
               <ol className="text-xs text-gray-600 dark:text-slate-400 space-y-1.5">
                 <li className="flex items-center gap-2">
                   <span className="w-5 h-5 rounded-full bg-primary-100 dark:bg-purple-900/50 text-primary-600 dark:text-purple-400 flex items-center justify-center text-[10px] font-bold">1</span>
-                  Verify your phone number
+                  Verify your email address
                 </li>
                 <li className="flex items-center gap-2">
                   <span className="w-5 h-5 rounded-full bg-primary-100 dark:bg-purple-900/50 text-primary-600 dark:text-purple-400 flex items-center justify-center text-[10px] font-bold">2</span>

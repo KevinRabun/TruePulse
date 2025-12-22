@@ -86,49 +86,6 @@ class TestUserSettingsEndpoints:
 
 
 @pytest.mark.unit
-class TestPhoneVerificationEndpoints:
-    """Test phone verification endpoints."""
-
-    async def test_add_phone_requires_auth(
-        self,
-        client: AsyncClient,
-    ) -> None:
-        """Test that adding phone requires auth."""
-        response = await client.post(
-            "/api/v1/users/me/phone",
-            json={"phone_number": "+15551234567"},
-        )
-        assert response.status_code in [401, 403]
-
-    async def test_verify_phone_requires_auth(
-        self,
-        client: AsyncClient,
-    ) -> None:
-        """Test that phone verification requires auth."""
-        response = await client.post(
-            "/api/v1/users/me/phone/verify",
-            json={"code": "123456"},
-        )
-        assert response.status_code in [401, 403]
-
-    async def test_resend_verification_requires_auth(
-        self,
-        client: AsyncClient,
-    ) -> None:
-        """Test that resending verification requires auth."""
-        response = await client.post("/api/v1/users/me/phone/resend")
-        assert response.status_code in [401, 403]
-
-    async def test_remove_phone_requires_auth(
-        self,
-        client: AsyncClient,
-    ) -> None:
-        """Test that removing phone requires auth."""
-        response = await client.delete("/api/v1/users/me/phone")
-        assert response.status_code in [401, 403]
-
-
-@pytest.mark.unit
 class TestAccountDeletionEndpoint:
     """Test account deletion endpoint."""
 

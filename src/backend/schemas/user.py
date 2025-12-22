@@ -197,8 +197,6 @@ class UserSettings(BaseModel):
     daily_poll_reminder: bool = True
     show_on_leaderboard: bool = True
     share_anonymous_demographics: bool = True
-    sms_notifications: bool = False
-    daily_poll_sms: bool = False
     theme_preference: str = "system"  # light, dark, system
     # Pulse Poll notifications (daily 12-hour polls)
     pulse_poll_notifications: bool = True
@@ -210,53 +208,3 @@ class UserSettings(BaseModel):
         le=12,
         description="Maximum number of flash poll notifications per day (0 to disable)",
     )
-
-
-class PhoneNumberUpdate(BaseModel):
-    """Schema for adding/updating phone number."""
-
-    phone_number: str = Field(..., min_length=10, max_length=20)
-
-    @field_validator("phone_number")
-    @classmethod
-    def validate_phone(cls, v: str) -> str:
-        """Validate and normalize phone number to E.164 format."""
-        # Remove all non-numeric characters except leading +
-        cleaned = re.sub(r"[^\d+]", "", v)
-
-        # Ensure it starts with + for international format
-        if not cleaned.startswith("+"):
-            # Assume US number if no country code
-            if len(cleaned) == 10:
-                cleaned = "+1" + cleaned
-            elif len(cleaned) == 11 and cleaned.startswith("1"):
-                cleaned = "+" + cleaned
-            else:
-                raise ValueError("Phone number must include country code or be a valid US number")
-
-        # Validate length (E.164 is max 15 digits)
-        if len(cleaned) < 10 or len(cleaned) > 16:
-            raise ValueError("Invalid phone number length")
-
-        return cleaned
-
-
-class PhoneVerificationRequest(BaseModel):
-    """Schema for verifying phone number with code."""
-
-    code: str = Field(..., min_length=6, max_length=6, pattern=r"^\d{6}$")
-
-
-class PhoneVerificationResponse(BaseModel):
-    """Response for phone verification operations."""
-
-    success: bool
-    message: str
-    phone_verified: bool = False
-
-
-class SMSPreferencesUpdate(BaseModel):
-    """Schema for updating SMS notification preferences."""
-
-    sms_notifications: bool = False
-    daily_poll_sms: bool = False

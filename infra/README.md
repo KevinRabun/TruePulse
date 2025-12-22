@@ -25,7 +25,7 @@ This directory contains the Azure infrastructure as code (IaC) using Bicep templ
 │  │                                                                       │  │
 │  │  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐      │  │
 │  │  │ Communication   │  │  Email Service  │  │ Container Reg   │      │  │
-│  │  │ Services (SMS)  │  │  (Verification) │  │     (ACR)       │      │  │
+│  │  │    Services     │  │ (Notifications) │  │     (ACR)       │      │  │
 │  │  └─────────────────┘  └─────────────────┘  └─────────────────┘      │  │
 │  │                                                                       │  │
 │  │  ┌─────────────────────────────────────────────────────────────┐     │  │
@@ -71,8 +71,8 @@ az deployment sub create \
 | **Azure OpenAI** | AI-powered poll generation | `azureOpenAI.bicep` |
 | **Key Vault** | Secrets management | `keyVault.bicep` |
 | **Container Registry** | Docker images | `containerRegistry.bicep` |
-| **Communication Services** | SMS notifications | `communicationServices.bicep` |
-| **Email Services** | Email verification | `emailServices.bicep` |
+| **Communication Services** | Email platform | `communicationServices.bicep` |
+| **Email Services** | Email notifications | `emailServices.bicep` |
 | **DNS Zone** | Custom domain management | `dnsZone.bicep` |
 | **Log Analytics** | Centralized logging | `logAnalytics.bicep` |
 | **Virtual Network** | Network isolation | `network.bicep` |
@@ -144,7 +144,6 @@ See `.github/workflows/infra.yml` for automated deployment.
 | `deployAzureOpenAI` | `true` | Deploy Azure OpenAI (set false if using external AI) |
 | `newsDataApiKey` | `""` | NewsData.io API key |
 | `newsApiOrgKey` | `""` | NewsAPI.org API key |
-| `communicationSenderNumber` | `""` | SMS sender phone number (see post-deployment) |
 | `emailSenderAddress` | `""` | Email sender address (auto-configured) |
 | `customDomain` | `truepulse.net` | Custom domain for the application |
 | `enableCustomDomain` | `true` | Enable custom domain configuration |
@@ -220,50 +219,17 @@ Once configured, your application will be accessible at:
 
 ## Post-Deployment Steps
 
-### ⚠️ Important: SMS and Email Configuration
+### Email Configuration
 
-Azure Communication Services (ACS) has a **chicken-and-egg** situation:
-- Phone numbers must be **purchased after** the ACS resource is created
-- The phone number cannot be known at deployment time
+Azure Communication Services Email is automatically configured during deployment with an Azure-managed domain.
 
-### Step 1: Purchase a Phone Number (SMS)
-
-After deployment, purchase a phone number via Azure Portal or CLI:
-
-```bash
-# Get the communication service name from deployment output
-RESOURCE_GROUP="rg-truepulse-dev"
-ACS_NAME=$(az communication service list -g $RESOURCE_GROUP --query "[0].name" -o tsv)
-
-# List available phone numbers (US toll-free example)
-az communication phonenumber list-available \
-  --country-code US \
-  --phone-plan-type TollFree \
-  --assignment-type Application \
-  --capabilities "SMS=Outbound" \
-  --resource-group $RESOURCE_GROUP \
-  --connection-string "$(az communication service list-key -n $ACS_NAME -g $RESOURCE_GROUP --query primaryConnectionString -o tsv)"
-
-# Purchase a phone number (via Azure Portal is easier)
-# Navigate to: Communication Services > Phone numbers > Get > Select number
-
-# TruePulse SMS number: +18332719679 (toll-free)
-```
-
-**Via Azure Portal:**
-1. Navigate to your Communication Services resource
-2. Go to **Phone numbers** → **Get**
-3. Select country, number type (Toll-Free recommended)
-4. Ensure **SMS** capability is enabled
-5. Complete purchase
-6. Note the phone number
-
-### Step 2: Configure Email Domain (Email Verification)
+### Step 1: Configure Email Domain (Email Notifications)
 
 Email Services deploys with an **Azure-managed domain** automatically provisioned:
 
 ```bash
 # Get the email sender address from deployment
+RESOURCE_GROUP="rg-truepulse-dev"
 EMAIL_SERVICE_NAME="ecs-truepulse-<suffix>"
 DOMAIN=$(az communication email domain list \
   --email-service-name $EMAIL_SERVICE_NAME \
@@ -280,27 +246,22 @@ DOMAIN=$(az communication email domain list \
 3. Configure DNS records (TXT, SPF, DKIM)
 4. Wait for verification (can take 24-48 hours)
 
-### Step 3: Update Container App Configuration
-
-After obtaining the phone number, update the Container App environment variables:
+### Step 2: Verify Container App Configuration
 
 ```bash
-# Update the Container App with SMS sender number
-az containerapp update \
-  --name ca-truepulse-api \
-  --resource-group $RESOURCE_GROUP \
-  --set-env-vars "AZURE_COMMUNICATION_SENDER_NUMBER=+18332719679"
-
-# For email, the domain is auto-configured but you can verify:
+# Verify the Container App environment variables:
 az containerapp show \
   --name ca-truepulse-api \
   --resource-group $RESOURCE_GROUP \
   --query "properties.template.containers[0].env" -o table
 ```
 
-### Step 4: Link Email Service to Communication Services
+### Step 3: Link Email Service to Communication Services
 
 ```bash
+# Get the communication service name
+ACS_NAME=$(az communication service list -g $RESOURCE_GROUP --query "[0].name" -o tsv)
+
 # Link the email domain to ACS for unified sending
 az communication email domain link \
   --domain-name "AzureManagedDomain" \

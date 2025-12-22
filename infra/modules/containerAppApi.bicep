@@ -56,9 +56,6 @@ param environmentName string
 @description('Azure Communication Services name')
 param communicationServicesName string = ''
 
-@description('Azure Communication Services sender phone number')
-param communicationSenderNumber string = ''
-
 @description('Azure Email Communication Services name')
 param emailServiceName string = ''
 
@@ -304,14 +301,10 @@ module containerApp 'br/public:avm/res/app/container-app:0.19.0' = if (!usePlace
             name: 'LOG_LEVEL'
             value: environmentName == 'prod' ? 'INFO' : 'DEBUG'
           }
-          // Azure Communication Services (SMS)
+          // Azure Communication Services (for email only)
           {
             name: 'AZURE_COMMUNICATION_SERVICE_NAME'
             value: communicationServicesName
-          }
-          {
-            name: 'AZURE_COMMUNICATION_SENDER_NUMBER'
-            value: communicationSenderNumber
           }
           // Azure Email Communication Services
           {

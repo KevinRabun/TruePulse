@@ -284,78 +284,6 @@ class UserRepository:
 
         return await self.get_by_id(user_id)
 
-    async def set_phone_verification(
-        self,
-        user_id: str,
-        phone_number: str,
-        verification_code: str,
-    ) -> bool:
-        """Set phone number and verification code."""
-        result = await self.db.execute(
-            update(User)
-            .where(User.id == user_id)
-            .values(
-                phone_number=phone_number,
-                phone_verified=False,
-                phone_verification_code=verification_code,
-                phone_verification_sent_at=datetime.now(timezone.utc),
-            )
-        )
-        return self._get_rowcount(result) > 0
-
-    async def verify_phone(self, user_id: str) -> bool:
-        """Mark phone as verified and set is_verified if email also verified."""
-        # First check if email is already verified
-        user_result = await self.db.execute(select(User).where(User.id == user_id))
-        user = user_result.scalar_one_or_none()
-
-        # Set phone_verified and potentially is_verified
-        update_values = {
-            "phone_verified": True,
-            "phone_verification_code": None,
-        }
-
-        # If email is already verified, set is_verified=True
-        if user and user.email_verified:
-            update_values["is_verified"] = True
-
-        result = await self.db.execute(update(User).where(User.id == user_id).values(**update_values))
-        return self._get_rowcount(result) > 0
-
-    async def remove_phone(self, user_id: str) -> bool:
-        """Remove phone number and disable SMS notifications."""
-        result = await self.db.execute(
-            update(User)
-            .where(User.id == user_id)
-            .values(
-                phone_number=None,
-                phone_verified=False,
-                phone_verification_code=None,
-                sms_notifications=False,
-                daily_poll_sms=False,
-            )
-        )
-        return self._get_rowcount(result) > 0
-
-    async def update_sms_preferences(
-        self,
-        user_id: str,
-        sms_notifications: Optional[bool] = None,
-        daily_poll_sms: Optional[bool] = None,
-    ) -> bool:
-        """Update SMS notification preferences."""
-        updates = {}
-        if sms_notifications is not None:
-            updates["sms_notifications"] = sms_notifications
-        if daily_poll_sms is not None:
-            updates["daily_poll_sms"] = daily_poll_sms
-
-        if not updates:
-            return True
-
-        result = await self.db.execute(update(User).where(User.id == user_id).values(**updates))
-        return self._get_rowcount(result) > 0
-
     async def delete_user(self, user_id: str) -> bool:
         """Soft delete a user by deactivating and clearing personal data."""
         result = await self.db.execute(
@@ -365,7 +293,6 @@ class UserRepository:
                 is_active=False,
                 email=f"deleted_{user_id}@deleted.truepulse.com",
                 username=f"deleted_{user_id}",
-                hashed_password="",
                 phone_number=None,
                 phone_verified=False,
                 phone_verification_code=None,
@@ -376,3 +303,4 @@ class UserRepository:
             )
         )
         return self._get_rowcount(result) > 0
+

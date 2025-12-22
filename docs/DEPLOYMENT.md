@@ -22,8 +22,8 @@ TruePulse deploys the following Azure resources:
 | **Storage Account (Blobs)** | Static assets and exports |
 | **Azure OpenAI** | AI poll generation (GPT-4o-mini) |
 | **Key Vault** | Secrets management |
-| **Communication Services** | SMS verification |
-| **Email Communication Services** | Email verification |
+| **Communication Services** | Email services |
+| **Email Communication Services** | Email verification and notifications |
 | **Container Registry** | Docker image storage |
 | **Log Analytics** | Monitoring and diagnostics |
 | **Virtual Network** | Network isolation |
@@ -81,7 +81,6 @@ Add the following secrets to your GitHub repository:
 | `VOTE_HASH_SECRET` | Secret for vote hashing (32+ chars) |
 | `NEWSDATA_API_KEY` | NewsData.io API key (optional) |
 | `NEWSAPI_ORG_KEY` | NewsAPI.org API key (optional) |
-| `COMMUNICATION_SENDER_NUMBER` | Azure Communication Services phone number |
 
 #### 2. Create Azure Service Principal (Federated Credentials)
 
@@ -236,7 +235,6 @@ az staticwebapp deploy \
 | `JWT_SECRET` | JWT signing secret | Yes |
 | `API_SECRET_KEY` | API secret key | Yes |
 | `AZURE_KEY_VAULT_URL` | Key Vault URL | Yes |
-| `COMMUNICATION_SERVICES_CONNECTION_STRING` | SMS service connection | Yes |
 | `EMAIL_CONNECTION_STRING` | Email service connection | Yes |
 | `CORS_ORIGINS` | Allowed CORS origins | Yes |
 

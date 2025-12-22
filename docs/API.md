@@ -56,13 +56,11 @@ POST /api/v1/auth/register
 ```json
 {
   "email": "user@example.com",
-  "password": "secure_password",
-  "display_name": "JohnDoe",
-  "phone_number": "+15551234567"
+  "display_name": "JohnDoe"
 }
 ```
 
-> **Note:** Phone number is **mandatory** for registration. TruePulse enforces a "one person = one vote" policy, and phone verification is required to prevent duplicate accounts and ensure vote integrity. Users must verify their phone number via SMS before they can participate in polls.
+> **Note:** TruePulse uses passkey-only authentication (WebAuthn/FIDO2). After registration, users must set up a passkey to complete account setup. Identity verification uses a combination of passkeys, silent mobile verification, device fingerprinting, and risk scoring to ensure "one person = one vote" integrity.
 
 ### Logout
 
@@ -79,11 +77,18 @@ POST /api/v1/auth/verify-email/request
 POST /api/v1/auth/verify-email/confirm
 ```
 
-### Phone Verification (SMS)
+### Passkey Registration
 
 ```
-POST /api/v1/auth/verify-phone/request
-POST /api/v1/auth/verify-phone/confirm
+POST /api/v1/auth/passkey/register/options
+POST /api/v1/auth/passkey/register/verify
+```
+
+### Passkey Authentication
+
+```
+POST /api/v1/auth/passkey/authenticate/options
+POST /api/v1/auth/passkey/authenticate/verify
 ```
 
 ---

@@ -77,11 +77,9 @@ export interface UserProfile {
   // Verification fields
   is_verified: boolean;
   email_verified: boolean;
-  // Phone/SMS fields
+  // Phone fields (for identity verification, not SMS)
   phone_number?: string;
   phone_verified: boolean;
-  sms_notifications: boolean;
-  daily_poll_sms: boolean;
 }
 
 export interface AchievementEarnedDate {
@@ -251,20 +249,7 @@ export interface LoginRequest {
 export interface RegisterRequest {
   email: string;
   username: string;
-  phone_number: string;
   display_name?: string;
-}
-
-// Phone verification types
-export interface PhoneVerificationResponse {
-  success: boolean;
-  message: string;
-  phone_verified: boolean;
-}
-
-export interface SMSPreferencesUpdate {
-  sms_notifications: boolean;
-  daily_poll_sms: boolean;
 }
 
 export type ThemePreference = 'light' | 'dark' | 'system';
@@ -275,8 +260,6 @@ export interface UserSettings {
   daily_poll_reminder: boolean;
   show_on_leaderboard: boolean;
   share_anonymous_demographics: boolean;
-  sms_notifications: boolean;
-  daily_poll_sms: boolean;
   theme_preference: ThemePreference;
   // Pulse and Flash poll notifications
   pulse_poll_notifications: boolean;
@@ -665,41 +648,6 @@ class ApiClient {
   async updateProfile(data: { display_name: string }): Promise<UserProfile> {
     return this.request<UserProfile>('/users/me', {
       method: 'PATCH',
-      body: JSON.stringify(data),
-    });
-  }
-
-  // Phone verification
-  async addPhoneNumber(phoneNumber: string): Promise<PhoneVerificationResponse> {
-    return this.request<PhoneVerificationResponse>('/users/me/phone', {
-      method: 'POST',
-      body: JSON.stringify({ phone_number: phoneNumber }),
-    });
-  }
-
-  async verifyPhoneNumber(code: string): Promise<PhoneVerificationResponse> {
-    return this.request<PhoneVerificationResponse>('/users/me/phone/verify', {
-      method: 'POST',
-      body: JSON.stringify({ code }),
-    });
-  }
-
-  async resendVerificationCode(): Promise<PhoneVerificationResponse> {
-    return this.request<PhoneVerificationResponse>('/users/me/phone/resend', {
-      method: 'POST',
-    });
-  }
-
-  async removePhoneNumber(): Promise<PhoneVerificationResponse> {
-    return this.request<PhoneVerificationResponse>('/users/me/phone', {
-      method: 'DELETE',
-    });
-  }
-
-  // SMS preferences
-  async updateSmsPreferences(data: SMSPreferencesUpdate): Promise<SMSPreferencesUpdate> {
-    return this.request<SMSPreferencesUpdate>('/users/me/sms-preferences', {
-      method: 'PUT',
       body: JSON.stringify(data),
     });
   }

@@ -350,7 +350,7 @@ export class BehavioralTracker {
 // Verification Challenge Handling
 // =============================================================================
 
-export type ChallengeType = 'none' | 'captcha' | 'sms_verify' | 'email_verify' | 'block';
+export type ChallengeType = 'none' | 'captcha' | 'email_verify' | 'passkey_verify' | 'block';
 
 export interface RiskAssessment {
   risk_score: number;
@@ -366,7 +366,7 @@ export interface RiskAssessment {
 export async function handleVoteChallenge(
   assessment: RiskAssessment,
   onCaptchaRequired: () => Promise<string | null>,
-  onSMSRequired: () => Promise<boolean>,
+  onPasskeyRequired: () => Promise<boolean>,
 ): Promise<boolean> {
   switch (assessment.required_challenge) {
     case 'none':
@@ -376,8 +376,8 @@ export async function handleVoteChallenge(
       const captchaToken = await onCaptchaRequired();
       return captchaToken !== null;
 
-    case 'sms_verify':
-      return await onSMSRequired();
+    case 'passkey_verify':
+      return await onPasskeyRequired();
 
     case 'block':
       return false;

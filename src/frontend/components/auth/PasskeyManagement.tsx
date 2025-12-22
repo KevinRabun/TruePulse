@@ -36,9 +36,10 @@ interface PasskeyInfo {
 
 interface PasskeyManagementProps {
   className?: string;
+  onUpdate?: () => void;
 }
 
-export function PasskeyManagement({ className = "" }: PasskeyManagementProps) {
+export function PasskeyManagement({ className = "", onUpdate }: PasskeyManagementProps) {
   const [passkeys, setPasskeys] = useState<PasskeyInfo[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -90,6 +91,7 @@ export function PasskeyManagement({ className = "" }: PasskeyManagementProps) {
 
     if (result.success) {
       setPasskeys((prev) => prev.filter((p) => p.id !== passkeyId));
+      onUpdate?.();
     } else {
       setDeleteError(result.error || "Failed to delete passkey");
     }
@@ -100,6 +102,7 @@ export function PasskeyManagement({ className = "" }: PasskeyManagementProps) {
   const handleRegisterSuccess = () => {
     setShowRegister(false);
     loadPasskeys();
+    onUpdate?.();
   };
 
   // Not supported message
