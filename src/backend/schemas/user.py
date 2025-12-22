@@ -68,6 +68,7 @@ class UserInDB(UserBase):
     """
 
     id: str
+    display_name: Optional[str] = None
     is_active: bool = True
     is_verified: bool = False  # True when email is verified and passkey is set
     is_admin: bool = False
