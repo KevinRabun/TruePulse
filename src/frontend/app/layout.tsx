@@ -28,6 +28,7 @@ export default function RootLayout({
   return (
     <html lang="en" className="h-full" suppressHydrationWarning>
       <head>
+        <meta name="google-adsense-account" content="ca-pub-6058579257544032" />
         <Script
           async
           src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-6058579257544032"
