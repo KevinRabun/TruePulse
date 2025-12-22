@@ -29,7 +29,6 @@ def mock_user():
     user.votes_cast = 5
     user.current_streak = 3
     user.longest_streak = 7
-    user.hashed_password = "hashed"
     return user
 
 

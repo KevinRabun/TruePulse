@@ -7,14 +7,18 @@ A privacy-first polling platform with AI-powered poll generation.
 from contextlib import asynccontextmanager
 from typing import AsyncGenerator
 
-from fastapi import FastAPI
+import structlog
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
+from fastapi.responses import JSONResponse
 
 from api.v1 import router as api_v1_router
 from core.config import settings
 from core.events import create_start_app_handler, create_stop_app_handler
 from core.middleware import FrontendOnlyMiddleware, SecurityHeadersMiddleware
+
+logger = structlog.get_logger(__name__)
 
 
 @asynccontextmanager
@@ -73,6 +77,33 @@ def create_application() -> FastAPI:
 
     # Include routers
     application.include_router(api_v1_router, prefix="/api/v1")
+
+    # Add global exception handler to ensure CORS headers are present on error responses
+    @application.exception_handler(Exception)
+    async def global_exception_handler(request: Request, exc: Exception) -> JSONResponse:
+        """
+        Global exception handler to catch unhandled exceptions.
+
+        This ensures that even when unexpected errors occur, the response includes
+        proper CORS headers (added by the CORS middleware) and a structured JSON response.
+        Without this, 500 errors may not have CORS headers, causing browser errors.
+        """
+        logger.exception(
+            "Unhandled exception",
+            error=str(exc),
+            error_type=type(exc).__name__,
+            path=request.url.path,
+            method=request.method,
+        )
+
+        # Return a proper JSON response - CORS middleware will add headers
+        return JSONResponse(
+            status_code=500,
+            content={
+                "detail": "An internal server error occurred. Please try again later.",
+                "error_type": type(exc).__name__ if settings.DEBUG else "InternalServerError",
+            },
+        )
 
     return application
 

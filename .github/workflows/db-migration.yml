@@ -30,6 +30,7 @@ on:
         required: true
         type: choice
         options:
+          - migrate_to_passkey_only.py
           - add_distributed_locks.py
           - add_polls_composite_indexes.py
           - add_ad_tracking.py

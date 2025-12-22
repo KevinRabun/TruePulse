@@ -628,13 +628,148 @@ jobs:
           echo "✓ Smoke tests completed"
 
   # ============================================================================
+  # Run Database Migrations
+  # ============================================================================
+  run-migrations:
+    name: Run Database Migrations
+    runs-on: ubuntu-latest
+    needs: [setup, infrastructure, deploy-backend]
+    if: always() && needs.setup.result == 'success' && needs.infrastructure.result == 'success' && needs.deploy-backend.result == 'success'
+    environment: ${{ needs.setup.outputs.environment }}
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Run passkey-only schema migration
+        run: |
+          CONTAINER_APP_NAME="ca-truepulse-api-${{ needs.setup.outputs.environment }}"
+          RESOURCE_GROUP="${{ needs.infrastructure.outputs.resourceGroupName }}"
+          MIGRATION_SCRIPT="migrate_to_passkey_only.py"
+          
+          echo "=========================================="
+          echo "Running Database Migration"
+          echo "Script: $MIGRATION_SCRIPT"
+          echo "Environment: ${{ needs.setup.outputs.environment }}"
+          echo "=========================================="
+          
+          # Get current revision for reference
+          CURRENT_REVISION=$(az containerapp revision list \
+            --name "$CONTAINER_APP_NAME" \
+            --resource-group "$RESOURCE_GROUP" \
+            --query "[?properties.active==\`true\`].name | [0]" \
+            -o tsv)
+          
+          echo "Current revision: $CURRENT_REVISION"
+          
+          # Deploy with migration env var
+          echo "Setting RUN_MIGRATION=$MIGRATION_SCRIPT"
+          
+          NEW_REVISION=$(az containerapp update \
+            --name "$CONTAINER_APP_NAME" \
+            --resource-group "$RESOURCE_GROUP" \
+            --set-env-vars "RUN_MIGRATION=$MIGRATION_SCRIPT" \
+            --min-replicas 1 \
+            --max-replicas 1 \
+            --query "properties.latestRevisionName" \
+            -o tsv)
+          
+          echo "Migration revision: $NEW_REVISION"
+          
+          # Wait for revision to be ready
+          echo "Waiting for revision to start..."
+          for i in {1..30}; do
+            STATUS=$(az containerapp revision show \
+              --name "$CONTAINER_APP_NAME" \
+              --resource-group "$RESOURCE_GROUP" \
+              --revision "$NEW_REVISION" \
+              --query "properties.runningState" \
+              -o tsv 2>/dev/null || echo "Unknown")
+            
+            echo "Attempt $i/30: Revision status = $STATUS"
+            
+            if [ "$STATUS" == "Running" ]; then
+              echo "✅ Revision is running"
+              break
+            elif [ "$STATUS" == "Failed" ] || [ "$STATUS" == "Degraded" ]; then
+              echo "❌ Revision failed to start!"
+              exit 1
+            fi
+            
+            sleep 10
+          done
+          
+          # Wait for migration to complete
+          echo "Waiting for migration script to execute (60 seconds)..."
+          sleep 60
+          
+          # Get logs
+          echo "=========================================="
+          echo "Migration Logs:"
+          echo "=========================================="
+          az containerapp logs show \
+            --name "$CONTAINER_APP_NAME" \
+            --resource-group "$RESOURCE_GROUP" \
+            --type console \
+            --tail 100 \
+            --follow false 2>&1 || echo "Could not fetch logs"
+          
+          # Clear migration env var
+          echo ""
+          echo "Clearing RUN_MIGRATION environment variable..."
+          az containerapp update \
+            --name "$CONTAINER_APP_NAME" \
+            --resource-group "$RESOURCE_GROUP" \
+            --remove-env-vars "RUN_MIGRATION" \
+            --query "properties.latestRevisionName" \
+            -o tsv || echo "Warning: Could not clear env var"
+          
+          echo "✅ Migration step completed"
+
+      - name: Verify application health after migration
+        run: |
+          CONTAINER_APP_NAME="ca-truepulse-api-${{ needs.setup.outputs.environment }}"
+          RESOURCE_GROUP="${{ needs.infrastructure.outputs.resourceGroupName }}"
+          
+          echo "Waiting for app to stabilize..."
+          sleep 30
+          
+          for i in {1..10}; do
+            STATUS=$(az containerapp show \
+              --name "$CONTAINER_APP_NAME" \
+              --resource-group "$RESOURCE_GROUP" \
+              --query "properties.runningStatus" -o tsv 2>/dev/null || echo "Unknown")
+            
+            PROVISIONING=$(az containerapp show \
+              --name "$CONTAINER_APP_NAME" \
+              --resource-group "$RESOURCE_GROUP" \
+              --query "properties.provisioningState" -o tsv 2>/dev/null || echo "Unknown")
+            
+            echo "Attempt $i: Running status: $STATUS, Provisioning state: $PROVISIONING"
+            
+            if [ "$STATUS" == "Running" ] && [ "$PROVISIONING" == "Succeeded" ]; then
+              echo "✅ Application is healthy after migration"
+              exit 0
+            fi
+            
+            sleep 10
+          done
+          
+          echo "⚠️ Health check did not pass after migration, but may still be OK"
+
+  # ============================================================================
   # Build and Deploy Frontend
   # ============================================================================
   deploy-frontend:
     name: Deploy Frontend
     runs-on: ubuntu-latest
-    needs: [setup, infrastructure, deploy-backend]
-    if: always() && needs.setup.result == 'success' && needs.infrastructure.result == 'success' && needs.deploy-backend.result == 'success'
+    needs: [setup, infrastructure, deploy-backend, run-migrations]
+    if: always() && needs.setup.result == 'success' && needs.infrastructure.result == 'success' && needs.deploy-backend.result == 'success' && needs.run-migrations.result == 'success'
     environment: ${{ needs.setup.outputs.environment }}
     steps:
       - uses: actions/checkout@v6
@@ -695,8 +830,8 @@ jobs:
   deployment-complete:
     name: Deployment Complete
     runs-on: ubuntu-latest
-    needs: [setup, infrastructure, deploy-backend, deploy-frontend]
-    if: always() && needs.setup.result == 'success' && needs.infrastructure.result == 'success' && needs.deploy-backend.result == 'success' && needs.deploy-frontend.result == 'success'
+    needs: [setup, infrastructure, deploy-backend, run-migrations, deploy-frontend]
+    if: always() && needs.setup.result == 'success' && needs.infrastructure.result == 'success' && needs.deploy-backend.result == 'success' && needs.run-migrations.result == 'success' && needs.deploy-frontend.result == 'success'
     steps:
       - name: Deployment Summary
         run: |

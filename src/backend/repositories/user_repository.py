@@ -205,11 +205,6 @@ class UserRepository:
         result = await self.db.execute(update(User).where(User.id == user_id).values(is_verified=True))
         return self._get_rowcount(result) > 0
 
-    async def update_password(self, user_id: str, hashed_password: str) -> bool:
-        """Update user's password."""
-        result = await self.db.execute(update(User).where(User.id == user_id).values(hashed_password=hashed_password))
-        return self._get_rowcount(result) > 0
-
     async def deactivate_user(self, user_id: str) -> bool:
         """Deactivate a user account."""
         result = await self.db.execute(update(User).where(User.id == user_id).values(is_active=False))
