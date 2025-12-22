@@ -47,6 +47,20 @@ async def drop_columns():
 
     print("\nDone!")
 
+    # Also delete any test users
+    print("\nCleaning up test users...")
+    test_emails = ["testfinal@test.com", "test123@test.com", "testdomain@test.com"]
+    async with engine.begin() as conn:
+        for email in test_emails:
+            result = await conn.execute(
+                text("DELETE FROM users WHERE email = :email"),
+                {"email": email},
+            )
+            if result.rowcount > 0:
+                print(f"✓ Deleted {email}")
+            else:
+                print(f"- {email} not found")
+
 
 if __name__ == "__main__":
     asyncio.run(drop_columns())
