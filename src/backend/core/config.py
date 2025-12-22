@@ -5,10 +5,25 @@ All configuration is loaded from environment variables or Azure Key Vault.
 """
 
 from functools import lru_cache
-from typing import Any
+from typing import Annotated, Any
 
-from pydantic import field_validator
+from pydantic import BeforeValidator, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+def _ensure_string(v: Any) -> str:
+    """Ensure the value is returned as a string, preventing JSON auto-parsing."""
+    if isinstance(v, str):
+        return v
+    # If pydantic-settings already parsed it as a list, convert back to comma-separated
+    if isinstance(v, list):
+        return ",".join(str(item) for item in v)
+    return str(v) if v is not None else ""
+
+
+# Type alias for string fields that should NOT be JSON-parsed
+# pydantic-settings 2.x aggressively tries to parse strings containing commas/brackets as JSON
+RawString = Annotated[str, BeforeValidator(_ensure_string)]
 
 
 class Settings(BaseSettings):
@@ -19,6 +34,9 @@ class Settings(BaseSettings):
         env_file_encoding="utf-8",
         case_sensitive=True,
         extra="ignore",
+        # Disable automatic JSON parsing for string fields - we handle parsing manually
+        # This prevents pydantic-settings from trying to JSON-parse CORS_ORIGINS etc.
+        env_parse_none_str="null",
     )
 
     # Application
@@ -99,14 +117,16 @@ class Settings(BaseSettings):
     # Generate with: python -c "from core.encryption import generate_encryption_key; print(generate_encryption_key())"
     FIELD_ENCRYPTION_KEY: str | None = None
 
-    # CORS - stored as comma-separated string to avoid pydantic-settings JSON parsing issues
-    CORS_ORIGINS: str = "http://localhost:3000"
+    # CORS - stored as comma-separated string
+    # Uses RawString to prevent pydantic-settings from auto-parsing as JSON
+    CORS_ORIGINS: RawString = "http://localhost:3000"
 
     # Frontend-only API access
     # Secret shared between frontend and backend to prevent unauthorized API access
     FRONTEND_API_SECRET: str = "not-set"  # Optional - only required if ENFORCE_FRONTEND_ONLY is True
     # Allowed origins for API requests (stricter than CORS - blocks non-browser requests)
-    ALLOWED_ORIGINS: str = "http://localhost:3000"
+    # Uses RawString to prevent pydantic-settings from auto-parsing as JSON
+    ALLOWED_ORIGINS: RawString = "http://localhost:3000"
     # Whether to enforce frontend-only access (disable for local development if needed)
     ENFORCE_FRONTEND_ONLY: bool = False
 
