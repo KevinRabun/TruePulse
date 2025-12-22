@@ -77,9 +77,7 @@ async def run_migration(dry_run: bool = False) -> None:
             changes_needed.append("Drop hashed_password column from users table")
             if not dry_run:
                 print("Dropping hashed_password column...")
-                await conn.execute(
-                    text("ALTER TABLE users DROP COLUMN IF EXISTS hashed_password")
-                )
+                await conn.execute(text("ALTER TABLE users DROP COLUMN IF EXISTS hashed_password"))
                 changes_made.append("Dropped hashed_password column")
         else:
             print("✓ hashed_password column already removed")
@@ -110,7 +108,7 @@ async def run_migration(dry_run: bool = False) -> None:
             if not await check_table_exists(conn, table_name):
                 changes_needed.append(f"Create {table_name} table ({description})")
                 print(f"WARNING: {table_name} table does not exist!")
-                print(f"  Run: python -m scripts.add_passkey_auth")
+                print("  Run: python -m scripts.add_passkey_auth")
             else:
                 print(f"✓ {table_name} table exists")
 
@@ -148,9 +146,7 @@ async def run_migration(dry_run: bool = False) -> None:
                 changes_needed.append(f"Add {column_name} column to users table")
                 if not dry_run:
                     print(f"Adding {column_name} column...")
-                    await conn.execute(
-                        text(f"ALTER TABLE users ADD COLUMN IF NOT EXISTS {column_name} {column_def}")
-                    )
+                    await conn.execute(text(f"ALTER TABLE users ADD COLUMN IF NOT EXISTS {column_name} {column_def}"))
                     changes_made.append(f"Added {column_name} column")
             else:
                 print(f"✓ {column_name} column exists")
@@ -168,9 +164,7 @@ async def run_migration(dry_run: bool = False) -> None:
                 changes_needed.append(f"Add {column_name} column to users table")
                 if not dry_run:
                     print(f"Adding {column_name} column...")
-                    await conn.execute(
-                        text(f"ALTER TABLE users ADD COLUMN IF NOT EXISTS {column_name} {column_def}")
-                    )
+                    await conn.execute(text(f"ALTER TABLE users ADD COLUMN IF NOT EXISTS {column_name} {column_def}"))
                     changes_made.append(f"Added {column_name} column")
             else:
                 print(f"✓ {column_name} column exists")
