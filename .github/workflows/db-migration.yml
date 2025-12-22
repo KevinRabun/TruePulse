@@ -30,6 +30,7 @@ on:
         required: true
         type: choice
         options:
+          - remove_phone_verified.py
           - migrate_to_passkey_only.py
           - add_distributed_locks.py
           - add_polls_composite_indexes.py
