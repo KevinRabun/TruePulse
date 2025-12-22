@@ -48,6 +48,17 @@ def create_verification_token(
     return jwt.encode(to_encode, settings.SECRET_KEY, algorithm=settings.JWT_ALGORITHM)
 
 
+def create_magic_link_token(
+    user_id: str,
+    expires_delta: timedelta | None = None,
+) -> str:
+    """Create a JWT magic link login token (15 minute expiry)."""
+    to_encode: dict[str, Any] = {"sub": user_id}
+    expire = datetime.now(timezone.utc) + (expires_delta or timedelta(minutes=15))
+    to_encode.update({"exp": expire, "type": "magic_link"})
+    return jwt.encode(to_encode, settings.SECRET_KEY, algorithm=settings.JWT_ALGORITHM)
+
+
 def decode_token(token: str) -> dict[str, Any] | None:
     """Decode and validate a JWT token."""
     try:

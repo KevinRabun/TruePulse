@@ -259,6 +259,101 @@ If you didn't create a TruePulse account, you can safely ignore this email.
             plain_text=plain_text,
         )
 
+    async def send_magic_link_email(
+        self,
+        to_email: str,
+        magic_token: str,
+        username: str,
+        frontend_url: Optional[str] = None,
+    ) -> bool:
+        """
+        Send a magic link login email.
+
+        Args:
+            to_email: Recipient email address
+            magic_token: The magic link token
+            username: User's display name
+            frontend_url: Base URL for the frontend
+
+        Returns:
+            True if sent successfully
+        """
+        await self.initialize()
+
+        if not self.is_available:
+            logger.warning(
+                "email_service_unavailable",
+                action="magic_link",
+                to_email=to_email[:3] + "***",
+            )
+            return False
+
+        base_url = frontend_url or getattr(settings, "FRONTEND_URL", "http://localhost:3000")
+        login_url = f"{base_url}/magic-login?token={magic_token}"
+
+        subject = "Your TruePulse Login Link"
+        html_content = f"""
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="utf-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        </head>
+        <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; margin: 0; padding: 20px; background-color: #f5f5f5;">
+            <div style="max-width: 600px; margin: 0 auto; background: white; border-radius: 8px; padding: 40px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                <h1 style="color: #1a1a1a; margin-bottom: 24px;">Sign in to TruePulse</h1>
+
+                <p style="color: #4a4a4a; line-height: 1.6;">
+                    Hi {username}, click the button below to sign in to your TruePulse account.
+                </p>
+
+                <div style="text-align: center; margin: 32px 0;">
+                    <a href="{login_url}"
+                       style="display: inline-block; background: linear-gradient(135deg, #8b5cf6, #06b6d4); color: white; text-decoration: none; padding: 14px 32px; border-radius: 6px; font-weight: 600;">
+                        Sign In to TruePulse
+                    </a>
+                </div>
+
+                <p style="color: #6b7280; font-size: 14px; line-height: 1.6;">
+                    ⏱️ This link expires in <strong>15 minutes</strong> for your security.
+                </p>
+
+                <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 32px 0;">
+
+                <p style="color: #9ca3af; font-size: 12px;">
+                    If you didn't request this login link, you can safely ignore this email.
+                    Someone may have entered your email address by mistake.
+                </p>
+
+                <p style="color: #9ca3af; font-size: 12px; margin-top: 24px;">
+                    — The TruePulse Team
+                </p>
+            </div>
+        </body>
+        </html>
+        """
+
+        plain_text = f"""
+Sign in to TruePulse
+
+Hi {username}, click the link below to sign in to your TruePulse account:
+
+{login_url}
+
+This link expires in 15 minutes for your security.
+
+If you didn't request this login link, you can safely ignore this email.
+
+— The TruePulse Team
+        """.strip()
+
+        return await self._send_email(
+            to_email=to_email,
+            subject=subject,
+            html_content=html_content,
+            plain_text=plain_text,
+        )
+
     async def _send_email(
         self,
         to_email: str,

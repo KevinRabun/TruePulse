@@ -17,6 +17,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from core.config import settings
 from core.security import (
     create_access_token,
+    create_magic_link_token,
     create_refresh_token,
     create_verification_token,
     decode_token,
@@ -269,5 +270,128 @@ async def verify_email(
     return {"message": "Email verified successfully"}
 
 
+@router.post("/send-magic-link")
+async def send_magic_link(
+    email: EmailStr = Body(..., embed=True),
+    db: AsyncSession = Depends(get_db),
+) -> dict[str, str]:
+    """
+    Send a magic link login email.
+
+    This allows users to log in without a passkey by clicking a link in their email.
+    Useful for:
+    - First-time setup after registration
+    - Account recovery when switching devices
+    - Devices that don't support passkeys
+    """
+    # Find user by email
+    result = await db.execute(select(User).where(User.email == email.lower()))
+    user = result.scalar_one_or_none()
+
+    if not user:
+        # Don't reveal whether email exists for security
+        logger.info("magic_link_requested", email=email[:3] + "***", user_found=False)
+        return {"message": "If an account exists with this email, a login link has been sent."}
+
+    # Create magic link token (15 minute expiry)
+    magic_token = create_magic_link_token(str(user.id))
+
+    # Send magic link email
+    email_service = await get_email_service()
+
+    if email_service.is_available:
+        sent = await email_service.send_magic_link_email(
+            to_email=user.email,
+            magic_token=magic_token,
+            username=user.display_name or user.username,
+            frontend_url=settings.FRONTEND_URL if hasattr(settings, "FRONTEND_URL") else None,
+        )
+        logger.info(
+            "magic_link_sent",
+            user_id=str(user.id),
+            success=sent,
+        )
+    else:
+        logger.warning(
+            "magic_link_email_service_unavailable",
+            user_id=str(user.id),
+        )
+
+    return {"message": "If an account exists with this email, a login link has been sent."}
+
+
+@router.post("/verify-magic-link/{token}")
+async def verify_magic_link(
+    token: str,
+    db: AsyncSession = Depends(get_db),
+) -> TokenResponse:
+    """Verify a magic link token and return auth tokens."""
+    # Decode the magic link token
+    payload = decode_token(token)
+
+    if payload is None or payload.get("type") != "magic_link":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid or expired login link",
+        )
+
+    user_id = payload.get("sub")
+    if not user_id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid login link",
+        )
+
+    # Get user
+    result = await db.execute(select(User).where(User.id == user_id))
+    user = result.scalar_one_or_none()
+
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found",
+        )
+
+    if not user.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Account is deactivated",
+        )
+
+    # Check if user has any passkeys
+    from models.passkey import Passkey
+
+    passkey_result = await db.execute(select(Passkey).where(Passkey.user_id == user.id).limit(1))
+    has_passkey = passkey_result.scalar_one_or_none() is not None
+
+    # Create tokens
+    token_data = {"sub": str(user.id), "email": user.email}
+    access_token = create_access_token(token_data)
+    refresh_token = create_refresh_token(token_data)
+
+    logger.info(
+        "magic_link_login_success",
+        user_id=str(user.id),
+        has_passkey=has_passkey,
+    )
+
+    return TokenResponse(
+        access_token=access_token,
+        refresh_token=refresh_token,
+        token_type="bearer",
+        user=UserResponse(
+            id=str(user.id),
+            email=user.email,
+            username=user.username,
+            display_name=user.display_name or user.username,
+            is_active=user.is_active,
+            is_verified=user.is_verified,
+            points=user.total_points,
+            level=user.level,
+            has_passkey=has_passkey,
+        ),
+    )
+
+
 # Note: Password reset endpoints removed - TruePulse uses passkey-only authentication.
-# Account recovery is handled via email verification + passkey re-registration.
+# Account recovery is handled via email verification + magic link login + passkey re-registration.

@@ -432,6 +432,13 @@ class ApiClient {
     });
   }
 
+  async sendMagicLink(email: string): Promise<{ message: string }> {
+    return this.request<{ message: string }>('/auth/send-magic-link', {
+      method: 'POST',
+      body: JSON.stringify({ email }),
+    });
+  }
+
   async logout(): Promise<void> {
     this.setToken(null);
   }

@@ -8,7 +8,8 @@ import { useAuth } from '@/lib/auth';
 import { useToast } from '@/components/ui/toast';
 import { PasskeyLoginButton } from '@/components/auth';
 import { isPasskeySupported, hasPlatformAuthenticator } from '@/lib/passkey';
-import { FingerPrintIcon, ShieldCheckIcon, DevicePhoneMobileIcon } from '@heroicons/react/24/outline';
+import { api } from '@/lib/api';
+import { FingerPrintIcon, ShieldCheckIcon, DevicePhoneMobileIcon, EnvelopeIcon } from '@heroicons/react/24/outline';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -20,6 +21,10 @@ export default function LoginPage() {
     typeof window !== 'undefined' ? isPasskeySupported() : null
   );
   const [, setHasPlatform] = useState<boolean | null>(null);
+  const [showMagicLink, setShowMagicLink] = useState(false);
+  const [magicLinkEmail, setMagicLinkEmail] = useState('');
+  const [magicLinkSent, setMagicLinkSent] = useState(false);
+  const [magicLinkLoading, setMagicLinkLoading] = useState(false);
 
   useEffect(() => {
     // Only check async platform authenticator in effect
@@ -40,6 +45,24 @@ export default function LoginPage() {
   const handlePasskeyError = (errorMsg: string) => {
     setError(errorMsg);
     showError('Login failed', errorMsg);
+  };
+
+  const handleSendMagicLink = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setMagicLinkLoading(true);
+    setError(null);
+    
+    try {
+      await api.sendMagicLink(magicLinkEmail);
+      setMagicLinkSent(true);
+      success('Check your email', 'We sent you a login link. Click it to sign in.');
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to send login link';
+      setError(message);
+      showError('Failed to send link', message);
+    } finally {
+      setMagicLinkLoading(false);
+    }
   };
 
   return (
@@ -79,7 +102,7 @@ export default function LoginPage() {
           )}
 
           {/* Passkey Login */}
-          {passkeySupported ? (
+          {passkeySupported && !showMagicLink ? (
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -117,6 +140,101 @@ export default function LoginPage() {
                   </div>
                 </div>
               </div>
+
+              {/* Magic Link Alternative */}
+              <div className="pt-4 border-t border-gray-200 dark:border-slate-700">
+                <button
+                  onClick={() => setShowMagicLink(true)}
+                  className="w-full text-sm text-gray-500 dark:text-slate-400 hover:text-primary-600 dark:hover:text-purple-400 transition-colors"
+                >
+                  <EnvelopeIcon className="h-4 w-4 inline-block mr-1" />
+                  No passkey? Sign in with email link
+                </button>
+              </div>
+            </motion.div>
+          ) : showMagicLink ? (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="space-y-6"
+            >
+              {magicLinkSent ? (
+                <div className="text-center py-4">
+                  <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
+                    <EnvelopeIcon className="h-8 w-8 text-green-600 dark:text-green-400" />
+                  </div>
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
+                    Check your email
+                  </h3>
+                  <p className="text-sm text-gray-600 dark:text-slate-400 mb-4">
+                    We sent a login link to <strong>{magicLinkEmail}</strong>. Click it to sign in.
+                  </p>
+                  <p className="text-xs text-gray-500 dark:text-slate-500">
+                    The link expires in 15 minutes.
+                  </p>
+                  <button
+                    onClick={() => {
+                      setMagicLinkSent(false);
+                      setMagicLinkEmail('');
+                    }}
+                    className="mt-4 text-sm text-primary-600 dark:text-purple-400 hover:underline"
+                  >
+                    Send to a different email
+                  </button>
+                </div>
+              ) : (
+                <>
+                  <div className="text-center">
+                    <EnvelopeIcon className="h-12 w-12 mx-auto text-primary-600 dark:text-purple-400 mb-2" />
+                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-1">
+                      Sign in with email
+                    </h3>
+                    <p className="text-sm text-gray-600 dark:text-slate-400">
+                      We&apos;ll send you a link to sign in
+                    </p>
+                  </div>
+                  
+                  <form onSubmit={handleSendMagicLink} className="space-y-4">
+                    <div>
+                      <label htmlFor="email" className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
+                        Email address
+                      </label>
+                      <input
+                        type="email"
+                        id="email"
+                        value={magicLinkEmail}
+                        onChange={(e) => setMagicLinkEmail(e.target.value)}
+                        required
+                        className="w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary-500 dark:focus:ring-purple-500 focus:border-transparent transition-colors"
+                        placeholder="you@example.com"
+                      />
+                    </div>
+                    <button
+                      type="submit"
+                      disabled={magicLinkLoading}
+                      className="w-full py-3 px-4 rounded-lg bg-primary-600 dark:bg-purple-600 text-white font-medium hover:bg-primary-700 dark:hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    >
+                      {magicLinkLoading ? 'Sending...' : 'Send login link'}
+                    </button>
+                  </form>
+                </>
+              )}
+
+              {passkeySupported && (
+                <div className="pt-4 border-t border-gray-200 dark:border-slate-700">
+                  <button
+                    onClick={() => {
+                      setShowMagicLink(false);
+                      setMagicLinkSent(false);
+                      setMagicLinkEmail('');
+                    }}
+                    className="w-full text-sm text-gray-500 dark:text-slate-400 hover:text-primary-600 dark:hover:text-purple-400 transition-colors"
+                  >
+                    <FingerPrintIcon className="h-4 w-4 inline-block mr-1" />
+                    Sign in with passkey instead
+                  </button>
+                </div>
+              )}
             </motion.div>
           ) : (
             <div className="text-center py-8">
@@ -127,16 +245,15 @@ export default function LoginPage() {
                 Passkeys Not Supported
               </h3>
               <p className="text-sm text-gray-600 dark:text-slate-400 mb-4">
-                Your browser or device doesn&apos;t support passkeys. Please use a modern browser like Chrome, Safari, or Edge.
+                Your browser or device doesn&apos;t support passkeys. You can sign in with an email link instead.
               </p>
-              <a
-                href="https://passkeys.dev/device-support/"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-sm text-primary-600 dark:text-purple-400 hover:underline"
+              <button
+                onClick={() => setShowMagicLink(true)}
+                className="inline-flex items-center gap-2 py-2 px-4 rounded-lg bg-primary-600 dark:bg-purple-600 text-white font-medium hover:bg-primary-700 dark:hover:bg-purple-700 transition-colors"
               >
-                Check device compatibility →
-              </a>
+                <EnvelopeIcon className="h-5 w-5" />
+                Sign in with email link
+              </button>
             </div>
           )}
 
