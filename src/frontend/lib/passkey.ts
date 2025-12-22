@@ -16,7 +16,7 @@ import type {
   RegistrationResponseJSON,
   PublicKeyCredentialCreationOptionsJSON,
   PublicKeyCredentialRequestOptionsJSON,
-} from "@simplewebauthn/types";
+} from "@simplewebauthn/browser";
 import { collectDeviceFingerprint } from "./fraud-prevention";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
