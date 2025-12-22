@@ -828,13 +828,66 @@ jobs:
           is_static_export: true
 
   # ============================================================================
+  # Post-Deploy Smoke Tests
+  # ============================================================================
+  smoke-tests:
+    name: Smoke Tests
+    runs-on: ubuntu-latest
+    needs: [setup, infrastructure, deploy-backend, run-migrations, deploy-frontend]
+    if: needs.deploy-backend.result == 'success'
+    steps:
+      - name: Wait for deployment to stabilize
+        run: sleep 30
+
+      - name: Check API health
+        run: |
+          API_URL="https://${{ needs.infrastructure.outputs.apiFqdn }}"
+          echo "Testing API at: $API_URL"
+          
+          # Basic health check
+          HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$API_URL/health")
+          if [ "$HTTP_STATUS" != "200" ]; then
+            echo "❌ Health check failed with status $HTTP_STATUS"
+            exit 1
+          fi
+          echo "✅ Health check passed"
+
+      - name: Verify service configuration
+        run: |
+          API_URL="https://${{ needs.infrastructure.outputs.apiFqdn }}"
+          
+          # Get service status
+          RESPONSE=$(curl -s "$API_URL/health/services")
+          echo "Service status response:"
+          echo "$RESPONSE" | jq .
+          
+          # Check if all services are configured
+          ALL_CONFIGURED=$(echo "$RESPONSE" | jq -r '.all_services_configured')
+          if [ "$ALL_CONFIGURED" != "true" ]; then
+            echo "❌ Not all services are configured!"
+            echo ""
+            echo "Missing configurations:"
+            echo "$RESPONSE" | jq -r '.services | to_entries[] | select(.value.configured == false) | "  - \(.key): \(.value.details)"'
+            exit 1
+          fi
+          
+          echo "✅ All services configured correctly"
+
+      - name: Smoke test summary
+        if: always()
+        run: |
+          echo "## Smoke Test Results 🧪" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**API URL:** https://${{ needs.infrastructure.outputs.apiFqdn }}" >> $GITHUB_STEP_SUMMARY
+
+  # ============================================================================
   # Deployment Complete
   # ============================================================================
   deployment-complete:
     name: Deployment Complete
     runs-on: ubuntu-latest
-    needs: [setup, infrastructure, deploy-backend, run-migrations, deploy-frontend]
-    if: always() && needs.setup.result == 'success' && needs.infrastructure.result == 'success' && needs.deploy-backend.result == 'success' && needs.run-migrations.result == 'success' && needs.deploy-frontend.result == 'success'
+    needs: [setup, infrastructure, deploy-backend, run-migrations, deploy-frontend, smoke-tests]
+    if: always() && needs.setup.result == 'success' && needs.infrastructure.result == 'success' && needs.deploy-backend.result == 'success' && needs.run-migrations.result == 'success' && needs.deploy-frontend.result == 'success' && needs.smoke-tests.result == 'success'
     steps:
       - name: Deployment Summary
         run: |
