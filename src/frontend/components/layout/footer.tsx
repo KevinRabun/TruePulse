@@ -27,7 +27,7 @@ export function Footer() {
             </p>
             <div className="mt-4 flex space-x-4">
               <a
-                href="https://github.com/truepulse"
+                href="https://github.com/KevinRabun/TruePulse"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-gray-400 hover:text-gray-500"
@@ -141,7 +141,7 @@ export function Footer() {
           <p className="text-sm text-gray-500 dark:text-gray-400">
             © {new Date().getFullYear()} TruePulse. All rights reserved. Open source on{' '}
             <a
-              href="https://github.com/truepulse"
+              href="https://github.com/KevinRabun/TruePulse"
               className="text-primary-600 hover:text-primary-700"
             >
               GitHub
