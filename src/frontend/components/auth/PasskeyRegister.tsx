@@ -41,7 +41,7 @@ export function PasskeyRegister({
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [deviceName, setDeviceName] = useState("");
 
-  const { accessToken, user } = useAuthStore();
+  const { accessToken } = useAuthStore();
 
   // Check for passkey support on mount
   useEffect(() => {

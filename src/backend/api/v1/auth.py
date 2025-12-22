@@ -6,8 +6,7 @@ No passwords are stored or used - all authentication is via passkeys.
 """
 
 import hashlib
-from datetime import datetime, timedelta, timezone
-from typing import Annotated, Optional, TypedDict
+from typing import Optional
 
 import structlog
 from fastapi import APIRouter, Body, Depends, HTTPException, status
@@ -20,13 +19,11 @@ from core.security import (
     create_access_token,
     create_refresh_token,
     decode_token,
-    generate_secure_token,
 )
 from db.session import get_db
 from models.user import User
 from schemas.auth import RefreshTokenRequest, TokenResponse
 from schemas.user import UserCreate, UserResponse
-from services.email_service import EmailService, get_email_service
 from services.redis_service import RedisService, get_redis_service
 
 logger = structlog.get_logger(__name__)

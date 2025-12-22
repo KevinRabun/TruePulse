@@ -21,7 +21,11 @@ from webauthn import (
     verify_authentication_response,
     verify_registration_response,
 )
-from webauthn.helpers import bytes_to_base64url, parse_authentication_credential_json, parse_registration_credential_json
+from webauthn.helpers import (
+    bytes_to_base64url,
+    parse_authentication_credential_json,
+    parse_registration_credential_json,
+)
 from webauthn.helpers.structs import (
     AttestationConveyancePreference,
     AuthenticatorAttachment,
@@ -32,7 +36,7 @@ from webauthn.helpers.structs import (
 )
 
 from core.config import settings
-from models.passkey import DeviceTrustScore, PasskeyCredential, SilentMobileVerification
+from models.passkey import DeviceTrustScore, PasskeyCredential
 from models.user import User
 
 logger = logging.getLogger(__name__)
