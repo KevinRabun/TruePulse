@@ -473,6 +473,9 @@ export default function ProfilePage() {
               <VerificationStatus
                 emailVerified={profile.email_verified}
                 email={profile.email}
+                onResendEmail={async () => {
+                  await api.sendVerificationEmail(profile.email);
+                }}
               />
 
               {/* Theme Settings */}

@@ -63,8 +63,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       const response = await api.register(data);
       setUser(response.user);
-      // After registration, redirect to verify phone then create passkey
-      router.push('/profile?setup=true');
+      // Send verification email automatically after registration
+      try {
+        await api.sendVerificationEmail(data.email);
+      } catch {
+        // Don't fail registration if email send fails - user can resend later
+        console.warn('Failed to send verification email');
+      }
+      // After registration, redirect to setup passkey
+      router.push('/setup-passkey');
     } finally {
       setIsLoading(false);
     }

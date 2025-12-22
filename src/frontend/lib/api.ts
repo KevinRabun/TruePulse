@@ -424,6 +424,13 @@ class ApiClient {
     return result;
   }
 
+  async sendVerificationEmail(email: string): Promise<{ message: string }> {
+    return this.request<{ message: string }>('/auth/send-verification-email', {
+      method: 'POST',
+      body: JSON.stringify({ email }),
+    });
+  }
+
   async logout(): Promise<void> {
     this.setToken(null);
   }

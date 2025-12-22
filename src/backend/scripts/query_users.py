@@ -11,4 +11,5 @@ async def query_users():
         for row in result:
             print(f"ID: {row.id}, Email: {row.email}, Username: {row.username}, Display: {row.display_name}")
 
+
 asyncio.run(query_users())
