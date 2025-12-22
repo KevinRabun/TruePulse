@@ -30,6 +30,7 @@ out/
 .npm
 *.tsbuildinfo
 tsconfig.tsbuildinfo
+coverage/
 
 # SWA CLI
 swa-cli.config.json
