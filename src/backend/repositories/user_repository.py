@@ -137,6 +137,7 @@ class UserRepository:
         self,
         user_id: str,
         username: Optional[str] = None,
+        display_name: Optional[str] = None,
         avatar_url: Optional[str] = None,
         bio: Optional[str] = None,
     ) -> Optional[User]:
@@ -144,6 +145,8 @@ class UserRepository:
         updates = {}
         if username is not None:
             updates["username"] = username
+        if display_name is not None:
+            updates["display_name"] = display_name
         if avatar_url is not None:
             updates["avatar_url"] = avatar_url
         if bio is not None:

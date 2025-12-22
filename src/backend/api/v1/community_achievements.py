@@ -324,7 +324,7 @@ async def get_community_leaderboard(
             leaderboard.append(
                 CommunityLeaderboard(
                     user_id=str(user.id),
-                    display_name=user.username,
+                    display_name=user.display_name or user.username,
                     avatar_url=user.avatar_url,
                     total_contributions=row.total_contributions or 0,
                     achievements_participated=row.achievements_participated or 0,

@@ -68,7 +68,7 @@ async def get_current_user_profile(
         id=current_user.id,
         email=current_user.email,
         username=current_user.username,
-        display_name=current_user.username,
+        display_name=current_user.display_name or current_user.username,
         is_active=current_user.is_active,
         is_verified=current_user.is_verified,
         points=current_user.points,
@@ -104,6 +104,7 @@ async def update_profile(
     updated_user = await repo.update_profile(
         user_id=current_user.id,
         username=profile_data.username,
+        display_name=profile_data.display_name,
         avatar_url=profile_data.avatar_url,
         bio=profile_data.bio,
     )
@@ -118,7 +119,7 @@ async def update_profile(
         id=str(updated_user.id),
         email=updated_user.email,
         username=updated_user.username,
-        display_name=updated_user.username,
+        display_name=updated_user.display_name or updated_user.username,
         is_active=updated_user.is_active,
         is_verified=updated_user.is_verified,
         points=updated_user.total_points,

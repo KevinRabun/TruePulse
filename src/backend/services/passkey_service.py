@@ -122,7 +122,7 @@ class PasskeyService:
             rp_name=self.RP_NAME,
             user_id=user.id.encode(),
             user_name=user.email,
-            user_display_name=user.username,
+            user_display_name=user.display_name or user.username,
             attestation=AttestationConveyancePreference.NONE,  # Privacy-friendly
             authenticator_selection=AuthenticatorSelectionCriteria(
                 authenticator_attachment=AuthenticatorAttachment.PLATFORM,  # Prefer platform authenticators
