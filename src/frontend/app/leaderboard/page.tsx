@@ -131,7 +131,7 @@ export default function LeaderboardPage() {
                         <UserCircleIcon className="h-12 w-12 text-slate-500 dark:text-slate-400" />
                       </div>
                       <p className="font-semibold text-gray-900 dark:text-white text-sm truncate max-w-[100px]">
-                        {leaderboard[1].username}
+                        {leaderboard[1].display_name || leaderboard[1].username}
                       </p>
                       <p className="text-gray-600 dark:text-slate-400 text-sm">{leaderboard[1].points.toLocaleString()} pts</p>
                       <div className="h-16 w-20 bg-linear-to-t from-slate-200 to-transparent dark:from-slate-500/20 dark:to-transparent rounded-t-lg mt-2 flex items-end justify-center pb-2">
@@ -155,7 +155,7 @@ export default function LeaderboardPage() {
                         </div>
                       </div>
                       <p className="font-bold text-gray-900 dark:text-white truncate max-w-[120px]">
-                        {leaderboard[0].username}
+                        {leaderboard[0].display_name || leaderboard[0].username}
                       </p>
                       <p className="text-yellow-600 dark:text-yellow-400 font-semibold">{leaderboard[0].points.toLocaleString()} pts</p>
                       <div className="h-24 w-24 bg-linear-to-t from-yellow-200 to-transparent dark:from-yellow-500/20 dark:to-transparent rounded-t-lg mt-2 flex items-end justify-center pb-2">
@@ -176,7 +176,7 @@ export default function LeaderboardPage() {
                         <UserCircleIcon className="h-12 w-12 text-amber-700 dark:text-amber-600" />
                       </div>
                       <p className="font-semibold text-gray-900 dark:text-white text-sm truncate max-w-[100px]">
-                        {leaderboard[2].username}
+                        {leaderboard[2].display_name || leaderboard[2].username}
                       </p>
                       <p className="text-gray-600 dark:text-slate-400 text-sm">{leaderboard[2].points.toLocaleString()} pts</p>
                       <div className="h-12 w-20 bg-linear-to-t from-amber-200 to-transparent dark:from-amber-600/20 dark:to-transparent rounded-t-lg mt-2 flex items-end justify-center pb-2">
@@ -215,7 +215,7 @@ export default function LeaderboardPage() {
                                 isCurrentUser ? 'text-primary-600 dark:text-purple-400' : 'text-gray-900 dark:text-white'
                               }`}
                             >
-                              {entry.username}
+                              {entry.display_name || entry.username}
                               {isCurrentUser && ' (You)'}
                             </p>
                           </div>
@@ -243,7 +243,7 @@ export default function LeaderboardPage() {
                       <span className="text-gray-500 dark:text-slate-500 font-mono">#{currentUserRank ? currentUserRank + 1 : '?'}</span>
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="font-semibold text-primary-600 dark:text-purple-400 truncate">{user?.username} (You)</p>
+                      <p className="font-semibold text-primary-600 dark:text-purple-400 truncate">{user?.display_name || user?.username} (You)</p>
                       <p className="text-sm text-gray-600 dark:text-slate-400">Keep voting to climb the ranks!</p>
                     </div>
                     <div className="text-right">

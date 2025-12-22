@@ -67,6 +67,7 @@ class LeaderboardEntry(BaseModel):
 
     rank: int
     username: str
+    display_name: Optional[str] = None
     avatar_url: Optional[str]
     points: int
     level: int

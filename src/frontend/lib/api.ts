@@ -122,6 +122,7 @@ export interface RecentVote {
 export interface LeaderboardEntry {
   rank: number;
   username: string;
+  display_name?: string;
   avatar_url?: string;
   points: number;
   level: number;

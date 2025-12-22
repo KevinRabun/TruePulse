@@ -485,6 +485,7 @@ async def get_leaderboard(
                 LeaderboardEntry(
                     rank=rank,
                     username=user.username,
+                    display_name=user.display_name or user.username,
                     avatar_url=user.avatar_url,
                     points=user.total_points,
                     level=user.level,
@@ -530,6 +531,7 @@ async def get_my_leaderboard_position(
     return LeaderboardEntry(
         rank=rank,
         username=user.username,
+        display_name=user.display_name or user.username,
         avatar_url=user.avatar_url,
         points=user.total_points,
         level=user.level,
