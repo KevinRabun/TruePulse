@@ -133,7 +133,8 @@ class FieldEncryption:
             # Generate random 12-byte nonce
             nonce = secrets.token_bytes(12)
 
-            # Encrypt
+            # Encrypt - assert cipher exists since we checked _enabled above
+            assert self._aesgcm is not None  # Ensured by _enabled check above
             ciphertext = self._aesgcm.encrypt(nonce, plaintext.encode("utf-8"), None)
 
             # Combine nonce + ciphertext and base64 encode
@@ -175,7 +176,8 @@ class FieldEncryption:
             nonce = encrypted_data[:12]
             actual_ciphertext = encrypted_data[12:]
 
-            # Decrypt
+            # Decrypt - assert cipher exists since we checked _enabled above
+            assert self._aesgcm is not None  # Ensured by _enabled check above
             plaintext = self._aesgcm.decrypt(nonce, actual_ciphertext, None)
 
             return plaintext.decode("utf-8")
