@@ -1,9 +1,14 @@
 """
-Database migration script to remove phone_verified column.
+Database migration script to remove phone-related columns.
 
-This script removes the phone_verified column from the users table since
+This script removes phone-related columns from the users table since
 we've transitioned to passkey-only authentication and no longer need
-phone verification.
+phone verification or SMS notifications.
+
+Columns removed:
+- phone_verified: Legacy phone verification status
+- phone_number: Legacy phone number field
+- sms_notifications: Legacy SMS notification preference
 
 Run with: python -m scripts.remove_phone_verified
 
@@ -52,9 +57,9 @@ async def check_table_exists(conn, table: str) -> bool:
 
 
 async def run_migration(dry_run: bool = False) -> None:
-    """Run the migration to remove phone_verified column."""
+    """Run the migration to remove phone-related columns."""
     print("=" * 60)
-    print("TruePulse: Remove phone_verified Column Migration")
+    print("TruePulse: Remove Phone-Related Columns Migration")
     print("=" * 60)
     print()
 
@@ -71,27 +76,19 @@ async def run_migration(dry_run: bool = False) -> None:
         changes_needed = []
         changes_made = []
 
-        # Drop phone_verified column if it exists
-        if await check_column_exists(conn, "users", "phone_verified"):
-            changes_needed.append("Drop phone_verified column from users table")
-            if not dry_run:
-                print("Dropping phone_verified column...")
-                await conn.execute(text("ALTER TABLE users DROP COLUMN IF EXISTS phone_verified"))
-                changes_made.append("Dropped phone_verified column")
-                print("✓ Dropped phone_verified column")
-        else:
-            print("✓ phone_verified column already removed (or never existed)")
+        # List of phone-related columns to remove
+        phone_columns = ["phone_verified", "phone_number", "sms_notifications"]
 
-        # Also check for phone_number column (legacy) and remove if exists
-        if await check_column_exists(conn, "users", "phone_number"):
-            changes_needed.append("Drop phone_number column from users table")
-            if not dry_run:
-                print("Dropping phone_number column...")
-                await conn.execute(text("ALTER TABLE users DROP COLUMN IF EXISTS phone_number"))
-                changes_made.append("Dropped phone_number column")
-                print("✓ Dropped phone_number column")
-        else:
-            print("✓ phone_number column already removed (or never existed)")
+        for column in phone_columns:
+            if await check_column_exists(conn, "users", column):
+                changes_needed.append(f"Drop {column} column from users table")
+                if not dry_run:
+                    print(f"Dropping {column} column...")
+                    await conn.execute(text(f"ALTER TABLE users DROP COLUMN IF EXISTS {column}"))
+                    changes_made.append(f"Dropped {column} column")
+                    print(f"✓ Dropped {column} column")
+            else:
+                print(f"✓ {column} column already removed (or never existed)")
 
         # Summary
         print()
