@@ -124,6 +124,9 @@ class TestBehavioralSignals:
             BehavioralSignals(
                 page_load_to_vote_ms=-1,  # Invalid
                 time_on_poll_ms=3000,
+                mouse_move_count=0,
+                mouse_click_count=0,
+                scroll_count=0,
             )
 
 

@@ -6,7 +6,7 @@ Vote records are stored separately in Cosmos DB for privacy.
 """
 
 from datetime import datetime
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 from uuid import uuid4
 
 from sqlalchemy import Boolean, DateTime, Integer, String, Text, func
@@ -14,6 +14,9 @@ from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from db.base import Base
+
+if TYPE_CHECKING:
+    from models.passkey import DeviceTrustScore, PasskeyCredential, SilentMobileVerification
 
 
 class User(Base):
@@ -23,6 +26,11 @@ class User(Base):
     Privacy Design:
     - User IDs are never stored with vote records
     - Demographics are stored here but linked to votes only via aggregation
+
+    Authentication Strategy:
+    - Primary & Only: Passkeys (WebAuthn/FIDO2) - phishing resistant, biometric
+    - No passwords - passwordless by design for maximum security
+    - Verification: Phone carrier verification + email verification
     """
 
     __tablename__ = "users"
@@ -33,10 +41,9 @@ class User(Base):
         default=lambda: str(uuid4()),
     )
 
-    # Authentication
+    # Authentication - Passkey-only approach (no passwords)
     email: Mapped[str] = mapped_column(String(255), unique=True, index=True)
     username: Mapped[str] = mapped_column(String(50), unique=True, index=True)
-    hashed_password: Mapped[str] = mapped_column(String(255))
 
     # Account status
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
@@ -97,6 +104,9 @@ class User(Base):
     sms_notifications: Mapped[bool] = mapped_column(Boolean, default=False)
     daily_poll_sms: Mapped[bool] = mapped_column(Boolean, default=False)
 
+    # Passkey-only mode: user cannot use password authentication
+    passkey_only: Mapped[bool] = mapped_column(Boolean, default=True)  # New accounts are passkey-only by default
+
     # Poll Notification Preferences
     pulse_poll_notifications: Mapped[bool] = mapped_column(Boolean, default=True)  # Daily pulse poll notifications
     flash_poll_notifications: Mapped[bool] = mapped_column(Boolean, default=True)  # Flash poll notifications
@@ -140,6 +150,26 @@ class User(Base):
 
     # Relationships
     achievements = relationship("UserAchievement", back_populates="user")
+    # Passkey authentication relationships
+    passkey_credentials: Mapped[list["PasskeyCredential"]] = relationship(
+        "PasskeyCredential", back_populates="user", cascade="all, delete-orphan"
+    )
+    device_trust_scores: Mapped[list["DeviceTrustScore"]] = relationship(
+        "DeviceTrustScore", back_populates="user", cascade="all, delete-orphan"
+    )
+    silent_mobile_verifications: Mapped[list["SilentMobileVerification"]] = relationship(
+        "SilentMobileVerification", back_populates="user", cascade="all, delete-orphan"
+    )
+
+    @property
+    def has_passkey(self) -> bool:
+        """Check if user has at least one registered passkey."""
+        return len(self.passkey_credentials) > 0 if self.passkey_credentials else False
+
+    @property
+    def can_use_passwordless(self) -> bool:
+        """Check if user can authenticate without password (has passkey and verified phone)."""
+        return self.has_passkey and self.phone_verified
 
     def get_demographics_bucket(self) -> str | None:
         """

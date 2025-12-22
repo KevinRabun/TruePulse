@@ -247,7 +247,7 @@ az communication phonenumber list-available \
 # Purchase a phone number (via Azure Portal is easier)
 # Navigate to: Communication Services > Phone numbers > Get > Select number
 
-# After purchase, note the phone number (e.g., +18001234567)
+# TruePulse SMS number: +18332719679 (toll-free)
 ```
 
 **Via Azure Portal:**
@@ -289,7 +289,7 @@ After obtaining the phone number, update the Container App environment variables
 az containerapp update \
   --name ca-truepulse-api \
   --resource-group $RESOURCE_GROUP \
-  --set-env-vars "AZURE_COMMUNICATION_SENDER_NUMBER=+18001234567"
+  --set-env-vars "AZURE_COMMUNICATION_SENDER_NUMBER=+18332719679"
 
 # For email, the domain is auto-configured but you can verify:
 az containerapp show \

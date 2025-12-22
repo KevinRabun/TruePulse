@@ -1,29 +1,23 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { useAuth } from '@/lib/auth';
 import { useToast } from '@/components/ui/toast';
+import { isPasskeySupported, hasPlatformAuthenticator } from '@/lib/passkey';
 import {
   UserIcon,
   EnvelopeIcon,
-  LockClosedIcon,
-  EyeIcon,
-  EyeSlashIcon,
   CheckCircleIcon,
   XCircleIcon,
   PhoneIcon,
   ChatBubbleLeftIcon,
+  ShieldCheckIcon,
+  FingerPrintIcon,
+  DevicePhoneMobileIcon,
 } from '@heroicons/react/24/outline';
-
-const passwordRequirements = [
-  { id: 'length', label: 'At least 8 characters', test: (p: string) => p.length >= 8 },
-  { id: 'uppercase', label: 'One uppercase letter', test: (p: string) => /[A-Z]/.test(p) },
-  { id: 'lowercase', label: 'One lowercase letter', test: (p: string) => /[a-z]/.test(p) },
-  { id: 'number', label: 'One number', test: (p: string) => /\d/.test(p) },
-];
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -32,12 +26,21 @@ export default function RegisterPage() {
   const [displayName, setDisplayName] = useState('');
   const [email, setEmail] = useState('');
   const [phoneNumber, setPhoneNumber] = useState('');
-  const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
   const [acceptTerms, setAcceptTerms] = useState(false);
   const [acceptSms, setAcceptSms] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [passkeySupported, setPasskeySupported] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    // Check passkey support on mount
+    const checkSupport = async () => {
+      const supported = isPasskeySupported();
+      const hasPlatform = await hasPlatformAuthenticator();
+      // User needs both WebAuthn support and platform authenticator for best experience
+      setPasskeySupported(supported && hasPlatform);
+    };
+    checkSupport();
+  }, []);
 
   // Validate phone number format (US format or international)
   const isValidPhone = (phone: string) => {
@@ -45,21 +48,23 @@ export default function RegisterPage() {
     return /^\+?[0-9]{10,15}$/.test(cleaned);
   };
 
-  const passwordStrength = passwordRequirements.filter((req) => req.test(password)).length;
-  const passwordsMatch = password === confirmPassword && password.length > 0;
   const phoneValid = isValidPhone(phoneNumber);
   const isFormValid =
     displayName.length >= 2 &&
     email.includes('@') &&
     phoneValid &&
-    passwordStrength === passwordRequirements.length &&
-    passwordsMatch &&
     acceptTerms &&
-    acceptSms;
+    acceptSms &&
+    passkeySupported;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+
+    if (!passkeySupported) {
+      setError('Your device does not support passkeys. Please use a modern browser.');
+      return;
+    }
 
     if (!isFormValid) {
       setError('Please fill in all fields correctly.');
@@ -71,25 +76,18 @@ export default function RegisterPage() {
       const cleanedPhone = phoneNumber.replace(/[\s\-\(\)\.]/g, '');
       await register({ 
         email, 
-        password, 
         username: email.split('@')[0], 
         phone_number: cleanedPhone,
         display_name: displayName 
       });
-      success('Account created!', 'Welcome to TruePulse. Please verify your phone number to start voting.');
-      router.push('/');
+      success('Account created!', 'Now let\'s verify your phone and set up your passkey.');
+      // Redirect to phone verification first, then passkey setup
+      router.push('/verify-phone?setup=true');
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Registration failed. Please try again.';
       setError(errorMessage);
       showError('Registration failed', errorMessage);
     }
-  };
-
-  const getStrengthColor = () => {
-    if (passwordStrength <= 1) return 'bg-red-500';
-    if (passwordStrength <= 2) return 'bg-orange-500';
-    if (passwordStrength <= 3) return 'bg-yellow-500';
-    return 'bg-green-500';
   };
 
   return (
@@ -117,6 +115,42 @@ export default function RegisterPage() {
           transition={{ duration: 0.3, delay: 0.2 }}
           className="bg-white/80 dark:bg-slate-800/50 backdrop-blur-xl rounded-2xl border border-gray-200 dark:border-slate-700/50 p-8 shadow-2xl"
         >
+          {/* Passkey Security Badge */}
+          <div className="mb-6 p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
+            <div className="flex items-center gap-2 text-green-700 dark:text-green-400">
+              <ShieldCheckIcon className="h-5 w-5" />
+              <span className="text-sm font-medium">Passwordless Security</span>
+            </div>
+            <p className="mt-1 text-xs text-green-600 dark:text-green-500">
+              TruePulse uses passkeys instead of passwords - more secure and easier to use
+            </p>
+          </div>
+
+          {/* Passkey Not Supported Warning */}
+          {passkeySupported === false && (
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="mb-6 bg-yellow-100 dark:bg-yellow-900/20 border border-yellow-300 dark:border-yellow-700 rounded-lg p-4"
+            >
+              <div className="flex items-center gap-2 text-yellow-700 dark:text-yellow-400 mb-2">
+                <XCircleIcon className="h-5 w-5" />
+                <span className="font-medium">Passkeys Not Supported</span>
+              </div>
+              <p className="text-sm text-yellow-600 dark:text-yellow-500">
+                Your browser or device doesn&apos;t support passkeys. Please use a modern browser like Chrome, Safari, or Edge to register.
+              </p>
+              <a
+                href="https://passkeys.dev/device-support/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="mt-2 inline-block text-sm text-yellow-700 dark:text-yellow-400 hover:underline"
+              >
+                Check device compatibility →
+              </a>
+            </motion.div>
+          )}
+
           <form onSubmit={handleSubmit} className="space-y-5">
             {/* Error Message */}
             {error && (
@@ -205,100 +239,8 @@ export default function RegisterPage() {
                 )}
               </div>
               <p className="mt-1 text-xs text-gray-500 dark:text-slate-500">
-                Required for account verification. We use SMS to verify you&apos;re a real person.
+                Required for verification. We verify you&apos;re a real person to ensure one person = one vote.
               </p>
-            </div>
-
-            {/* Password Field */}
-            <div>
-              <label htmlFor="password" className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
-                Password
-              </label>
-              <div className="relative">
-                <LockClosedIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400 dark:text-slate-500" />
-                <input
-                  id="password"
-                  type={showPassword ? 'text' : 'password'}
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required
-                  autoComplete="new-password"
-                  className="w-full pl-10 pr-12 py-3 bg-gray-50 dark:bg-slate-900/50 border border-gray-300 dark:border-slate-700 rounded-lg text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:focus:ring-purple-500 focus:border-transparent transition-all"
-                  placeholder="••••••••"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-slate-500 hover:text-gray-600 dark:hover:text-slate-400 transition-colors"
-                >
-                  {showPassword ? <EyeSlashIcon className="h-5 w-5" /> : <EyeIcon className="h-5 w-5" />}
-                </button>
-              </div>
-
-              {/* Password Strength */}
-              {password.length > 0 && (
-                <div className="mt-3 space-y-2">
-                  <div className="flex gap-1">
-                    {[...Array(4)].map((_, i) => (
-                      <div
-                        key={i}
-                        className={`h-1 flex-1 rounded-full transition-colors ${
-                          i < passwordStrength ? getStrengthColor() : 'bg-gray-200 dark:bg-slate-700'
-                        }`}
-                      />
-                    ))}
-                  </div>
-                  <div className="grid grid-cols-2 gap-1">
-                    {passwordRequirements.map((req) => (
-                      <div key={req.id} className="flex items-center gap-1 text-xs">
-                        {req.test(password) ? (
-                          <CheckCircleIcon className="h-3.5 w-3.5 text-green-500" />
-                        ) : (
-                          <XCircleIcon className="h-3.5 w-3.5 text-gray-400 dark:text-slate-600" />
-                        )}
-                        <span className={req.test(password) ? 'text-green-500' : 'text-gray-500 dark:text-slate-500'}>
-                          {req.label}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Confirm Password Field */}
-            <div>
-              <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
-                Confirm Password
-              </label>
-              <div className="relative">
-                <LockClosedIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400 dark:text-slate-500" />
-                <input
-                  id="confirmPassword"
-                  type={showPassword ? 'text' : 'password'}
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  required
-                  autoComplete="new-password"
-                  className={`w-full pl-10 pr-12 py-3 bg-gray-50 dark:bg-slate-900/50 border rounded-lg text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:focus:ring-purple-500 focus:border-transparent transition-all ${
-                    confirmPassword.length > 0
-                      ? passwordsMatch
-                        ? 'border-green-500'
-                        : 'border-red-500'
-                      : 'border-gray-300 dark:border-slate-700'
-                  }`}
-                  placeholder="••••••••"
-                />
-                {confirmPassword.length > 0 && (
-                  <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                    {passwordsMatch ? (
-                      <CheckCircleIcon className="h-5 w-5 text-green-500" />
-                    ) : (
-                      <XCircleIcon className="h-5 w-5 text-red-500" />
-                    )}
-                  </div>
-                )}
-              </div>
             </div>
 
             {/* Terms Checkbox */}
@@ -344,6 +286,25 @@ export default function RegisterPage() {
               </label>
             </div>
 
+            {/* What happens next */}
+            <div className="p-4 bg-gray-50 dark:bg-slate-900/30 rounded-lg">
+              <p className="text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">What happens next:</p>
+              <ol className="text-xs text-gray-600 dark:text-slate-400 space-y-1.5">
+                <li className="flex items-center gap-2">
+                  <span className="w-5 h-5 rounded-full bg-primary-100 dark:bg-purple-900/50 text-primary-600 dark:text-purple-400 flex items-center justify-center text-[10px] font-bold">1</span>
+                  Verify your phone number
+                </li>
+                <li className="flex items-center gap-2">
+                  <span className="w-5 h-5 rounded-full bg-primary-100 dark:bg-purple-900/50 text-primary-600 dark:text-purple-400 flex items-center justify-center text-[10px] font-bold">2</span>
+                  Create your passkey (Face ID, Touch ID, or PIN)
+                </li>
+                <li className="flex items-center gap-2">
+                  <span className="w-5 h-5 rounded-full bg-primary-100 dark:bg-purple-900/50 text-primary-600 dark:text-purple-400 flex items-center justify-center text-[10px] font-bold">3</span>
+                  Start voting on daily polls!
+                </li>
+              </ol>
+            </div>
+
             {/* Submit Button */}
             <motion.button
               whileHover={{ scale: 1.02 }}
@@ -361,7 +322,7 @@ export default function RegisterPage() {
                   Creating account...
                 </div>
               ) : (
-                'Create account'
+                'Continue'
               )}
             </motion.button>
           </form>
@@ -375,15 +336,31 @@ export default function RegisterPage() {
           </p>
         </motion.div>
 
-        {/* Privacy Notice */}
-        <motion.p
+        {/* Security Features */}
+        <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.5 }}
-          className="mt-6 text-center text-sm text-gray-500 dark:text-slate-500"
+          className="mt-6"
         >
-          🔒 Your votes are anonymous and cannot be traced back to you
-        </motion.p>
+          <div className="grid grid-cols-3 gap-2 text-center">
+            <div className="p-3 bg-white/50 dark:bg-slate-800/30 rounded-lg">
+              <FingerPrintIcon className="h-6 w-6 mx-auto text-purple-500 mb-1" />
+              <p className="text-xs text-gray-600 dark:text-slate-400">Biometric Login</p>
+            </div>
+            <div className="p-3 bg-white/50 dark:bg-slate-800/30 rounded-lg">
+              <ShieldCheckIcon className="h-6 w-6 mx-auto text-green-500 mb-1" />
+              <p className="text-xs text-gray-600 dark:text-slate-400">Phishing-proof</p>
+            </div>
+            <div className="p-3 bg-white/50 dark:bg-slate-800/30 rounded-lg">
+              <DevicePhoneMobileIcon className="h-6 w-6 mx-auto text-blue-500 mb-1" />
+              <p className="text-xs text-gray-600 dark:text-slate-400">Device-bound</p>
+            </div>
+          </div>
+          <p className="mt-4 text-center text-sm text-gray-500 dark:text-slate-500">
+            🔒 Your votes are anonymous and cannot be traced back to you
+          </p>
+        </motion.div>
       </motion.div>
     </div>
   );

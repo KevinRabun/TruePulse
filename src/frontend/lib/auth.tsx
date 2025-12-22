@@ -1,18 +1,21 @@
 /**
  * Authentication Context and Hook for TruePulse
+ * 
+ * TruePulse uses passkey-only authentication - no passwords.
+ * Login is handled via WebAuthn passkeys for maximum security.
  */
 
 'use client';
 
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { api, UserProfile, LoginRequest, RegisterRequest } from './api';
+import { api, UserProfile, RegisterRequest } from './api';
 
 interface AuthContextType {
   user: UserProfile | null;
   isLoading: boolean;
   isAuthenticated: boolean;
-  login: (data: LoginRequest) => Promise<void>;
+  setUser: (user: UserProfile | null) => void;
   register: (data: RegisterRequest) => Promise<void>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
@@ -55,23 +58,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     initAuth();
   }, [refreshUser]);
 
-  const login = async (data: LoginRequest) => {
-    setIsLoading(true);
-    try {
-      const response = await api.login(data);
-      setUser(response.user);
-      router.push('/');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
   const register = async (data: RegisterRequest) => {
     setIsLoading(true);
     try {
       const response = await api.register(data);
       setUser(response.user);
-      router.push('/');
+      // After registration, redirect to verify phone then create passkey
+      router.push('/profile?setup=true');
     } finally {
       setIsLoading(false);
     }
@@ -89,7 +82,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         user,
         isLoading,
         isAuthenticated: !!user,
-        login,
+        setUser,
         register,
         logout,
         refreshUser,

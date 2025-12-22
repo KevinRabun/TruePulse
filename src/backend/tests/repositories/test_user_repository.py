@@ -110,7 +110,6 @@ class TestUserRepository:
         user = await repo.create(
             email="new@example.com",
             username="newuser",
-            hashed_password="hashed_password",
             welcome_points=100,
         )
 

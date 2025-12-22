@@ -19,17 +19,13 @@ class UserBase(BaseModel):
 class UserCreate(UserBase):
     """Schema for user registration.
 
-    Both email and phone are required for registration to ensure
-    one person = one vote and prevent bot registrations.
-
-    Password requirements:
-    - Minimum 8 characters
-    - At least one uppercase letter
-    - At least one lowercase letter
-    - At least one digit
+    Registration is passkey-based:
+    - User provides email and phone
+    - Phone is verified via SMS
+    - User creates a passkey for authentication
+    - No passwords required
     """
 
-    password: str = Field(..., min_length=8, max_length=100)
     phone_number: str = Field(
         ...,
         min_length=10,
@@ -37,18 +33,6 @@ class UserCreate(UserBase):
         description="Phone number for SMS verification",
     )
     display_name: Optional[str] = Field(None, max_length=100)
-
-    @field_validator("password")
-    @classmethod
-    def validate_password_strength(cls, v: str) -> str:
-        """Validate password meets security requirements."""
-        if not re.search(r"[A-Z]", v):
-            raise ValueError("Password must contain at least one uppercase letter")
-        if not re.search(r"[a-z]", v):
-            raise ValueError("Password must contain at least one lowercase letter")
-        if not re.search(r"\d", v):
-            raise ValueError("Password must contain at least one digit")
-        return v
 
     @field_validator("phone_number")
     @classmethod
@@ -88,8 +72,11 @@ class UserResponse(UserBase):
     avatar_url: Optional[str] = None
     phone_number: Optional[str] = None
     phone_verified: bool = False
+    email_verified: bool = False
     created_at: Optional[datetime] = None
     recent_votes: List[RecentVote] = []
+    # Passkey authentication info
+    has_passkey: bool = False
 
     model_config = {"from_attributes": True}
 

@@ -82,7 +82,7 @@ def compute_email_hash(email: str) -> str:
     return hash_pii(email.lower().strip()) if email else ""
 
 
-def compute_phone_hash(phone: str) -> str:
+def compute_phone_hash(phone: Optional[str]) -> str:
     """
     Compute searchable hash for a phone number.
 

@@ -53,15 +53,16 @@ class UserRepository:
         self,
         email: str,
         username: str,
-        hashed_password: str,
         welcome_points: int = 100,
+        phone_number: str | None = None,
+        display_name: str | None = None,
     ) -> User:
-        """Create a new user."""
+        """Create a new user (passkey-only, no password)."""
         user = User(
             id=str(uuid4()),
             email=email.lower(),
             username=username,
-            hashed_password=hashed_password,
+            phone_number=phone_number,
             is_active=True,
             is_verified=False,
             total_points=welcome_points,

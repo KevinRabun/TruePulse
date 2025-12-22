@@ -11,6 +11,7 @@ from api.v1.auth import router as auth_router
 from api.v1.community_achievements import router as community_achievements_router
 from api.v1.gamification import router as gamification_router
 from api.v1.locations import router as locations_router
+from api.v1.passkeys import router as passkeys_router
 from api.v1.polls import router as polls_router
 from api.v1.secure_votes import router as secure_votes_router
 from api.v1.stats import router as stats_router
@@ -20,6 +21,7 @@ from api.v1.votes import router as votes_router
 router = APIRouter()
 
 router.include_router(auth_router, prefix="/auth", tags=["Authentication"])
+router.include_router(passkeys_router, tags=["Passkey Authentication"])
 router.include_router(users_router, prefix="/users", tags=["Users"])
 router.include_router(polls_router, prefix="/polls", tags=["Polls"])
 router.include_router(votes_router, prefix="/votes", tags=["Votes"])

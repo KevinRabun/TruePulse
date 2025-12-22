@@ -80,6 +80,20 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
 
+    # WebAuthn/Passkey Configuration
+    # RP (Relying Party) settings for WebAuthn
+    WEBAUTHN_RP_ID: str = "localhost"  # Domain name (no protocol, no port)
+    WEBAUTHN_RP_NAME: str = "TruePulse"  # Human-readable name
+    WEBAUTHN_ORIGIN: str = "http://localhost:3000"  # Full origin for verification
+
+    # Silent Mobile Verification (Carrier-verified identity)
+    # Providers: ipification, twilio-sna (Twilio Silent Network Auth)
+    SILENT_MOBILE_PROVIDER: str | None = None  # ipification, twilio-sna, or None (disabled)
+    IPIFICATION_CLIENT_ID: str | None = None
+    IPIFICATION_CLIENT_SECRET: str | None = None
+    TWILIO_ACCOUNT_SID: str | None = None
+    TWILIO_AUTH_TOKEN: str | None = None
+
     # Field-Level PII Encryption
     # Base64-encoded 256-bit AES key for encrypting PII (email, phone)
     # Generate with: python -c "from core.encryption import generate_encryption_key; print(generate_encryption_key())"

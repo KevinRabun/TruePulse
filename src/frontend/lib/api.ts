@@ -246,13 +246,11 @@ export interface AuthResponse {
 
 export interface LoginRequest {
   email: string;
-  password: string;
 }
 
 export interface RegisterRequest {
   email: string;
   username: string;
-  password: string;
   phone_number: string;
   display_name?: string;
 }
@@ -436,31 +434,7 @@ class ApiClient {
     return response.json();
   }
 
-  // Auth endpoints
-  async login(data: LoginRequest): Promise<AuthResponse> {
-    const formData = new URLSearchParams();
-    formData.append('username', data.email);
-    formData.append('password', data.password);
-    
-    const response = await fetch(`${this.baseUrl}/auth/login`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-        'X-Frontend-Secret': FRONTEND_API_SECRET,
-      },
-      body: formData,
-    });
-
-    if (!response.ok) {
-      const error = await response.json().catch(() => ({}));
-      throw new Error(error.detail || 'Login failed');
-    }
-
-    const result: AuthResponse = await response.json();
-    this.setToken(result.access_token);
-    return result;
-  }
-
+  // Auth endpoints - Registration only (login is via passkeys)
   async register(data: RegisterRequest): Promise<AuthResponse> {
     const result = await this.request<AuthResponse>('/auth/register', {
       method: 'POST',

@@ -9,6 +9,7 @@ from models.achievement import (
 )
 from models.distributed_lock import DistributedLock
 from models.location import City, Country, StateProvince
+from models.passkey import DeviceTrustScore, PasskeyCredential, SilentMobileVerification
 from models.poll import Poll, PollChoice, PollStatus, PollType
 from models.user import User
 from models.user_vote_history import UserVoteHistory
@@ -31,4 +32,8 @@ __all__ = [
     "StateProvince",
     "City",
     "DistributedLock",
+    # Passkey authentication models
+    "PasskeyCredential",
+    "DeviceTrustScore",
+    "SilentMobileVerification",
 ]

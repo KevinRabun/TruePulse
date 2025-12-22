@@ -13,6 +13,9 @@
     },
     "enableCMK": {
       "value": false
+    },
+    "communicationSenderNumber": {
+      "value": "+18332719679"
     }
   }
 }

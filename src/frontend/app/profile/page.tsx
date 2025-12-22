@@ -29,6 +29,7 @@ import { DemographicsForm } from '@/components/profile/demographics-form';
 import { ThemeSettings } from '@/components/profile/theme-settings';
 import { PollNotifications } from '@/components/profile/poll-notifications';
 import { VerificationStatus } from '@/components/profile/verification-status';
+import { PasskeyManagement } from '@/components/auth';
 
 const achievementIcons: Record<string, React.ReactNode> = {
   first_vote: <CheckBadgeSolidIcon className="h-8 w-8 text-green-400" />,
@@ -492,6 +493,12 @@ export default function ProfilePage() {
               {/* Phone Verification */}
               <PhoneVerification
                 phoneNumber={profile.phone_number}
+                phoneVerified={profile.phone_verified}
+                onUpdate={() => queryClient.invalidateQueries({ queryKey: ['profile'] })}
+              />
+
+              {/* Passkey Management */}
+              <PasskeyManagement
                 phoneVerified={profile.phone_verified}
                 onUpdate={() => queryClient.invalidateQueries({ queryKey: ['profile'] })}
               />
