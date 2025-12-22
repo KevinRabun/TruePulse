@@ -472,9 +472,7 @@ export default function ProfilePage() {
               {/* Verification Status - Show first for prominence */}
               <VerificationStatus
                 emailVerified={profile.email_verified}
-                phoneVerified={profile.phone_verified}
                 email={profile.email}
-                phoneNumber={profile.phone_number}
               />
 
               {/* Theme Settings */}

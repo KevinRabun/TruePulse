@@ -95,14 +95,8 @@ class User(Base):
     share_anonymous_demographics: Mapped[bool] = mapped_column(Boolean, default=True)
     theme_preference: Mapped[str] = mapped_column(String(20), default="system")  # light, dark, system
 
-    # Phone/SMS Settings
-    phone_number: Mapped[Optional[str]] = mapped_column(String(20), unique=True, nullable=True, index=True)
-    phone_verified: Mapped[bool] = mapped_column(Boolean, default=False)
-    email_verified: Mapped[bool] = mapped_column(Boolean, default=False)  # Separate from is_verified
-    phone_verification_code: Mapped[Optional[str]] = mapped_column(String(6), nullable=True)
-    phone_verification_sent_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
-    sms_notifications: Mapped[bool] = mapped_column(Boolean, default=False)
-    daily_poll_sms: Mapped[bool] = mapped_column(Boolean, default=False)
+    # Email verification
+    email_verified: Mapped[bool] = mapped_column(Boolean, default=False)
 
     # Passkey-only mode: user cannot use password authentication
     passkey_only: Mapped[bool] = mapped_column(Boolean, default=True)  # New accounts are passkey-only by default

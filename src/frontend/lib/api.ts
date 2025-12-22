@@ -77,9 +77,6 @@ export interface UserProfile {
   // Verification fields
   is_verified: boolean;
   email_verified: boolean;
-  // Phone fields (for identity verification, not SMS)
-  phone_number?: string;
-  phone_verified: boolean;
 }
 
 export interface AchievementEarnedDate {

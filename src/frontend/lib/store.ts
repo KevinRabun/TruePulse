@@ -7,14 +7,12 @@
 
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
-import type { UserProfile } from './api';
 
 interface User {
   id: string;
   email: string;
   username: string;
   isVerified: boolean;
-  phoneVerified: boolean;
   emailVerified: boolean;
   hasPasskey: boolean;
   passkeyOnly: boolean;

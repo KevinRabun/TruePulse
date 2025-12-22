@@ -10,7 +10,6 @@ import { isPasskeySupported, hasPlatformAuthenticator } from '@/lib/passkey';
 import {
   UserIcon,
   EnvelopeIcon,
-  CheckCircleIcon,
   XCircleIcon,
   ShieldCheckIcon,
   FingerPrintIcon,

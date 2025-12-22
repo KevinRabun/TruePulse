@@ -54,7 +54,6 @@ class UserRepository:
         email: str,
         username: str,
         welcome_points: int = 100,
-        phone_number: str | None = None,
         display_name: str | None = None,
     ) -> User:
         """Create a new user (passkey-only, no password)."""
@@ -62,7 +61,6 @@ class UserRepository:
             id=str(uuid4()),
             email=email.lower(),
             username=username,
-            phone_number=phone_number,
             is_active=True,
             is_verified=False,
             total_points=welcome_points,
@@ -293,9 +291,6 @@ class UserRepository:
                 is_active=False,
                 email=f"deleted_{user_id}@deleted.truepulse.com",
                 username=f"deleted_{user_id}",
-                phone_number=None,
-                phone_verified=False,
-                phone_verification_code=None,
                 avatar_url=None,
                 bio=None,
                 # Keep demographics for aggregate stats but clear identifiable info

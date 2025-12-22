@@ -2,11 +2,10 @@
 User-related Pydantic schemas.
 """
 
-import re
 from datetime import datetime
 from typing import List, Optional
 
-from pydantic import BaseModel, EmailStr, Field, field_validator
+from pydantic import BaseModel, EmailStr, Field
 
 
 class UserBase(BaseModel):
@@ -20,30 +19,13 @@ class UserCreate(UserBase):
     """Schema for user registration.
 
     Registration is passkey-based:
-    - User provides email and phone
-    - Phone is verified via SMS
+    - User provides email
+    - Email is verified
     - User creates a passkey for authentication
     - No passwords required
     """
 
-    phone_number: str = Field(
-        ...,
-        min_length=10,
-        max_length=20,
-        description="Phone number for SMS verification",
-    )
     display_name: Optional[str] = Field(None, max_length=100)
-
-    @field_validator("phone_number")
-    @classmethod
-    def validate_phone_number(cls, v: str) -> str:
-        """Validate phone number format."""
-        # Remove common formatting characters
-        cleaned = re.sub(r"[\s\-\(\)\.]", "", v)
-        # Must start with + or be digits only
-        if not re.match(r"^\+?[0-9]{10,15}$", cleaned):
-            raise ValueError("Invalid phone number format. Use format: +1234567890 or 1234567890")
-        return cleaned
 
 
 class RecentVote(BaseModel):
@@ -70,8 +52,6 @@ class UserResponse(UserBase):
     longest_streak: int = 0
     achievements_count: int = 0
     avatar_url: Optional[str] = None
-    phone_number: Optional[str] = None
-    phone_verified: bool = False
     email_verified: bool = False
     created_at: Optional[datetime] = None
     recent_votes: List[RecentVote] = []
@@ -87,10 +67,8 @@ class UserInDB(UserBase):
     id: str
     hashed_password: str
     is_active: bool = True
-    is_verified: bool = False  # True only when BOTH email AND phone are verified
+    is_verified: bool = False  # True when email is verified and passkey is set
     is_admin: bool = False
-    phone_number: Optional[str] = None
-    phone_verified: bool = False
     email_verified: bool = False
     points: int = 0
     level: int = 1

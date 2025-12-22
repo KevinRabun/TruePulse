@@ -14,7 +14,6 @@ import {
   Loader2,
   AlertCircle,
   CheckCircle,
-  Smartphone,
   Shield,
 } from "lucide-react";
 import {
@@ -100,29 +99,6 @@ export function PasskeyRegister({
               Your browser doesn&apos;t support passkeys. Please use a modern browser
               like Chrome, Safari, or Edge to set up passkey authentication.
             </p>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // Check if phone is verified
-  if (user && !user.phoneVerified) {
-    return (
-      <div className={`p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg ${className}`}>
-        <div className="flex items-start gap-3">
-          <Smartphone className="h-5 w-5 text-blue-600 dark:text-blue-400 flex-shrink-0 mt-0.5" />
-          <div>
-            <p className="font-medium text-blue-800 dark:text-blue-200">
-              Phone verification required
-            </p>
-            <p className="text-sm text-blue-700 dark:text-blue-300 mt-1">
-              To ensure one person = one vote, please verify your phone number
-              before setting up a passkey.
-            </p>
-            <button className="mt-3 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors">
-              Verify Phone Number
-            </button>
           </div>
         </div>
       </div>
