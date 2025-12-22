@@ -277,6 +277,7 @@ class TestFraudDetectionService:
     def fraud_service(self):
         """Create a FraudDetectionService instance."""
         from services.fraud_detection import FraudDetectionService
+
         return FraudDetectionService()
 
     def test_fraud_detection_service_instantiation(self, fraud_service):

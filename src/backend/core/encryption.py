@@ -134,9 +134,7 @@ class FieldEncryption:
             nonce = secrets.token_bytes(12)
 
             # Encrypt
-            ciphertext = self._aesgcm.encrypt(
-                nonce, plaintext.encode("utf-8"), None
-            )
+            ciphertext = self._aesgcm.encrypt(nonce, plaintext.encode("utf-8"), None)
 
             # Combine nonce + ciphertext and base64 encode
             encrypted_data = base64.b64encode(nonce + ciphertext).decode("ascii")
@@ -171,9 +169,7 @@ class FieldEncryption:
 
         try:
             # Remove prefix and decode
-            encrypted_data = base64.b64decode(
-                ciphertext[len(self.ENCRYPTED_PREFIX) :]
-            )
+            encrypted_data = base64.b64decode(ciphertext[len(self.ENCRYPTED_PREFIX) :])
 
             # Extract nonce (first 12 bytes) and ciphertext
             nonce = encrypted_data[:12]

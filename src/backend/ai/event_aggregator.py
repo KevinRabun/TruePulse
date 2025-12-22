@@ -327,63 +327,156 @@ def classify_news_scope(title: str, summary: str, keywords: list[str]) -> NewsSc
     # International indicators - stories with global impact
     international_indicators = [
         # Global organizations and summits
-        "united nations", "un ", "nato", "who ", "world health",
-        "imf", "world bank", "g7", "g20", "opec", "european union", "eu ",
+        "united nations",
+        "un ",
+        "nato",
+        "who ",
+        "world health",
+        "imf",
+        "world bank",
+        "g7",
+        "g20",
+        "opec",
+        "european union",
+        "eu ",
         # International events and issues
-        "global", "worldwide", "international", "world leaders",
-        "climate summit", "cop28", "cop29", "davos",
-        "trade war", "sanctions", "tariff", "embargo",
+        "global",
+        "worldwide",
+        "international",
+        "world leaders",
+        "climate summit",
+        "cop28",
+        "cop29",
+        "davos",
+        "trade war",
+        "sanctions",
+        "tariff",
+        "embargo",
         # Major world regions/conflicts
-        "ukraine", "russia", "china", "middle east", "gaza", "israel",
-        "taiwan", "north korea", "iran", "syria",
+        "ukraine",
+        "russia",
+        "china",
+        "middle east",
+        "gaza",
+        "israel",
+        "taiwan",
+        "north korea",
+        "iran",
+        "syria",
         # International business/tech
-        "multinational", "global economy", "world market",
-        "spacex", "nasa", "esa", "space station",
+        "multinational",
+        "global economy",
+        "world market",
+        "spacex",
+        "nasa",
+        "esa",
+        "space station",
         # Pandemic/global health
-        "pandemic", "outbreak", "vaccine rollout",
+        "pandemic",
+        "outbreak",
+        "vaccine rollout",
     ]
 
     # National indicators - country-wide significance
     national_indicators = [
         # Federal government and politics
-        "president", "congress", "senate", "supreme court",
-        "federal", "national", "white house", "capitol",
-        "election", "primary", "ballot", "vote", "campaign",
-        "legislation", "bill passed", "executive order",
+        "president",
+        "congress",
+        "senate",
+        "supreme court",
+        "federal",
+        "national",
+        "white house",
+        "capitol",
+        "election",
+        "primary",
+        "ballot",
+        "vote",
+        "campaign",
+        "legislation",
+        "bill passed",
+        "executive order",
         # National issues
-        "nationwide", "across the country", "americans",
-        "national security", "federal reserve", "fed rate",
-        "inflation", "recession", "unemployment rate",
-        "immigration", "border", "healthcare reform",
+        "nationwide",
+        "across the country",
+        "americans",
+        "national security",
+        "federal reserve",
+        "fed rate",
+        "inflation",
+        "recession",
+        "unemployment rate",
+        "immigration",
+        "border",
+        "healthcare reform",
         # Major companies with national impact
-        "fortune 500", "wall street", "dow jones", "nasdaq", "s&p",
-        "big tech", "major airlines", "automakers",
+        "fortune 500",
+        "wall street",
+        "dow jones",
+        "nasdaq",
+        "s&p",
+        "big tech",
+        "major airlines",
+        "automakers",
         # National events
-        "super bowl", "march madness", "thanksgiving",
-        "memorial day", "labor day", "independence day",
+        "super bowl",
+        "march madness",
+        "thanksgiving",
+        "memorial day",
+        "labor day",
+        "independence day",
     ]
 
     # Local/niche indicators - stories to filter out
     local_indicators = [
         # Local government
-        "city council", "mayor", "county", "township", "alderman",
-        "school board", "sheriff", "district attorney",
-        "local police", "fire department",
+        "city council",
+        "mayor",
+        "county",
+        "township",
+        "alderman",
+        "school board",
+        "sheriff",
+        "district attorney",
+        "local police",
+        "fire department",
         # Regional/local events
-        "high school", "local business", "neighborhood",
-        "downtown", "suburb", "community center",
-        "local restaurant", "small town", "regional",
+        "high school",
+        "local business",
+        "neighborhood",
+        "downtown",
+        "suburb",
+        "community center",
+        "local restaurant",
+        "small town",
+        "regional",
         # Traffic/weather (unless severe)
-        "traffic accident", "car crash", "road closure",
-        "local weather", "forecast",
+        "traffic accident",
+        "car crash",
+        "road closure",
+        "local weather",
+        "forecast",
         # Crime (unless major)
-        "robbery", "burglary", "theft", "break-in",
-        "drug arrest", "dui",
+        "robbery",
+        "burglary",
+        "theft",
+        "break-in",
+        "drug arrest",
+        "dui",
         # Niche financial news (individual company earnings, not market-wide)
-        "eps estimate", "earnings estimate", "quarterly earnings",
-        "fy2024", "fy2025", "fy2026", "fy2027",
-        "price target", "analyst rating", "buy rating", "sell rating",
-        "stock upgrade", "stock downgrade",
+        "eps estimate",
+        "earnings estimate",
+        "quarterly earnings",
+        "fy2024",
+        "fy2025",
+        "fy2026",
+        "fy2027",
+        "price target",
+        "analyst rating",
+        "buy rating",
+        "sell rating",
+        "stock upgrade",
+        "stock downgrade",
     ]
 
     # Check for international scope first (highest priority)
@@ -427,10 +520,25 @@ def calculate_relevance_boost(event: "NewsEvent") -> float:
 
     # Major source boost (well-known outlets tend to cover bigger stories)
     major_sources = [
-        "reuters", "associated press", "ap news", "bbc", "cnn",
-        "new york times", "washington post", "wall street journal",
-        "the guardian", "npr", "pbs", "abc news", "nbc news", "cbs news",
-        "fox news", "bloomberg", "cnbc", "al jazeera", "france24",
+        "reuters",
+        "associated press",
+        "ap news",
+        "bbc",
+        "cnn",
+        "new york times",
+        "washington post",
+        "wall street journal",
+        "the guardian",
+        "npr",
+        "pbs",
+        "abc news",
+        "nbc news",
+        "cbs news",
+        "fox news",
+        "bloomberg",
+        "cnbc",
+        "al jazeera",
+        "france24",
     ]
     source_lower = event.source.lower()
     if any(src in source_lower for src in major_sources):
@@ -578,15 +686,9 @@ class EventAggregator:
         }
         min_scope_priority = scope_priority.get(min_scope, 2)
 
-        filtered_events = [
-            event for event in all_events
-            if scope_priority.get(event.scope, 1) >= min_scope_priority
-        ]
+        filtered_events = [event for event in all_events if scope_priority.get(event.scope, 1) >= min_scope_priority]
 
-        logger.info(
-            f"Scope filtering: {len(all_events)} total -> {len(filtered_events)} "
-            f"(min_scope={min_scope.value})"
-        )
+        logger.info(f"Scope filtering: {len(all_events)} total -> {len(filtered_events)} (min_scope={min_scope.value})")
 
         # Deduplicate and sort by relevance
         unique_events = await self.deduplicate_events(filtered_events)

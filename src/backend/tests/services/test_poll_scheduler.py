@@ -25,7 +25,7 @@ class TestPollSchedulerWindowCalculations:
     @pytest.fixture
     def mock_settings(self):
         """Mock settings with 1-hour poll duration."""
-        with patch('services.poll_scheduler.settings') as mock:
+        with patch("services.poll_scheduler.settings") as mock:
             mock.POLL_DURATION_HOURS = 1
             yield mock
 
@@ -36,7 +36,7 @@ class TestPollSchedulerWindowCalculations:
         # Mock current time to be exactly 10:00 UTC
         fixed_time = datetime(2024, 1, 15, 10, 0, 0, tzinfo=timezone.utc)
 
-        with patch('services.poll_scheduler.datetime') as mock_dt:
+        with patch("services.poll_scheduler.datetime") as mock_dt:
             mock_dt.now.return_value = fixed_time
             mock_dt.side_effect = lambda *args, **kw: datetime(*args, **kw)
 
@@ -54,7 +54,7 @@ class TestPollSchedulerWindowCalculations:
         # Mock current time to be 10:30 UTC
         fixed_time = datetime(2024, 1, 15, 10, 30, 0, tzinfo=timezone.utc)
 
-        with patch('services.poll_scheduler.datetime') as mock_dt:
+        with patch("services.poll_scheduler.datetime") as mock_dt:
             mock_dt.now.return_value = fixed_time
             mock_dt.side_effect = lambda *args, **kw: datetime(*args, **kw)
 
@@ -70,7 +70,7 @@ class TestPollSchedulerWindowCalculations:
 
         fixed_time = datetime(2024, 1, 15, 10, 30, 0, tzinfo=timezone.utc)
 
-        with patch('services.poll_scheduler.datetime') as mock_dt:
+        with patch("services.poll_scheduler.datetime") as mock_dt:
             mock_dt.now.return_value = fixed_time
             mock_dt.side_effect = lambda *args, **kw: datetime(*args, **kw)
 
@@ -86,7 +86,7 @@ class TestPollSchedulerWindowCalculations:
 
         fixed_time = datetime(2024, 1, 15, 10, 30, 0, tzinfo=timezone.utc)
 
-        with patch('services.poll_scheduler.datetime') as mock_dt:
+        with patch("services.poll_scheduler.datetime") as mock_dt:
             mock_dt.now.return_value = fixed_time
             mock_dt.side_effect = lambda *args, **kw: datetime(*args, **kw)
 
@@ -103,7 +103,7 @@ class TestPollSchedulerTwoHourDuration:
     @pytest.fixture
     def mock_settings_2h(self):
         """Mock settings with 2-hour poll duration."""
-        with patch('services.poll_scheduler.settings') as mock:
+        with patch("services.poll_scheduler.settings") as mock:
             mock.POLL_DURATION_HOURS = 2
             yield mock
 
@@ -114,7 +114,7 @@ class TestPollSchedulerTwoHourDuration:
         # Mock current time to be 10:30 UTC
         fixed_time = datetime(2024, 1, 15, 10, 30, 0, tzinfo=timezone.utc)
 
-        with patch('services.poll_scheduler.datetime') as mock_dt:
+        with patch("services.poll_scheduler.datetime") as mock_dt:
             mock_dt.now.return_value = fixed_time
             mock_dt.side_effect = lambda *args, **kw: datetime(*args, **kw)
 
@@ -131,7 +131,7 @@ class TestPollSchedulerTwoHourDuration:
         # Mock current time to be 11:30 UTC (odd hour)
         fixed_time = datetime(2024, 1, 15, 11, 30, 0, tzinfo=timezone.utc)
 
-        with patch('services.poll_scheduler.datetime') as mock_dt:
+        with patch("services.poll_scheduler.datetime") as mock_dt:
             mock_dt.now.return_value = fixed_time
             mock_dt.side_effect = lambda *args, **kw: datetime(*args, **kw)
 
@@ -160,6 +160,7 @@ class TestPollSchedulerDatabase:
     def scheduler(self, mock_db_session):
         """Create PollScheduler with mock session."""
         from services.poll_scheduler import PollScheduler
+
         return PollScheduler(mock_db_session)
 
     @pytest.mark.asyncio
@@ -210,6 +211,7 @@ class TestPollSchedulerPollManagement:
     def scheduler(self, mock_db_session):
         """Create PollScheduler with mock session."""
         from services.poll_scheduler import PollScheduler
+
         return PollScheduler(mock_db_session)
 
     @pytest.mark.asyncio
@@ -252,12 +254,12 @@ class TestPollSchedulerIntegration:
         """Test that poll windows don't have gaps."""
         from services.poll_scheduler import PollScheduler
 
-        with patch('services.poll_scheduler.settings') as mock_settings:
+        with patch("services.poll_scheduler.settings") as mock_settings:
             mock_settings.POLL_DURATION_HOURS = 1
 
             fixed_time = datetime(2024, 1, 15, 10, 30, 0, tzinfo=timezone.utc)
 
-            with patch('services.poll_scheduler.datetime') as mock_dt:
+            with patch("services.poll_scheduler.datetime") as mock_dt:
                 mock_dt.now.return_value = fixed_time
                 mock_dt.side_effect = lambda *args, **kw: datetime(*args, **kw)
 
@@ -275,12 +277,12 @@ class TestPollSchedulerIntegration:
         """Test that all windows have the correct duration."""
         from services.poll_scheduler import PollScheduler
 
-        with patch('services.poll_scheduler.settings') as mock_settings:
+        with patch("services.poll_scheduler.settings") as mock_settings:
             mock_settings.POLL_DURATION_HOURS = 2
 
             fixed_time = datetime(2024, 1, 15, 10, 30, 0, tzinfo=timezone.utc)
 
-            with patch('services.poll_scheduler.datetime') as mock_dt:
+            with patch("services.poll_scheduler.datetime") as mock_dt:
                 mock_dt.now.return_value = fixed_time
                 mock_dt.side_effect = lambda *args, **kw: datetime(*args, **kw)
 

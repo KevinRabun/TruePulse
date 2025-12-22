@@ -25,13 +25,14 @@ class TestEmailService:
     def email_service(self):
         """Create a fresh EmailService instance."""
         from services.email_service import EmailService
+
         return EmailService()
 
     @pytest.mark.asyncio
     async def test_initialize_without_credentials(self, email_service):
         """Test initialization without Azure credentials."""
-        with patch.object(email_service, '_client', None):
-            with patch('services.email_service.settings') as mock_settings:
+        with patch.object(email_service, "_client", None):
+            with patch("services.email_service.settings") as mock_settings:
                 mock_settings.AZURE_COMMUNICATION_CONNECTION_STRING = None
                 mock_settings.AZURE_EMAIL_SENDER_ADDRESS = None
 
@@ -84,7 +85,7 @@ class TestEmailService:
         email_service._sender_address = "noreply@truepulse.com"
         email_service._initialized = True
 
-        with patch('services.email_service.settings') as mock_settings:
+        with patch("services.email_service.settings") as mock_settings:
             mock_settings.FRONTEND_URL = "https://truepulse.com"
 
             result = await email_service.send_password_reset_email(
@@ -116,22 +117,24 @@ class TestEmailService:
     async def test_initialize_with_import_error(self, email_service):
         """Test graceful handling when Azure SDK not installed."""
         import builtins
+
         # Reset state
         email_service._initialized = False
         email_service._client = None
 
-        with patch('services.email_service.settings') as mock_settings:
+        with patch("services.email_service.settings") as mock_settings:
             mock_settings.AZURE_COMMUNICATION_CONNECTION_STRING = "valid-connection-string"
             mock_settings.AZURE_EMAIL_SENDER_ADDRESS = "test@domain.com"
 
             # Mock the import to raise ImportError
             original_import = builtins.__import__
+
             def mock_import(name, *args, **kwargs):
-                if 'azure.communication.email' in name:
+                if "azure.communication.email" in name:
                     raise ImportError("No module")
                 return original_import(name, *args, **kwargs)
 
-            with patch.object(builtins, '__import__', mock_import):
+            with patch.object(builtins, "__import__", mock_import):
                 # The service should handle this gracefully and still mark as initialized
                 await email_service.initialize()
                 # Service is marked initialized but client is None
@@ -176,7 +179,7 @@ class TestEmailServiceIntegration:
         service._sender_address = "noreply@truepulse.com"
         service._initialized = True
 
-        with patch('services.email_service.settings') as mock_settings:
+        with patch("services.email_service.settings") as mock_settings:
             mock_settings.FRONTEND_URL = "https://truepulse.com"
 
             await service.send_password_reset_email(

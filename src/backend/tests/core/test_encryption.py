@@ -24,12 +24,14 @@ class TestFieldEncryption:
     def encryption_key(self):
         """Generate a test encryption key."""
         import secrets
+
         return secrets.token_bytes(32)
 
     @pytest.fixture
     def encryption(self, encryption_key):
         """Create FieldEncryption instance with test key."""
         from core.encryption import FieldEncryption
+
         return FieldEncryption(encryption_key=encryption_key)
 
     def test_encrypt_returns_prefixed_string(self, encryption):
@@ -115,6 +117,7 @@ class TestSearchHash:
         import secrets
 
         from core.encryption import FieldEncryption
+
         return FieldEncryption(encryption_key=secrets.token_bytes(32))
 
     def test_hash_is_deterministic(self, encryption):
@@ -165,6 +168,7 @@ class TestDisabledEncryption:
     def disabled_encryption(self):
         """Create FieldEncryption instance without key."""
         from core.encryption import FieldEncryption
+
         return FieldEncryption(encryption_key=None)
 
     def test_encrypt_returns_plaintext_when_disabled(self, disabled_encryption):
