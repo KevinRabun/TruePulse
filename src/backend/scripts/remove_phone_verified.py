@@ -76,9 +76,7 @@ async def run_migration(dry_run: bool = False) -> None:
             changes_needed.append("Drop phone_verified column from users table")
             if not dry_run:
                 print("Dropping phone_verified column...")
-                await conn.execute(
-                    text("ALTER TABLE users DROP COLUMN IF EXISTS phone_verified")
-                )
+                await conn.execute(text("ALTER TABLE users DROP COLUMN IF EXISTS phone_verified"))
                 changes_made.append("Dropped phone_verified column")
                 print("✓ Dropped phone_verified column")
         else:
@@ -89,9 +87,7 @@ async def run_migration(dry_run: bool = False) -> None:
             changes_needed.append("Drop phone_number column from users table")
             if not dry_run:
                 print("Dropping phone_number column...")
-                await conn.execute(
-                    text("ALTER TABLE users DROP COLUMN IF EXISTS phone_number")
-                )
+                await conn.execute(text("ALTER TABLE users DROP COLUMN IF EXISTS phone_number"))
                 changes_made.append("Dropped phone_number column")
                 print("✓ Dropped phone_number column")
         else:
