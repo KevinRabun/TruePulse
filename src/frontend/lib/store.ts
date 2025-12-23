@@ -3,10 +3,14 @@
  * 
  * Uses Zustand for state management of authentication state.
  * Handles access tokens, refresh tokens, and user profile data.
+ * 
+ * IMPORTANT: This store syncs with localStorage['access_token'] directly
+ * to ensure compatibility with AuthProvider and the API client.
  */
 
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
+import { api } from './api';
 
 interface User {
   id: string;
@@ -41,10 +45,19 @@ export const useAuthStore = create<AuthState>()(
       refreshToken: null,
       user: null,
       
-      setAccessToken: (token) => set({ accessToken: token }),
+      setAccessToken: (token) => {
+        // Sync with the API client and localStorage['access_token']
+        // This ensures AuthProvider can pick up the token
+        api.setToken(token);
+        set({ accessToken: token });
+      },
       setRefreshToken: (token) => set({ refreshToken: token }),
       setUser: (user) => set({ user }),
-      clearAuth: () => set({ accessToken: null, refreshToken: null, user: null }),
+      clearAuth: () => {
+        // Clear API token and localStorage['access_token'] as well
+        api.setToken(null);
+        set({ accessToken: null, refreshToken: null, user: null });
+      },
       
       isAuthenticated: () => {
         const state = get();

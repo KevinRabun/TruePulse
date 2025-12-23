@@ -136,9 +136,10 @@ class PasskeyService:
         # Store challenge for verification
         challenge_id = str(uuid4())
         challenge_str = bytes_to_base64url(options.challenge)
-        logger.warning(
-            f"DEBUG Storing challenge - id: {challenge_id}, challenge: {challenge_str} "
-            f"(len={len(challenge_str)}, original_bytes_len={len(options.challenge)})"
+        logger.debug(
+            "passkey_challenge_stored",
+            challenge_id=challenge_id,
+            challenge_length=len(challenge_str),
         )
         await self._store_challenge(
             challenge_id=challenge_id,
@@ -228,26 +229,24 @@ class PasskeyService:
             stored_challenge_bytes = base64url_to_bytes(stored_challenge)
 
             # Extract challenge from client data to see what browser sent
-            import base64
-
-            # client_data_json is already base64url encoded, need padding
+            # NOTE: py_webauthn's parse_registration_credential_json already decodes 
+            # client_data_json from base64url to raw bytes
             raw_client_data = credential.response.client_data_json
-            client_data_b64_str: str = (
-                raw_client_data.decode("ascii") if isinstance(raw_client_data, bytes) else raw_client_data
-            )
-            # Add padding if needed
-            padding = 4 - len(client_data_b64_str) % 4
-            if padding != 4:
-                client_data_b64_str += "=" * padding
-            client_data_decoded = base64.urlsafe_b64decode(client_data_b64_str)
-            client_data = json.loads(client_data_decoded)
-            client_challenge = client_data.get("challenge", "NOT_FOUND")
+            
+            try:
+                # client_data_json is already decoded bytes (raw JSON)
+                if isinstance(raw_client_data, bytes):
+                    client_data = json.loads(raw_client_data.decode("utf-8"))
+                else:
+                    client_data = json.loads(raw_client_data)
+                client_challenge = client_data.get("challenge", "NOT_FOUND")
+            except Exception as decode_err:
+                logger.error(f"Failed to decode clientDataJSON: {decode_err}, raw type: {type(raw_client_data)}, raw[:100]: {raw_client_data[:100] if raw_client_data else 'None'}")
+                client_challenge = f"DECODE_ERROR: {decode_err}"
 
-            logger.warning(
-                f"DEBUG Challenge comparison - "
-                f"stored_b64: {stored_challenge} (len={len(stored_challenge)}), "
-                f"client_b64: {client_challenge} (len={len(client_challenge)}), "
-                f"match: {stored_challenge == client_challenge}"
+            logger.debug(
+                "passkey_challenge_verification",
+                stored_challenge_match=stored_challenge == client_challenge,
             )
 
             # Verify the registration

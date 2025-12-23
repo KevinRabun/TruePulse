@@ -296,6 +296,12 @@ async def send_magic_link(
     # Create magic link token (15 minute expiry)
     magic_token = create_magic_link_token(str(user.id))
 
+    # Build the magic link URL
+    frontend_url = settings.FRONTEND_URL if hasattr(settings, "FRONTEND_URL") else "http://localhost:3001"
+    magic_link_url = f"{frontend_url}/magic-login?token={magic_token}"
+
+    logger.info("magic_link_generated", user_id=str(user.id))
+
     # Send magic link email
     email_service = await get_email_service()
 
@@ -304,7 +310,7 @@ async def send_magic_link(
             to_email=user.email,
             magic_token=magic_token,
             username=user.display_name or user.username,
-            frontend_url=settings.FRONTEND_URL if hasattr(settings, "FRONTEND_URL") else None,
+            frontend_url=frontend_url,
         )
         logger.info(
             "magic_link_sent",

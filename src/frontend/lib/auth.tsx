@@ -3,6 +3,9 @@
  * 
  * TruePulse uses passkey-only authentication - no passwords.
  * Login is handled via WebAuthn passkeys for maximum security.
+ * 
+ * This AuthProvider syncs with the Zustand auth store (useAuthStore)
+ * to ensure consistent auth state across the app.
  */
 
 'use client';
@@ -10,6 +13,7 @@
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { api, UserProfile, RegisterRequest } from './api';
+import { useAuthStore } from './store';
 
 interface AuthContextType {
   user: UserProfile | null;
@@ -24,19 +28,53 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<UserProfile | null>(null);
+  const [user, setUserState] = useState<UserProfile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
+  
+  // Subscribe to Zustand store changes
+  const storeUser = useAuthStore((state) => state.user);
+  const storeToken = useAuthStore((state) => state.accessToken);
+  const storeClearAuth = useAuthStore((state) => state.clearAuth);
 
   const refreshUser = useCallback(async () => {
     try {
       const profile = await api.getProfile();
-      setUser(profile);
+      setUserState(profile);
     } catch {
-      setUser(null);
+      setUserState(null);
       api.setToken(null);
+      storeClearAuth();
     }
-  }, []);
+  }, [storeClearAuth]);
+
+  // Sync with Zustand store when it changes
+  useEffect(() => {
+    if (storeUser && storeToken) {
+      // Map store user to UserProfile format
+      setUserState({
+        id: storeUser.id,
+        email: storeUser.email,
+        username: storeUser.username,
+        display_name: storeUser.display_name || storeUser.username,
+        created_at: '',
+        total_votes: 0,
+        accuracy_score: 0,
+        current_streak: 0,
+        longest_streak: 0,
+        points: 0,
+        level: 1,
+        achievements_count: 0,
+        achievements: [],
+        recent_votes: [],
+        badges: [],
+        is_verified: storeUser.isVerified,
+        email_verified: storeUser.emailVerified,
+      });
+    } else if (!storeToken) {
+      setUserState(null);
+    }
+  }, [storeUser, storeToken]);
 
   useEffect(() => {
     const initAuth = async () => {
@@ -50,19 +88,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         } catch {
           // Token invalid, clear it
           api.setToken(null);
+          storeClearAuth();
         }
       }
       setIsLoading(false);
     };
 
     initAuth();
-  }, [refreshUser]);
+  }, [refreshUser, storeClearAuth]);
+
+  const setUser = (newUser: UserProfile | null) => {
+    setUserState(newUser);
+  };
 
   const register = async (data: RegisterRequest) => {
     setIsLoading(true);
     try {
       const response = await api.register(data);
-      setUser(response.user);
+      setUserState(response.user);
       // Send verification email automatically after registration
       try {
         await api.sendVerificationEmail(data.email);
@@ -79,7 +122,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const logout = async () => {
     await api.logout();
-    setUser(null);
+    setUserState(null);
+    storeClearAuth();
     router.push('/login');
   };
 
