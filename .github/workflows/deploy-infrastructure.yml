@@ -1,5 +1,5 @@
 # TruePulse Infrastructure Deployment Pipeline
-# Manual trigger for infrastructure changes (VNet, Database, Storage, KeyVault, etc.)
+# Automatic or manual trigger for infrastructure changes
 #
 # This workflow handles slow, risky infrastructure changes that require careful review:
 # - Shared resources (ACR, Log Analytics, DNS zones)
@@ -9,11 +9,21 @@
 # - Key Vault and secrets
 # - Azure OpenAI
 #
+# Triggers:
+# - Automatic: Push to main with changes in infra/ folder → deploys to DEV
+# - Manual: workflow_dispatch → deploys to selected environment
+#
 # App deployments are handled by deploy-apps.yml
 
 name: Deploy Infrastructure
 
 on:
+  # Automatic trigger when infrastructure files change
+  push:
+    branches: [main]
+    paths:
+      - 'infra/**'
+  # Manual trigger for any environment
   workflow_dispatch:
     inputs:
       environment:
@@ -46,11 +56,41 @@ env:
 
 jobs:
   # ============================================================================
+  # Determine Environment (handles both push and workflow_dispatch triggers)
+  # ============================================================================
+  setup:
+    name: Setup
+    runs-on: ubuntu-latest
+    outputs:
+      environment: ${{ steps.set-env.outputs.environment }}
+      run_migrations: ${{ steps.set-env.outputs.run_migrations }}
+      migration_script: ${{ steps.set-env.outputs.migration_script }}
+    steps:
+      - name: Determine environment
+        id: set-env
+        run: |
+          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+            echo "environment=${{ inputs.environment }}" >> $GITHUB_OUTPUT
+            echo "run_migrations=${{ inputs.run_migrations }}" >> $GITHUB_OUTPUT
+            echo "migration_script=${{ inputs.migration_script }}" >> $GITHUB_OUTPUT
+          else
+            # Push trigger - always deploy to dev
+            echo "environment=dev" >> $GITHUB_OUTPUT
+            echo "run_migrations=false" >> $GITHUB_OUTPUT
+            echo "migration_script=" >> $GITHUB_OUTPUT
+          fi
+          
+          echo "=== Deployment Configuration ==="
+          echo "Trigger: ${{ github.event_name }}"
+          echo "Environment: $(cat $GITHUB_OUTPUT | grep environment | cut -d= -f2)"
+
+  # ============================================================================
   # Deploy Shared Resources (ACR, Communication Services, Log Analytics, DNS)
   # ============================================================================
   shared-infrastructure:
     name: Deploy Shared Resources
     runs-on: ubuntu-latest
+    needs: [setup]
     outputs:
       logAnalyticsWorkspaceName: ${{ steps.deploy-shared.outputs.logAnalyticsWorkspaceName }}
       containerRegistryName: ${{ steps.deploy-shared.outputs.containerRegistryName }}
@@ -132,10 +172,10 @@ jobs:
   # Deploy Environment Infrastructure
   # ============================================================================
   infrastructure:
-    name: Deploy ${{ inputs.environment }} Infrastructure
+    name: Deploy ${{ needs.setup.outputs.environment }} Infrastructure
     runs-on: ubuntu-latest
-    needs: [shared-infrastructure]
-    environment: ${{ inputs.environment }}
+    needs: [setup, shared-infrastructure]
+    environment: ${{ needs.setup.outputs.environment }}
     outputs:
       resourceGroupName: ${{ steps.deploy.outputs.resourceGroupName }}
       acrLoginServer: ${{ steps.deploy.outputs.acrLoginServer }}
@@ -197,12 +237,13 @@ jobs:
       - name: Deploy Infrastructure
         id: deploy
         run: |
-          echo "Deploying infrastructure for ${{ inputs.environment }}..."
+          ENV="${{ needs.setup.outputs.environment }}"
+          echo "Deploying infrastructure for $ENV..."
           
           # Get existing OpenAI key if it exists
           EXISTING_OPENAI_KEY=$(az cognitiveservices account keys list \
-            --name "aoai-truepulse-${{ inputs.environment }}" \
-            --resource-group "rg-truepulse-${{ inputs.environment }}" \
+            --name "aoai-truepulse-$ENV" \
+            --resource-group "rg-truepulse-$ENV" \
             --query 'key1' -o tsv 2>/dev/null || echo "")
           
           if [ -z "$EXISTING_OPENAI_KEY" ]; then
@@ -214,10 +255,10 @@ jobs:
           fi
           
           DEPLOYMENT_OUTPUT=$(az deployment sub create \
-            --name "${{ inputs.environment }}-infra-$(date +%Y%m%d%H%M%S)" \
+            --name "$ENV-infra-$(date +%Y%m%d%H%M%S)" \
             --location ${{ env.AZURE_LOCATION }} \
             --template-file infra/main.bicep \
-            --parameters environmentName=${{ inputs.environment }} \
+            --parameters environmentName=$ENV \
             --parameters postgresAdminUsername='truepulseadmin' \
             --parameters postgresAdminPassword='${{ secrets.POSTGRES_ADMIN_PASSWORD }}' \
             --parameters jwtSecretKey='${{ secrets.JWT_SECRET_KEY }}' \
@@ -277,9 +318,9 @@ jobs:
   run-migrations:
     name: Run Database Migrations
     runs-on: ubuntu-latest
-    needs: [infrastructure]
-    if: inputs.run_migrations == true
-    environment: ${{ inputs.environment }}
+    needs: [setup, infrastructure]
+    if: needs.setup.outputs.run_migrations == 'true'
+    environment: ${{ needs.setup.outputs.environment }}
     steps:
       - uses: actions/checkout@v6
 
@@ -292,14 +333,15 @@ jobs:
 
       - name: Run database migration
         run: |
-          CONTAINER_APP_NAME="ca-truepulse-api-${{ inputs.environment }}"
+          ENV="${{ needs.setup.outputs.environment }}"
+          CONTAINER_APP_NAME="ca-truepulse-api-$ENV"
           RESOURCE_GROUP="${{ needs.infrastructure.outputs.resourceGroupName }}"
-          MIGRATION_SCRIPT="${{ inputs.migration_script }}"
+          MIGRATION_SCRIPT="${{ needs.setup.outputs.migration_script }}"
           
           echo "=========================================="
           echo "Running Database Migration"
           echo "Script: $MIGRATION_SCRIPT"
-          echo "Environment: ${{ inputs.environment }}"
+          echo "Environment: $ENV"
           echo "=========================================="
           
           # Get current revision
@@ -370,7 +412,8 @@ jobs:
 
       - name: Verify application health
         run: |
-          CONTAINER_APP_NAME="ca-truepulse-api-${{ inputs.environment }}"
+          ENV="${{ needs.setup.outputs.environment }}"
+          CONTAINER_APP_NAME="ca-truepulse-api-$ENV"
           RESOURCE_GROUP="${{ needs.infrastructure.outputs.resourceGroupName }}"
           
           echo "Waiting for app to stabilize..."
@@ -405,22 +448,23 @@ jobs:
   summary:
     name: Deployment Summary
     runs-on: ubuntu-latest
-    needs: [shared-infrastructure, infrastructure, run-migrations]
+    needs: [setup, shared-infrastructure, infrastructure, run-migrations]
     if: always()
     steps:
       - name: Summary
         run: |
           echo "## Infrastructure Deployment Complete! 🏗️" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Environment:** ${{ inputs.environment }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Environment:** ${{ needs.setup.outputs.environment }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Trigger:** ${{ github.event_name }}" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Resources Deployed" >> $GITHUB_STEP_SUMMARY
           echo "- Shared: ACR, Log Analytics, DNS Zones, Communication Services" >> $GITHUB_STEP_SUMMARY
           echo "- Environment: VNet, PostgreSQL, Storage, Key Vault, OpenAI, Container App, SWA" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          if [ "${{ inputs.run_migrations }}" == "true" ]; then
+          if [ "${{ needs.setup.outputs.run_migrations }}" == "true" ]; then
             echo "### Database Migrations" >> $GITHUB_STEP_SUMMARY
-            echo "- Script: ${{ inputs.migration_script }}" >> $GITHUB_STEP_SUMMARY
+            echo "- Script: ${{ needs.setup.outputs.migration_script }}" >> $GITHUB_STEP_SUMMARY
             echo "- Status: ${{ needs.run-migrations.result }}" >> $GITHUB_STEP_SUMMARY
           fi
           echo "" >> $GITHUB_STEP_SUMMARY
