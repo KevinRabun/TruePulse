@@ -432,7 +432,7 @@ class PasskeyChallenge(Base):
     )
 
     challenge: Mapped[str] = mapped_column(
-        String(64),
+        String(256),
         comment="Base64url-encoded challenge bytes",
     )
 
