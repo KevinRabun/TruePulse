@@ -225,21 +225,56 @@ class PasskeyService:
             stored_challenge_bytes = base64url_to_bytes(stored_challenge)
 
             # Extract challenge from client data to see what browser sent
-            # NOTE: py_webauthn's parse_registration_credential_json already decodes
-            # client_data_json from base64url to raw bytes
+            # NOTE: py_webauthn's parse_registration_credential_json behavior varies:
+            # - Sometimes it decodes client_data_json from base64url to raw bytes
+            # - Sometimes it leaves it as base64url encoded bytes
             raw_client_data = credential.response.client_data_json
 
             try:
-                # client_data_json is already decoded bytes (raw JSON)
+                # Try multiple decoding strategies
+                client_data = None
+
                 if isinstance(raw_client_data, bytes):
-                    client_data = json.loads(raw_client_data.decode("utf-8"))
+                    # Strategy 1: Try direct UTF-8 decode (already decoded JSON bytes)
+                    try:
+                        client_data = json.loads(raw_client_data.decode("utf-8"))
+                    except (UnicodeDecodeError, json.JSONDecodeError):
+                        # Strategy 2: Try base64url decode first (still encoded)
+                        try:
+                            decoded_bytes = base64url_to_bytes(raw_client_data.decode("ascii"))
+                            client_data = json.loads(decoded_bytes.decode("utf-8"))
+                        except Exception:
+                            pass
+
+                    # Strategy 3: Maybe it's raw base64url bytes that need decoding
+                    if client_data is None:
+                        try:
+                            # The bytes themselves might be base64url data
+                            import base64
+
+                            # Add padding if needed
+                            padded = raw_client_data + b"=" * (4 - len(raw_client_data) % 4)
+                            decoded_bytes = base64.urlsafe_b64decode(padded)
+                            client_data = json.loads(decoded_bytes.decode("utf-8"))
+                        except Exception:
+                            pass
+                elif isinstance(raw_client_data, str):
+                    # It's a string - try direct JSON parse or base64url decode
+                    try:
+                        client_data = json.loads(raw_client_data)
+                    except json.JSONDecodeError:
+                        decoded_bytes = base64url_to_bytes(raw_client_data)
+                        client_data = json.loads(decoded_bytes.decode("utf-8"))
+
+                if client_data:
+                    client_challenge = client_data.get("challenge", "NOT_FOUND")
                 else:
-                    client_data = json.loads(raw_client_data)
-                client_challenge = client_data.get("challenge", "NOT_FOUND")
+                    client_challenge = "PARSE_FAILED"
+
             except Exception as decode_err:
-                raw_preview = raw_client_data[:100].decode("utf-8", errors="replace") if raw_client_data else "None"
+                raw_preview = repr(raw_client_data[:50]) if raw_client_data else "None"
                 logger.error(
-                    f"Failed to decode clientDataJSON: {decode_err}, raw type: {type(raw_client_data)}, raw[:100]: {raw_preview}"
+                    f"Failed to decode clientDataJSON: {decode_err}, raw type: {type(raw_client_data)}, raw[:50]: {raw_preview}"
                 )
                 client_challenge = f"DECODE_ERROR: {decode_err}"
 
