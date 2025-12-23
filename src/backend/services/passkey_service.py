@@ -493,9 +493,7 @@ class PasskeyService:
 
     async def _get_challenge(self, challenge_id: str) -> dict[str, Any] | None:
         """Retrieve and validate a challenge from the database."""
-        result = await self.db.execute(
-            select(PasskeyChallenge).where(PasskeyChallenge.id == challenge_id)
-        )
+        result = await self.db.execute(select(PasskeyChallenge).where(PasskeyChallenge.id == challenge_id))
         challenge_record = result.scalar_one_or_none()
 
         if not challenge_record:
@@ -516,9 +514,7 @@ class PasskeyService:
 
     async def _invalidate_challenge(self, challenge_id: str) -> None:
         """Remove a challenge after use."""
-        result = await self.db.execute(
-            select(PasskeyChallenge).where(PasskeyChallenge.id == challenge_id)
-        )
+        result = await self.db.execute(select(PasskeyChallenge).where(PasskeyChallenge.id == challenge_id))
         challenge_record = result.scalar_one_or_none()
         if challenge_record:
             await self.db.delete(challenge_record)
