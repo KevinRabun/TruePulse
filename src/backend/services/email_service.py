@@ -321,6 +321,11 @@ If you didn't create a TruePulse account, you can safely ignore this email.
                 <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 32px 0;">
 
                 <p style="color: #9ca3af; font-size: 12px;">
+                    If the button doesn't work, copy and paste this URL into your browser:<br>
+                    <a href="{login_url}" style="color: #3b82f6; word-break: break-all;">{login_url}</a>
+                </p>
+
+                <p style="color: #9ca3af; font-size: 12px;">
                     If you didn't request this login link, you can safely ignore this email.
                     Someone may have entered your email address by mistake.
                 </p>

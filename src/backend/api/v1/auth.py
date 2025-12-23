@@ -358,6 +358,13 @@ async def verify_magic_link(
             detail="Account is deactivated",
         )
 
+    # Mark email as verified since clicking magic link proves email ownership
+    if not user.email_verified:
+        user.email_verified = True
+        await db.commit()
+        await db.refresh(user)
+        logger.info("email_verified_via_magic_link", user_id=str(user.id))
+
     # Check if user has any passkeys
     from models.passkey import PasskeyCredential
 
