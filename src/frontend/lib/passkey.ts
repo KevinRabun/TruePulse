@@ -19,7 +19,7 @@ import type {
 } from "@simplewebauthn/browser";
 import { collectDeviceFingerprint } from "./fraud-prevention";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1";
 
 /**
  * Device information for trust scoring
@@ -132,7 +132,7 @@ export async function registerPasskey(
     const deviceInfo = await getDeviceInfo();
 
     // Step 1: Get registration options from server
-    const optionsResponse = await fetch(`${API_BASE}/api/v1/passkeys/register/options`, {
+    const optionsResponse = await fetch(`${API_BASE}/passkeys/register/options`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -187,7 +187,7 @@ export async function registerPasskey(
     }
 
     // Step 3: Send credential to server for verification
-    const verifyResponse = await fetch(`${API_BASE}/api/v1/passkeys/register/verify`, {
+    const verifyResponse = await fetch(`${API_BASE}/passkeys/register/verify`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -242,7 +242,7 @@ export async function authenticateWithPasskey(
     const deviceInfo = await getDeviceInfo();
 
     // Step 1: Get authentication options from server
-    const optionsResponse = await fetch(`${API_BASE}/api/v1/passkeys/authenticate/options`, {
+    const optionsResponse = await fetch(`${API_BASE}/passkeys/authenticate/options`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -296,7 +296,7 @@ export async function authenticateWithPasskey(
     }
 
     // Step 3: Send credential to server for verification
-    const verifyResponse = await fetch(`${API_BASE}/api/v1/passkeys/authenticate/verify`, {
+    const verifyResponse = await fetch(`${API_BASE}/passkeys/authenticate/verify`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -341,7 +341,7 @@ export async function getPasskeys(accessToken: string): Promise<{
   error?: string;
 }> {
   try {
-    const response = await fetch(`${API_BASE}/api/v1/passkeys/`, {
+    const response = await fetch(`${API_BASE}/passkeys/`, {
       method: "GET",
       headers: {
         Authorization: `Bearer ${accessToken}`,
@@ -378,7 +378,7 @@ export async function deletePasskey(
   passkeyId: string
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    const response = await fetch(`${API_BASE}/api/v1/passkeys/${passkeyId}`, {
+    const response = await fetch(`${API_BASE}/passkeys/${passkeyId}`, {
       method: "DELETE",
       headers: {
         Authorization: `Bearer ${accessToken}`,
