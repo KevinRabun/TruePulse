@@ -226,8 +226,17 @@ class PasskeyService:
             # Extract challenge from client data to see what browser sent
             import base64
 
-            client_data_json = base64.urlsafe_b64decode(credential.response.client_data_json + "==")
-            client_data = json.loads(client_data_json)
+            # client_data_json is already base64url encoded, need padding
+            raw_client_data = credential.response.client_data_json
+            client_data_b64_str: str = (
+                raw_client_data.decode("ascii") if isinstance(raw_client_data, bytes) else raw_client_data
+            )
+            # Add padding if needed
+            padding = 4 - len(client_data_b64_str) % 4
+            if padding != 4:
+                client_data_b64_str += "=" * padding
+            client_data_decoded = base64.urlsafe_b64decode(client_data_b64_str)
+            client_data = json.loads(client_data_decoded)
             client_challenge = client_data.get("challenge", "NOT_FOUND")
 
             logger.warning(
