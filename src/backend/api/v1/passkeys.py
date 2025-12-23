@@ -207,6 +207,10 @@ async def verify_registration(
     try:
         passkey_service = get_passkey_service(db)
 
+        # Debug: Log the incoming credential JSON
+        logger.info(f"Registration verify - credential_json length: {len(request.credential)}")
+        logger.debug(f"Registration verify - credential_json preview: {request.credential[:200]}...")
+
         passkey = await passkey_service.verify_registration(
             user=current_user,
             challenge_id=request.challenge_id,

@@ -282,6 +282,22 @@ class PasskeyService:
                 f"passkey_challenge_verification: stored_challenge_match={stored_challenge == client_challenge}"
             )
 
+            # Debug: Log all credential fields before verification
+            logger.info(
+                f"Credential debug - id_len={len(credential.id) if credential.id else 0}, "
+                f"raw_id_type={type(credential.raw_id).__name__}, "
+                f"raw_id_len={len(credential.raw_id) if credential.raw_id else 0}, "
+                f"client_data_len={len(raw_client_data) if raw_client_data else 0}, "
+                f"attestation_obj_type={type(credential.response.attestation_object).__name__}, "
+                f"attestation_obj_len={len(credential.response.attestation_object) if credential.response.attestation_object else 0}"
+            )
+
+            # Check for potential 157-char value
+            if credential.id and len(credential.id) == 157:
+                logger.error(f"credential.id is 157 chars! Value: {credential.id}")
+            if credential.raw_id and len(credential.raw_id) == 157:
+                logger.error(f"credential.raw_id is 157 bytes! First 50: {credential.raw_id[:50]!r}")
+
             # Verify the registration
             verification = verify_registration_response(
                 credential=credential,
