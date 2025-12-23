@@ -33,15 +33,18 @@ param tags object = {
 param postgresAdminUsername string
 
 @description('Administrator password for PostgreSQL')
+@minLength(8)
 @secure()
 param postgresAdminPassword string
 
 // Secrets
 @description('JWT secret key for API authentication')
+@minLength(32)
 @secure()
 param jwtSecretKey string
 
 @description('Vote hash secret for privacy')
+@minLength(16)
 @secure()
 param voteHashSecret string
 
