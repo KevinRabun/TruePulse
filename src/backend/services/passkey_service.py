@@ -10,7 +10,7 @@ import json
 import logging
 import secrets
 from datetime import UTC, datetime, timedelta
-from typing import Any, ClassVar
+from typing import Any
 from uuid import uuid4
 
 from sqlalchemy import select
@@ -36,7 +36,7 @@ from webauthn.helpers.structs import (
 )
 
 from core.config import settings
-from models.passkey import DeviceTrustScore, PasskeyCredential
+from models.passkey import DeviceTrustScore, PasskeyChallenge, PasskeyCredential
 from models.user import User
 
 logger = logging.getLogger(__name__)
@@ -82,11 +82,6 @@ class PasskeyService:
     RP_NAME = settings.WEBAUTHN_RP_NAME  # Relying Party name
     ORIGIN = settings.WEBAUTHN_ORIGIN  # Expected origin
     CHALLENGE_TIMEOUT = timedelta(minutes=5)  # Challenge validity period
-
-    # Class-level challenge store shared across all instances
-    # This ensures challenges persist between registration options and verification calls
-    # Note: In a multi-replica deployment, use Redis or database storage instead
-    _challenge_store: ClassVar[dict[str, dict[str, Any]]] = {}
 
     def __init__(self, db: AsyncSession):
         """Initialize the passkey service."""
@@ -139,7 +134,7 @@ class PasskeyService:
 
         # Store challenge for verification
         challenge_id = str(uuid4())
-        self._store_challenge(
+        await self._store_challenge(
             challenge_id=challenge_id,
             challenge=bytes_to_base64url(options.challenge),
             user_id=user.id,
@@ -204,7 +199,7 @@ class PasskeyService:
             ChallengeExpiredError: If the challenge has expired
         """
         # Retrieve and validate challenge
-        challenge_data = self._get_challenge(challenge_id)
+        challenge_data = await self._get_challenge(challenge_id)
         if not challenge_data:
             raise ChallengeExpiredError("Registration challenge not found or expired")
 
@@ -264,7 +259,7 @@ class PasskeyService:
             await self.db.refresh(passkey)
 
             # Invalidate challenge
-            self._invalidate_challenge(challenge_id)
+            await self._invalidate_challenge(challenge_id)
 
             logger.info(f"Registered passkey {passkey.id} for user {user.id}")
             return passkey
@@ -311,7 +306,7 @@ class PasskeyService:
 
         # Store challenge
         challenge_id = str(uuid4())
-        self._store_challenge(
+        await self._store_challenge(
             challenge_id=challenge_id,
             challenge=bytes_to_base64url(options.challenge),
             user_id=user.id if user else None,
@@ -360,7 +355,7 @@ class PasskeyService:
             ChallengeExpiredError: If the challenge has expired
         """
         # Retrieve challenge
-        challenge_data = self._get_challenge(challenge_id)
+        challenge_data = await self._get_challenge(challenge_id)
         if not challenge_data:
             raise ChallengeExpiredError("Authentication challenge not found or expired")
 
@@ -410,7 +405,7 @@ class PasskeyService:
             await self.db.commit()
 
             # Invalidate challenge
-            self._invalidate_challenge(challenge_id)
+            await self._invalidate_challenge(challenge_id)
 
             logger.info(f"Authenticated user {user.id} with passkey {passkey.id}")
             return user, passkey
@@ -472,7 +467,7 @@ class PasskeyService:
 
     # --- Helper methods ---
 
-    def _store_challenge(
+    async def _store_challenge(
         self,
         challenge_id: str,
         challenge: str,
@@ -480,30 +475,54 @@ class PasskeyService:
         operation: str,
         device_info: dict[str, Any] | None = None,
     ) -> None:
-        """Store a challenge for later verification."""
-        self._challenge_store[challenge_id] = {
-            "challenge": challenge,
-            "user_id": user_id,
-            "operation": operation,
-            "device_info": device_info,
-            "expires_at": datetime.now(UTC) + self.CHALLENGE_TIMEOUT,
+        """Store a challenge in the database for later verification.
+        
+        Uses database storage to support multi-worker deployments where
+        each worker has its own memory space.
+        """
+        challenge_record = PasskeyChallenge(
+            id=challenge_id,
+            challenge=challenge,
+            user_id=user_id,
+            operation=operation,
+            device_info=json.dumps(device_info) if device_info else None,
+            expires_at=datetime.now(UTC) + self.CHALLENGE_TIMEOUT,
+        )
+        self.db.add(challenge_record)
+        await self.db.flush()
+
+    async def _get_challenge(self, challenge_id: str) -> dict[str, Any] | None:
+        """Retrieve and validate a challenge from the database."""
+        result = await self.db.execute(
+            select(PasskeyChallenge).where(PasskeyChallenge.id == challenge_id)
+        )
+        challenge_record = result.scalar_one_or_none()
+        
+        if not challenge_record:
+            return None
+
+        if datetime.now(UTC) > challenge_record.expires_at:
+            await self.db.delete(challenge_record)
+            await self.db.flush()
+            return None
+
+        return {
+            "challenge": challenge_record.challenge,
+            "user_id": challenge_record.user_id,
+            "operation": challenge_record.operation,
+            "device_info": json.loads(challenge_record.device_info) if challenge_record.device_info else None,
+            "expires_at": challenge_record.expires_at,
         }
 
-    def _get_challenge(self, challenge_id: str) -> dict[str, Any] | None:
-        """Retrieve and validate a challenge."""
-        challenge_data = self._challenge_store.get(challenge_id)
-        if not challenge_data:
-            return None
-
-        if datetime.now(UTC) > challenge_data["expires_at"]:
-            del self._challenge_store[challenge_id]
-            return None
-
-        return challenge_data
-
-    def _invalidate_challenge(self, challenge_id: str) -> None:
+    async def _invalidate_challenge(self, challenge_id: str) -> None:
         """Remove a challenge after use."""
-        self._challenge_store.pop(challenge_id, None)
+        result = await self.db.execute(
+            select(PasskeyChallenge).where(PasskeyChallenge.id == challenge_id)
+        )
+        challenge_record = result.scalar_one_or_none()
+        if challenge_record:
+            await self.db.delete(challenge_record)
+            await self.db.flush()
 
     async def _get_user_credentials(self, user_id: str) -> list[PasskeyCredential]:
         """Get all passkey credentials for a user."""

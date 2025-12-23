@@ -413,3 +413,55 @@ class SilentMobileVerification(Base):
 
     # Relationship
     user = relationship("User", back_populates="silent_mobile_verifications")
+
+
+class PasskeyChallenge(Base):
+    """
+    WebAuthn challenge storage for multi-worker deployments.
+
+    Stores challenges in the database so they can be retrieved by any worker.
+    Challenges are short-lived and automatically cleaned up on retrieval.
+    """
+
+    __tablename__ = "passkey_challenges"
+
+    id: Mapped[str] = mapped_column(
+        UUID(as_uuid=False),
+        primary_key=True,
+        comment="Challenge ID returned to client",
+    )
+
+    challenge: Mapped[str] = mapped_column(
+        String(64),
+        comment="Base64url-encoded challenge bytes",
+    )
+
+    user_id: Mapped[Optional[str]] = mapped_column(
+        UUID(as_uuid=False),
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=True,
+        index=True,
+        comment="User ID for registration challenges",
+    )
+
+    operation: Mapped[str] = mapped_column(
+        String(30),
+        comment="Operation type: registration or authentication",
+    )
+
+    device_info: Mapped[Optional[str]] = mapped_column(
+        Text,
+        nullable=True,
+        comment="JSON-encoded device info",
+    )
+
+    expires_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        index=True,
+        comment="Challenge expiration timestamp",
+    )
+
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+    )
