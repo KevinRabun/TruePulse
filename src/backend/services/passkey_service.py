@@ -476,7 +476,7 @@ class PasskeyService:
         device_info: dict[str, Any] | None = None,
     ) -> None:
         """Store a challenge in the database for later verification.
-        
+
         Uses database storage to support multi-worker deployments where
         each worker has its own memory space.
         """
@@ -497,7 +497,7 @@ class PasskeyService:
             select(PasskeyChallenge).where(PasskeyChallenge.id == challenge_id)
         )
         challenge_record = result.scalar_one_or_none()
-        
+
         if not challenge_record:
             return None
 
