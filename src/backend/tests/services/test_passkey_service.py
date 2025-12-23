@@ -21,6 +21,7 @@ class TestPasskeyChallengeHandling:
         """Test that challenge encoding/decoding is consistent."""
         # Generate random bytes similar to a WebAuthn challenge
         import os
+
         original_bytes = os.urandom(32)
 
         # Encode to base64url (what we store in DB)
@@ -31,7 +32,7 @@ class TestPasskeyChallengeHandling:
 
         assert original_bytes == decoded
         assert isinstance(encoded, str)
-        assert '-' in encoded or '_' in encoded or ('+' not in encoded and '/' not in encoded)
+        assert "-" in encoded or "_" in encoded or ("+" not in encoded and "/" not in encoded)
 
     def test_client_data_json_parsing(self) -> None:
         """Test that clientDataJSON from WebAuthn is correctly parsed.
@@ -50,11 +51,11 @@ class TestPasskeyChallengeHandling:
         }
 
         # py_webauthn provides this as raw JSON bytes, NOT base64url encoded
-        raw_client_data = json.dumps(client_data, separators=(',', ':')).encode('utf-8')
+        raw_client_data = json.dumps(client_data, separators=(",", ":")).encode("utf-8")
 
         # The correct way to parse (our fix)
         if isinstance(raw_client_data, bytes):
-            parsed = json.loads(raw_client_data.decode('utf-8'))
+            parsed = json.loads(raw_client_data.decode("utf-8"))
         else:
             parsed = json.loads(raw_client_data)
 
@@ -76,10 +77,10 @@ class TestPasskeyChallengeHandling:
             "challenge": challenge_b64url,
             "origin": "https://localhost:3001",
         }
-        raw_client_data = json.dumps(client_data, separators=(',', ':')).encode('utf-8')
+        raw_client_data = json.dumps(client_data, separators=(",", ":")).encode("utf-8")
 
         # The OLD buggy code would try to base64-decode this
-        client_data_b64_str = raw_client_data.decode('ascii')
+        client_data_b64_str = raw_client_data.decode("ascii")
 
         # This would fail because it's not valid base64
         with pytest.raises(Exception):  # binascii.Error or ValueError
@@ -101,10 +102,10 @@ class TestPasskeyServiceChallenge:
 
         # Generate options like PasskeyService does
         options = generate_registration_options(
-            rp_id='localhost',
-            rp_name='Test',
-            user_id='test-user'.encode(),
-            user_name='test@example.com',
+            rp_id="localhost",
+            rp_name="Test",
+            user_id="test-user".encode(),
+            user_name="test@example.com",
         )
 
         # Convert challenge to base64url (as PasskeyService does)
@@ -112,8 +113,8 @@ class TestPasskeyServiceChallenge:
 
         # Verify it's a string and doesn't have standard base64 chars
         assert isinstance(challenge_str, str)
-        assert '+' not in challenge_str
-        assert '/' not in challenge_str
+        assert "+" not in challenge_str
+        assert "/" not in challenge_str
 
         # Verify we can decode it back
         decoded = base64url_to_bytes(challenge_str)
@@ -136,11 +137,11 @@ class TestPasskeyRegistrationOptions:
         )
 
         options = generate_registration_options(
-            rp_id='localhost',
-            rp_name='TruePulse Test',
-            user_id='user-123'.encode(),
-            user_name='test@example.com',
-            user_display_name='Test User',
+            rp_id="localhost",
+            rp_name="TruePulse Test",
+            user_id="user-123".encode(),
+            user_name="test@example.com",
+            user_display_name="Test User",
             attestation=AttestationConveyancePreference.NONE,
             authenticator_selection=AuthenticatorSelectionCriteria(
                 authenticator_attachment=AuthenticatorAttachment.PLATFORM,
