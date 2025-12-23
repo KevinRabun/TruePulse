@@ -218,6 +218,7 @@ jobs:
             --location ${{ env.AZURE_LOCATION }} \
             --template-file infra/main.bicep \
             --parameters environmentName=${{ inputs.environment }} \
+            --parameters postgresAdminUsername='truepulseadmin' \
             --parameters postgresAdminPassword='${{ secrets.POSTGRES_ADMIN_PASSWORD }}' \
             --parameters jwtSecretKey='${{ secrets.JWT_SECRET_KEY }}' \
             --parameters voteHashSecret='${{ secrets.VOTE_HASH_SECRET }}' \

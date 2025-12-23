@@ -144,10 +144,10 @@ jobs:
     name: Setup
     runs-on: ubuntu-latest
     needs: [check-ci, run-ci-for-release]
+    # Run if either check-ci or run-ci-for-release succeeded (not both required)
     if: |
       always() && 
-      (needs.check-ci.result == 'success' || needs.run-ci-for-release.result == 'success') &&
-      needs.check-ci.result != 'failure' && needs.run-ci-for-release.result != 'failure'
+      (needs.check-ci.result == 'success' || needs.run-ci-for-release.result == 'success')
     outputs:
       environment: ${{ steps.set-env.outputs.environment }}
       deploy_backend: ${{ steps.set-env.outputs.deploy_backend }}
@@ -387,9 +387,11 @@ jobs:
     runs-on: ubuntu-latest
     needs: [setup, get-infrastructure, deploy-backend]
     # Run if backend succeeded OR if backend was skipped but frontend is requested
+    # AND get-infrastructure must have succeeded
     if: |
       always() &&
       needs.setup.outputs.deploy_frontend == 'true' &&
+      needs.get-infrastructure.result == 'success' &&
       (needs.deploy-backend.result == 'success' || needs.deploy-backend.result == 'skipped')
     environment: ${{ needs.setup.outputs.environment }}
     steps:
