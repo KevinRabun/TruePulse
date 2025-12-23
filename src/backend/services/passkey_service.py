@@ -299,11 +299,16 @@ class PasskeyService:
 
         except Exception as e:
             # Include debug info in error for troubleshooting
-            debug_info = ""
+            debug_info = " | Debug: "
             try:
-                debug_info = f" | Debug: stored_b64={stored_challenge}, client_b64={client_challenge}, match={stored_challenge == client_challenge}"
-            except Exception:
-                pass
+                stored_val = locals().get("stored_challenge", "UNDEFINED")
+                client_val = locals().get("client_challenge", "UNDEFINED")
+                if stored_val != "UNDEFINED" and client_val != "UNDEFINED":
+                    debug_info += f"stored={stored_val}, client={client_val}, match={stored_val == client_val}"
+                else:
+                    debug_info += f"stored={stored_val}, client={client_val}"
+            except Exception as debug_err:
+                debug_info += f"debug_error={debug_err}"
             logger.error(f"Passkey registration failed for user {user.id}: {e}{debug_info}")
             raise PasskeyRegistrationError(f"Registration verification failed: {e}{debug_info}") from e
 
