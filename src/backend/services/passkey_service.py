@@ -136,8 +136,8 @@ class PasskeyService:
         # Store challenge for verification
         challenge_id = str(uuid4())
         challenge_str = bytes_to_base64url(options.challenge)
-        logger.info(
-            f"Storing challenge - id: {challenge_id}, challenge: {challenge_str} "
+        logger.warning(
+            f"DEBUG Storing challenge - id: {challenge_id}, challenge: {challenge_str} "
             f"(len={len(challenge_str)}, original_bytes_len={len(options.challenge)})"
         )
         await self._store_challenge(
@@ -222,8 +222,8 @@ class PasskeyService:
             # Debug: Log challenge comparison
             stored_challenge = challenge_data["challenge"]
             stored_challenge_bytes = base64url_to_bytes(stored_challenge)
-            logger.info(
-                f"Challenge verification debug - stored: {stored_challenge} "
+            logger.warning(
+                f"DEBUG Challenge verification - stored: {stored_challenge} "
                 f"(len={len(stored_challenge)}, bytes_len={len(stored_challenge_bytes)})"
             )
 
