@@ -298,7 +298,6 @@ async def send_magic_link(
 
     # Build the magic link URL
     frontend_url = settings.FRONTEND_URL if hasattr(settings, "FRONTEND_URL") else "http://localhost:3001"
-    magic_link_url = f"{frontend_url}/magic-login?token={magic_token}"
 
     logger.info("magic_link_generated", user_id=str(user.id))
 

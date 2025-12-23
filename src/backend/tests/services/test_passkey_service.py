@@ -7,11 +7,10 @@ clientDataJSON from py_webauthn.
 """
 
 import json
-import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
 
-from webauthn.helpers import bytes_to_base64url, base64url_to_bytes
+import pytest
+from webauthn.helpers import base64url_to_bytes, bytes_to_base64url
 
 
 @pytest.mark.unit
@@ -23,21 +22,20 @@ class TestPasskeyChallengeHandling:
         # Generate random bytes similar to a WebAuthn challenge
         import os
         original_bytes = os.urandom(32)
-        
+
         # Encode to base64url (what we store in DB)
         encoded = bytes_to_base64url(original_bytes)
-        
+
         # Decode back (what we compare against)
         decoded = base64url_to_bytes(encoded)
-        
+
         assert original_bytes == decoded
         assert isinstance(encoded, str)
         assert '-' in encoded or '_' in encoded or ('+' not in encoded and '/' not in encoded)
 
     def test_client_data_json_parsing(self) -> None:
-        """
-        Test that clientDataJSON from WebAuthn is correctly parsed.
-        
+        """Test that clientDataJSON from WebAuthn is correctly parsed.
+
         This is the core fix: py_webauthn's parse_registration_credential_json
         already decodes clientDataJSON from base64url to raw bytes.
         We should NOT try to base64-decode it again.
@@ -50,28 +48,27 @@ class TestPasskeyChallengeHandling:
             "origin": "https://localhost:3001",
             "crossOrigin": False,
         }
-        
+
         # py_webauthn provides this as raw JSON bytes, NOT base64url encoded
         raw_client_data = json.dumps(client_data, separators=(',', ':')).encode('utf-8')
-        
+
         # The correct way to parse (our fix)
         if isinstance(raw_client_data, bytes):
             parsed = json.loads(raw_client_data.decode('utf-8'))
         else:
             parsed = json.loads(raw_client_data)
-        
+
         assert parsed["challenge"] == challenge_b64url
         assert parsed["type"] == "webauthn.create"
 
     def test_client_data_json_incorrect_double_decode_fails(self) -> None:
-        """
-        Test that double-decoding clientDataJSON (the old bug) fails.
-        
+        """Test that double-decoding clientDataJSON (the old bug) fails.
+
         The bug was trying to base64-decode client_data_json when it was
         already decoded by py_webauthn. This should fail or give wrong results.
         """
         import base64
-        
+
         # Simulate what py_webauthn returns
         challenge_b64url = "test-challenge-value"
         client_data = {
@@ -80,10 +77,10 @@ class TestPasskeyChallengeHandling:
             "origin": "https://localhost:3001",
         }
         raw_client_data = json.dumps(client_data, separators=(',', ':')).encode('utf-8')
-        
+
         # The OLD buggy code would try to base64-decode this
         client_data_b64_str = raw_client_data.decode('ascii')
-        
+
         # This would fail because it's not valid base64
         with pytest.raises(Exception):  # binascii.Error or ValueError
             # Add padding if needed (what the old code did)
@@ -93,7 +90,7 @@ class TestPasskeyChallengeHandling:
             base64.urlsafe_b64decode(client_data_b64_str)
 
 
-@pytest.mark.unit  
+@pytest.mark.unit
 class TestPasskeyServiceChallenge:
     """Test PasskeyService challenge generation and storage."""
 
@@ -101,7 +98,7 @@ class TestPasskeyServiceChallenge:
     async def test_challenge_is_stored_as_base64url(self) -> None:
         """Test that challenges are stored in base64url format."""
         from webauthn import generate_registration_options
-        
+
         # Generate options like PasskeyService does
         options = generate_registration_options(
             rp_id='localhost',
@@ -109,15 +106,15 @@ class TestPasskeyServiceChallenge:
             user_id='test-user'.encode(),
             user_name='test@example.com',
         )
-        
+
         # Convert challenge to base64url (as PasskeyService does)
         challenge_str = bytes_to_base64url(options.challenge)
-        
+
         # Verify it's a string and doesn't have standard base64 chars
         assert isinstance(challenge_str, str)
         assert '+' not in challenge_str
         assert '/' not in challenge_str
-        
+
         # Verify we can decode it back
         decoded = base64url_to_bytes(challenge_str)
         assert decoded == options.challenge
@@ -137,7 +134,7 @@ class TestPasskeyRegistrationOptions:
             ResidentKeyRequirement,
             UserVerificationRequirement,
         )
-        
+
         options = generate_registration_options(
             rp_id='localhost',
             rp_name='TruePulse Test',
@@ -152,7 +149,7 @@ class TestPasskeyRegistrationOptions:
             ),
             timeout=300000,
         )
-        
+
         # Build options dict like PasskeyService does
         challenge_id = str(uuid4())
         auth_selection = options.authenticator_selection
@@ -175,7 +172,7 @@ class TestPasskeyRegistrationOptions:
                 "userVerification": auth_selection.user_verification.value if auth_selection else None,
             },
         }
-        
+
         # Verify all required fields exist
         assert "challengeId" in options_dict
         assert "rp" in options_dict
@@ -184,7 +181,7 @@ class TestPasskeyRegistrationOptions:
         assert "timeout" in options_dict
         assert "attestation" in options_dict
         assert "authenticatorSelection" in options_dict
-        
+
         # Verify values
         assert options_dict["rp"]["id"] == "localhost"
         assert options_dict["user"]["name"] == "test@example.com"

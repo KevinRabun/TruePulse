@@ -229,10 +229,10 @@ class PasskeyService:
             stored_challenge_bytes = base64url_to_bytes(stored_challenge)
 
             # Extract challenge from client data to see what browser sent
-            # NOTE: py_webauthn's parse_registration_credential_json already decodes 
+            # NOTE: py_webauthn's parse_registration_credential_json already decodes
             # client_data_json from base64url to raw bytes
             raw_client_data = credential.response.client_data_json
-            
+
             try:
                 # client_data_json is already decoded bytes (raw JSON)
                 if isinstance(raw_client_data, bytes):
