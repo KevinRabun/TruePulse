@@ -1,23 +1,21 @@
-# TruePulse Deployment Pipeline
-# Two-phase deployment: shared resources then environment-specific resources
+# TruePulse Legacy Deployment Pipeline (DEPRECATED)
+# 
+# This workflow is deprecated. Use these workflows instead:
+# - deploy-infrastructure.yml: Manual trigger for infrastructure changes
+# - deploy-apps.yml: Automatic trigger for app deployments
 #
-# Deployment Rules:
-# - Push to main branch → deploys to DEV (after CI passes)
-# - Release published → deploys to PROD (after CI passes)
-# - Manual dispatch → deploys to selected environment
+# This workflow is kept for reference and emergency fallback only.
 
-name: Deploy
+name: Deploy (Legacy)
 
 on:
-  # Triggered after CI workflow completes on main branch (for dev deployments)
-  workflow_run:
-    workflows: [CI]
-    types: [completed]
-    branches: [main]
-  # Triggered when a release is published (for prod deployments)
-  release:
-    types: [published]
-  # Manual trigger for any environment
+  # DISABLED - use deploy-apps.yml for automatic deployments
+  # workflow_run:
+  #   workflows: [CI]
+  #   types: [completed]
+  #   branches: [main]
+  
+  # Manual trigger only - for emergency use
   workflow_dispatch:
     inputs:
       environment:
@@ -373,7 +371,7 @@ jobs:
             --parameters newsApiOrgKey='${{ secrets.NEWSAPI_ORG_KEY }}' \
             --parameters fieldEncryptionKey='${{ secrets.FIELD_ENCRYPTION_KEY }}' \
             --parameters emailSenderAddress='${{ secrets.EMAIL_SENDER_ADDRESS }}' \
-            --parameters enableCMK=false \
+            --parameters enableCMK=true \
             --parameters enableCustomDomain=true \
             --parameters sharedLogAnalyticsWorkspaceId='${{ steps.shared.outputs.logAnalyticsWorkspaceId }}' \
             --parameters sharedContainerRegistryName='${{ steps.shared.outputs.containerRegistryName }}' \

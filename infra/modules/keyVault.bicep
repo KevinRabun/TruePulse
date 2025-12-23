@@ -210,7 +210,8 @@ output name string = keyVault.outputs.name
 output uri string = keyVault.outputs.uri
 
 // CMK outputs for data encryption
-output storageEncryptionKeyName string = createEncryptionKeys ? storageEncryptionKey!.name : ''
+// Note: storageEncryptionKey.name returns 'vaultName/keyName', so we extract just the key name
+output storageEncryptionKeyName string = createEncryptionKeys ? 'cmk-storage' : ''
 output storageEncryptionKeyUri string = createEncryptionKeys ? storageEncryptionKey!.properties.keyUriWithVersion : ''
-output postgresEncryptionKeyName string = createEncryptionKeys ? postgresEncryptionKey!.name : ''
+output postgresEncryptionKeyName string = createEncryptionKeys ? 'cmk-postgres' : ''
 output postgresEncryptionKeyUri string = createEncryptionKeys ? postgresEncryptionKey!.properties.keyUriWithVersion : ''

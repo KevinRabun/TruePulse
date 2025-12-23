@@ -287,7 +287,7 @@ module storageAccount 'modules/storageAccount.bicep' = {
     environmentName: environmentName
     enableCMK: enableCMK
     keyVaultResourceId: enableCMK ? keyVault.outputs.resourceId : ''
-    cmkKeyName: enableCMK ? 'storage-encryption-key' : ''
+    cmkKeyName: enableCMK ? keyVault.outputs.storageEncryptionKeyName : ''
     blobDnsZoneId: sharedBlobDnsZoneId
     tableDnsZoneId: sharedTableDnsZoneId
   }

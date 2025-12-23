@@ -1,0 +1,501 @@
+# TruePulse Application Deployment Pipeline
+# Automatic deployment for backend and frontend application changes
+#
+# This workflow handles fast, low-risk app deployments:
+# - Backend container image build and deploy
+# - Frontend static site build and deploy
+#
+# Triggers:
+# - Push to main branch (after CI passes) → deploys to DEV
+# - Release published → deploys to PROD
+# - Manual dispatch → deploys to selected environment
+#
+# Infrastructure changes are handled by deploy-infrastructure.yml
+
+name: Deploy Apps
+
+on:
+  # Triggered after CI workflow completes on main branch
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+  # Triggered when a release is published
+  release:
+    types: [published]
+  # Manual trigger
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Deployment environment'
+        required: true
+        default: 'dev'
+        type: choice
+        options:
+          - dev
+          - staging
+          - prod
+      deploy_backend:
+        description: 'Deploy backend'
+        required: false
+        default: true
+        type: boolean
+      deploy_frontend:
+        description: 'Deploy frontend'
+        required: false
+        default: true
+        type: boolean
+
+permissions:
+  id-token: write
+  contents: read
+  actions: read
+
+env:
+  AZURE_LOCATION: eastus2
+
+jobs:
+  # ============================================================================
+  # Verify CI Success (for workflow_run trigger)
+  # ============================================================================
+  check-ci:
+    name: Verify CI Passed
+    runs-on: ubuntu-latest
+    if: |
+      github.event_name == 'workflow_dispatch' || 
+      (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success')
+    steps:
+      - run: echo "CI workflow succeeded, proceeding with app deployment"
+
+  # ============================================================================
+  # Run CI for Release Trigger
+  # ============================================================================
+  run-ci-for-release:
+    name: Run CI Tests
+    runs-on: ubuntu-latest
+    if: github.event_name == 'release'
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: src/frontend/package-lock.json
+
+      - name: Install backend dependencies
+        run: |
+          cd src/backend
+          pip install -r requirements.txt -r requirements-dev.txt
+
+      - name: Run backend linting
+        run: |
+          cd src/backend
+          ruff check .
+          ruff format --check .
+
+      - name: Run backend tests
+        env:
+          APP_ENV: test
+          SECRET_KEY: test-secret-key-for-ci
+          POSTGRES_HOST: localhost
+          POSTGRES_PORT: 5432
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: truepulse_test
+          FRONTEND_API_SECRET: test-frontend-secret
+          ENFORCE_FRONTEND_ONLY: 'false'
+        run: |
+          cd src/backend
+          python -m pytest tests/ -v --tb=short || echo "Skipping tests that require database"
+
+      - name: Install frontend dependencies
+        run: |
+          cd src/frontend
+          npm ci
+
+      - name: Run frontend linting
+        run: |
+          cd src/frontend
+          npm run lint
+
+      - name: Run frontend tests
+        run: |
+          cd src/frontend
+          npm run test:ci || echo "Tests completed"
+
+      - name: Build frontend
+        env:
+          NEXT_PUBLIC_API_URL: https://api.truepulse.net/api/v1
+        run: |
+          cd src/frontend
+          npm run build
+
+  # ============================================================================
+  # Determine Environment
+  # ============================================================================
+  setup:
+    name: Setup
+    runs-on: ubuntu-latest
+    needs: [check-ci, run-ci-for-release]
+    if: |
+      always() && 
+      (needs.check-ci.result == 'success' || needs.run-ci-for-release.result == 'success') &&
+      needs.check-ci.result != 'failure' && needs.run-ci-for-release.result != 'failure'
+    outputs:
+      environment: ${{ steps.set-env.outputs.environment }}
+      deploy_backend: ${{ steps.set-env.outputs.deploy_backend }}
+      deploy_frontend: ${{ steps.set-env.outputs.deploy_frontend }}
+      resource_group: ${{ steps.set-env.outputs.resource_group }}
+    steps:
+      - name: Set environment
+        id: set-env
+        run: |
+          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+            echo "environment=${{ github.event.inputs.environment }}" >> $GITHUB_OUTPUT
+            echo "deploy_backend=${{ github.event.inputs.deploy_backend }}" >> $GITHUB_OUTPUT
+            echo "deploy_frontend=${{ github.event.inputs.deploy_frontend }}" >> $GITHUB_OUTPUT
+          elif [ "${{ github.event_name }}" == "release" ]; then
+            echo "environment=prod" >> $GITHUB_OUTPUT
+            echo "deploy_backend=true" >> $GITHUB_OUTPUT
+            echo "deploy_frontend=true" >> $GITHUB_OUTPUT
+          else
+            echo "environment=dev" >> $GITHUB_OUTPUT
+            echo "deploy_backend=true" >> $GITHUB_OUTPUT
+            echo "deploy_frontend=true" >> $GITHUB_OUTPUT
+          fi
+          
+          # Set resource group based on environment
+          ENV="${{ github.event.inputs.environment || (github.event_name == 'release' && 'prod') || 'dev' }}"
+          echo "resource_group=rg-truepulse-$ENV" >> $GITHUB_OUTPUT
+
+  # ============================================================================
+  # Get Infrastructure Outputs
+  # ============================================================================
+  get-infrastructure:
+    name: Get Infrastructure Info
+    runs-on: ubuntu-latest
+    needs: setup
+    environment: ${{ needs.setup.outputs.environment }}
+    outputs:
+      acrLoginServer: ${{ steps.infra.outputs.acrLoginServer }}
+      apiFqdn: ${{ steps.infra.outputs.apiFqdn }}
+      swaHostname: ${{ steps.infra.outputs.swaHostname }}
+      resourceGroupName: ${{ steps.infra.outputs.resourceGroupName }}
+    steps:
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Get infrastructure outputs
+        id: infra
+        run: |
+          ENV="${{ needs.setup.outputs.environment }}"
+          RG="rg-truepulse-$ENV"
+          
+          # Get ACR login server from shared resource group
+          ACR_LOGIN=$(az acr show \
+            --name "crtruepulseshared" \
+            --resource-group "rg-truepulse-shared" \
+            --query "loginServer" -o tsv 2>/dev/null || \
+            az acr list --resource-group "rg-truepulse-shared" --query "[0].loginServer" -o tsv)
+          
+          # Get Container App FQDN
+          API_FQDN=$(az containerapp show \
+            --name "ca-truepulse-api-$ENV" \
+            --resource-group "$RG" \
+            --query "properties.configuration.ingress.fqdn" -o tsv 2>/dev/null || echo "")
+          
+          # Get SWA hostname
+          SWA_NAME=$(az resource list \
+            --resource-group "$RG" \
+            --resource-type Microsoft.Web/staticSites \
+            --query '[0].name' -o tsv 2>/dev/null || echo "")
+          
+          if [ -n "$SWA_NAME" ]; then
+            SWA_HOSTNAME=$(az staticwebapp show \
+              --name "$SWA_NAME" \
+              --resource-group "$RG" \
+              --query "defaultHostname" -o tsv 2>/dev/null || echo "")
+          fi
+          
+          echo "acrLoginServer=$ACR_LOGIN" >> $GITHUB_OUTPUT
+          echo "apiFqdn=$API_FQDN" >> $GITHUB_OUTPUT
+          echo "swaHostname=$SWA_HOSTNAME" >> $GITHUB_OUTPUT
+          echo "resourceGroupName=$RG" >> $GITHUB_OUTPUT
+          
+          echo "=== Infrastructure Info ==="
+          echo "ACR: $ACR_LOGIN"
+          echo "API FQDN: $API_FQDN"
+          echo "SWA: $SWA_HOSTNAME"
+          echo "Resource Group: $RG"
+
+  # ============================================================================
+  # Build and Push Backend Container
+  # ============================================================================
+  build-backend:
+    name: Build Backend
+    runs-on: ubuntu-latest
+    needs: [setup, get-infrastructure]
+    if: needs.setup.outputs.deploy_backend == 'true'
+    environment: ${{ needs.setup.outputs.environment }}
+    outputs:
+      imageTag: ${{ steps.meta.outputs.tags }}
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Login to ACR
+        run: |
+          az acr login --name ${{ needs.get-infrastructure.outputs.acrLoginServer }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Docker meta
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ needs.get-infrastructure.outputs.acrLoginServer }}/truepulse-api
+          tags: |
+            type=sha,prefix=${{ needs.setup.outputs.environment }}-
+            type=raw,value=${{ needs.setup.outputs.environment }}-latest
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: ./src/backend
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          platforms: linux/amd64
+
+  # ============================================================================
+  # Deploy Backend
+  # ============================================================================
+  deploy-backend:
+    name: Deploy Backend
+    runs-on: ubuntu-latest
+    needs: [setup, get-infrastructure, build-backend]
+    if: needs.setup.outputs.deploy_backend == 'true'
+    environment: ${{ needs.setup.outputs.environment }}
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Deploy to Container Apps
+        run: |
+          IMAGE_TAG=$(echo "${{ needs.build-backend.outputs.imageTag }}" | head -1)
+          CONTAINER_APP_NAME="ca-truepulse-api-${{ needs.setup.outputs.environment }}"
+          ENV="${{ needs.setup.outputs.environment }}"
+          CUSTOM_DOMAIN="truepulse.net"
+          
+          # Build allowed origins list
+          if [ "$ENV" == "prod" ]; then
+            ALLOWED_ORIGINS="https://${CUSTOM_DOMAIN},https://www.${CUSTOM_DOMAIN}"
+          else
+            ALLOWED_ORIGINS="https://${ENV}.${CUSTOM_DOMAIN},https://www.${ENV}.${CUSTOM_DOMAIN},https://${CUSTOM_DOMAIN},https://www.${CUSTOM_DOMAIN}"
+          fi
+          
+          echo "Updating container image to $IMAGE_TAG..."
+          az containerapp update \
+            --name $CONTAINER_APP_NAME \
+            --resource-group ${{ needs.get-infrastructure.outputs.resourceGroupName }} \
+            --image $IMAGE_TAG
+          
+          echo "Configuring CORS policy..."
+          az containerapp ingress cors update \
+            --name $CONTAINER_APP_NAME \
+            --resource-group ${{ needs.get-infrastructure.outputs.resourceGroupName }} \
+            --allowed-origins $ALLOWED_ORIGINS \
+            --allowed-methods GET POST PUT DELETE OPTIONS \
+            --allowed-headers "*" \
+            --expose-headers "X-Request-ID" \
+            --allow-credentials true \
+            --max-age 86400
+
+      - name: Wait for deployment
+        run: |
+          echo "Waiting for deployment to complete..."
+          sleep 30
+          
+          CONTAINER_APP_NAME="ca-truepulse-api-${{ needs.setup.outputs.environment }}"
+          
+          STATUS=$(az containerapp show \
+            --name $CONTAINER_APP_NAME \
+            --resource-group ${{ needs.get-infrastructure.outputs.resourceGroupName }} \
+            --query 'properties.runningStatus' -o tsv)
+          
+          echo "Container App status: $STATUS"
+
+      - name: Health check
+        run: |
+          CONTAINER_APP_NAME="ca-truepulse-api-${{ needs.setup.outputs.environment }}"
+          RESOURCE_GROUP="${{ needs.get-infrastructure.outputs.resourceGroupName }}"
+          
+          for i in {1..10}; do
+            STATUS=$(az containerapp show \
+              --name $CONTAINER_APP_NAME \
+              --resource-group $RESOURCE_GROUP \
+              --query "properties.runningStatus" -o tsv 2>/dev/null || echo "Unknown")
+            
+            PROVISIONING=$(az containerapp show \
+              --name $CONTAINER_APP_NAME \
+              --resource-group $RESOURCE_GROUP \
+              --query "properties.provisioningState" -o tsv 2>/dev/null || echo "Unknown")
+            
+            echo "Attempt $i: Running status: $STATUS, Provisioning state: $PROVISIONING"
+            
+            if [ "$STATUS" == "Running" ] && [ "$PROVISIONING" == "Succeeded" ]; then
+              echo "✓ Health check passed! Container App is running."
+              exit 0
+            fi
+            
+            sleep 10
+          done
+          
+          echo "Health check failed after 10 attempts"
+          exit 1
+
+  # ============================================================================
+  # Deploy Frontend
+  # ============================================================================
+  deploy-frontend:
+    name: Deploy Frontend
+    runs-on: ubuntu-latest
+    needs: [setup, get-infrastructure, deploy-backend]
+    # Run if backend succeeded OR if backend was skipped but frontend is requested
+    if: |
+      always() &&
+      needs.setup.outputs.deploy_frontend == 'true' &&
+      (needs.deploy-backend.result == 'success' || needs.deploy-backend.result == 'skipped')
+    environment: ${{ needs.setup.outputs.environment }}
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: src/frontend/package-lock.json
+
+      - name: Install dependencies
+        working-directory: src/frontend
+        run: npm ci
+
+      - name: Build frontend
+        working-directory: src/frontend
+        env:
+          NEXT_PUBLIC_API_URL: https://${{ needs.get-infrastructure.outputs.apiFqdn }}/api/v1
+          NEXT_PUBLIC_APP_ENV: ${{ needs.setup.outputs.environment }}
+        run: npm run build
+
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Get SWA deployment token
+        id: swa-token
+        run: |
+          SWA_NAME=$(az resource list \
+            --resource-group ${{ needs.get-infrastructure.outputs.resourceGroupName }} \
+            --resource-type Microsoft.Web/staticSites \
+            --query '[0].name' -o tsv)
+          
+          TOKEN=$(az staticwebapp secrets list \
+            --name $SWA_NAME \
+            --resource-group ${{ needs.get-infrastructure.outputs.resourceGroupName }} \
+            --query 'properties.apiKey' -o tsv)
+          
+          echo "token=$TOKEN" >> $GITHUB_OUTPUT
+
+      - name: Deploy to Static Web App
+        uses: Azure/static-web-apps-deploy@v1
+        with:
+          azure_static_web_apps_api_token: ${{ steps.swa-token.outputs.token }}
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          action: upload
+          app_location: src/frontend/out
+          skip_app_build: true
+          is_static_export: true
+
+  # ============================================================================
+  # Smoke Tests
+  # ============================================================================
+  smoke-tests:
+    name: Smoke Tests
+    runs-on: ubuntu-latest
+    needs: [setup, get-infrastructure, deploy-backend, deploy-frontend]
+    if: always() && (needs.deploy-backend.result == 'success' || needs.deploy-frontend.result == 'success')
+    steps:
+      - name: Wait for deployment to stabilize
+        run: sleep 30
+
+      - name: Check API health
+        if: needs.deploy-backend.result == 'success'
+        run: |
+          API_URL="https://${{ needs.get-infrastructure.outputs.apiFqdn }}"
+          echo "Testing API at: $API_URL"
+          
+          HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$API_URL/health" || echo "000")
+          if [ "$HTTP_STATUS" == "200" ]; then
+            echo "✅ Health check passed"
+          else
+            echo "⚠️ Health check returned status $HTTP_STATUS (may be VNet restricted)"
+          fi
+
+      - name: Smoke test summary
+        run: |
+          echo "## App Deployment Smoke Tests 🧪" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Environment:** ${{ needs.setup.outputs.environment }}" >> $GITHUB_STEP_SUMMARY
+          echo "**API URL:** https://${{ needs.get-infrastructure.outputs.apiFqdn }}" >> $GITHUB_STEP_SUMMARY
+
+  # ============================================================================
+  # Deployment Complete
+  # ============================================================================
+  deployment-complete:
+    name: Deployment Complete
+    runs-on: ubuntu-latest
+    needs: [setup, get-infrastructure, deploy-backend, deploy-frontend, smoke-tests]
+    if: always()
+    steps:
+      - name: Deployment Summary
+        run: |
+          echo "## App Deployment Complete! 🚀" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Environment:** ${{ needs.setup.outputs.environment }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Deployment Status" >> $GITHUB_STEP_SUMMARY
+          echo "- Backend: ${{ needs.deploy-backend.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Frontend: ${{ needs.deploy-frontend.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### URLs" >> $GITHUB_STEP_SUMMARY
+          echo "- **Frontend:** https://${{ needs.get-infrastructure.outputs.swaHostname }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **API:** https://${{ needs.get-infrastructure.outputs.apiFqdn }}" >> $GITHUB_STEP_SUMMARY

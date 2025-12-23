@@ -1,0 +1,427 @@
+# TruePulse Infrastructure Deployment Pipeline
+# Manual trigger for infrastructure changes (VNet, Database, Storage, KeyVault, etc.)
+#
+# This workflow handles slow, risky infrastructure changes that require careful review:
+# - Shared resources (ACR, Log Analytics, DNS zones)
+# - Network infrastructure (VNets, private endpoints)
+# - Database (PostgreSQL)
+# - Storage accounts (with CMK encryption)
+# - Key Vault and secrets
+# - Azure OpenAI
+#
+# App deployments are handled by deploy-apps.yml
+
+name: Deploy Infrastructure
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Deployment environment'
+        required: true
+        default: 'dev'
+        type: choice
+        options:
+          - dev
+          - staging
+          - prod
+      run_migrations:
+        description: 'Run database migrations after deployment'
+        required: false
+        default: false
+        type: boolean
+      migration_script:
+        description: 'Migration script to run (if run_migrations is true)'
+        required: false
+        default: 'migrate_to_passkey_only.py'
+        type: string
+
+permissions:
+  id-token: write
+  contents: read
+  actions: read
+
+env:
+  AZURE_LOCATION: eastus2
+
+jobs:
+  # ============================================================================
+  # Deploy Shared Resources (ACR, Communication Services, Log Analytics, DNS)
+  # ============================================================================
+  shared-infrastructure:
+    name: Deploy Shared Resources
+    runs-on: ubuntu-latest
+    outputs:
+      logAnalyticsWorkspaceName: ${{ steps.deploy-shared.outputs.logAnalyticsWorkspaceName }}
+      containerRegistryName: ${{ steps.deploy-shared.outputs.containerRegistryName }}
+      containerRegistryLoginServer: ${{ steps.deploy-shared.outputs.containerRegistryLoginServer }}
+      communicationServiceName: ${{ steps.deploy-shared.outputs.communicationServiceName }}
+      communicationServiceConnectionString: ${{ steps.deploy-shared.outputs.communicationServiceConnectionString }}
+      blobDnsZoneName: ${{ steps.deploy-shared.outputs.blobDnsZoneName }}
+      tableDnsZoneName: ${{ steps.deploy-shared.outputs.tableDnsZoneName }}
+      openaiDnsZoneName: ${{ steps.deploy-shared.outputs.openaiDnsZoneName }}
+      postgresDnsZoneName: ${{ steps.deploy-shared.outputs.postgresDnsZoneName }}
+      keyVaultDnsZoneName: ${{ steps.deploy-shared.outputs.keyVaultDnsZoneName }}
+      acrDnsZoneName: ${{ steps.deploy-shared.outputs.acrDnsZoneName }}
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Deploy Shared Bicep
+        id: deploy-shared
+        run: |
+          echo "Deploying shared resources..."
+          
+          az deployment sub create \
+            --name "shared-$(date +%Y%m%d%H%M%S)" \
+            --location ${{ env.AZURE_LOCATION }} \
+            --template-file infra/shared.bicep \
+            --parameters location=${{ env.AZURE_LOCATION }} \
+            --query 'properties.outputs' \
+            --output json > /tmp/deployment-outputs.json
+          
+          echo "Deployment outputs saved to file:"
+          cat /tmp/deployment-outputs.json
+          
+          # Extract values
+          LOG_ANALYTICS_NAME=$(jq -r '.logAnalyticsWorkspaceName.value' /tmp/deployment-outputs.json)
+          ACR_NAME=$(jq -r '.containerRegistryName.value' /tmp/deployment-outputs.json)
+          ACR_LOGIN=$(jq -r '.containerRegistryLoginServer.value' /tmp/deployment-outputs.json)
+          ACS_NAME=$(jq -r '.communicationServiceName.value' /tmp/deployment-outputs.json)
+          
+          # DNS zone IDs
+          BLOB_DNS_ID=$(jq -r '.blobDnsZoneId.value' /tmp/deployment-outputs.json)
+          TABLE_DNS_ID=$(jq -r '.tableDnsZoneId.value' /tmp/deployment-outputs.json)
+          OPENAI_DNS_ID=$(jq -r '.openaiDnsZoneId.value' /tmp/deployment-outputs.json)
+          POSTGRES_DNS_ID=$(jq -r '.postgresDnsZoneId.value' /tmp/deployment-outputs.json)
+          KEYVAULT_DNS_ID=$(jq -r '.keyVaultDnsZoneId.value' /tmp/deployment-outputs.json)
+          ACR_DNS_ID=$(jq -r '.acrDnsZoneId.value' /tmp/deployment-outputs.json)
+          
+          # Extract zone names from IDs
+          BLOB_DNS_NAME=$(basename "$BLOB_DNS_ID")
+          TABLE_DNS_NAME=$(basename "$TABLE_DNS_ID")
+          OPENAI_DNS_NAME=$(basename "$OPENAI_DNS_ID")
+          POSTGRES_DNS_NAME=$(basename "$POSTGRES_DNS_ID")
+          KEYVAULT_DNS_NAME=$(basename "$KEYVAULT_DNS_ID")
+          ACR_DNS_NAME=$(basename "$ACR_DNS_ID")
+          
+          # Write outputs
+          echo "logAnalyticsWorkspaceName=$LOG_ANALYTICS_NAME" >> $GITHUB_OUTPUT
+          echo "containerRegistryName=$ACR_NAME" >> $GITHUB_OUTPUT
+          echo "containerRegistryLoginServer=$ACR_LOGIN" >> $GITHUB_OUTPUT
+          echo "communicationServiceName=$ACS_NAME" >> $GITHUB_OUTPUT
+          
+          echo "blobDnsZoneName=$BLOB_DNS_NAME" >> $GITHUB_OUTPUT
+          echo "tableDnsZoneName=$TABLE_DNS_NAME" >> $GITHUB_OUTPUT
+          echo "openaiDnsZoneName=$OPENAI_DNS_NAME" >> $GITHUB_OUTPUT
+          echo "postgresDnsZoneName=$POSTGRES_DNS_NAME" >> $GITHUB_OUTPUT
+          echo "keyVaultDnsZoneName=$KEYVAULT_DNS_NAME" >> $GITHUB_OUTPUT
+          echo "acrDnsZoneName=$ACR_DNS_NAME" >> $GITHUB_OUTPUT
+          
+          # Get Communication Service connection string
+          ACS_CONN=$(az communication list-key --name "$ACS_NAME" --resource-group rg-truepulse-shared --query 'primaryConnectionString' -o tsv)
+          echo "communicationServiceConnectionString=$ACS_CONN" >> $GITHUB_OUTPUT
+
+  # ============================================================================
+  # Deploy Environment Infrastructure
+  # ============================================================================
+  infrastructure:
+    name: Deploy ${{ inputs.environment }} Infrastructure
+    runs-on: ubuntu-latest
+    needs: [shared-infrastructure]
+    environment: ${{ inputs.environment }}
+    outputs:
+      resourceGroupName: ${{ steps.deploy.outputs.resourceGroupName }}
+      acrLoginServer: ${{ steps.deploy.outputs.acrLoginServer }}
+      apiFqdn: ${{ steps.deploy.outputs.apiFqdn }}
+      swaHostname: ${{ steps.deploy.outputs.swaHostname }}
+      keyVaultUri: ${{ steps.deploy.outputs.keyVaultUri }}
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Prepare Shared Resource IDs
+        id: shared
+        run: |
+          # Use outputs from shared-infrastructure job
+          LOG_ANALYTICS_NAME="${{ needs.shared-infrastructure.outputs.logAnalyticsWorkspaceName }}"
+          ACR_NAME="${{ needs.shared-infrastructure.outputs.containerRegistryName }}"
+          ACR_LOGIN="${{ needs.shared-infrastructure.outputs.containerRegistryLoginServer }}"
+          ACS_NAME="${{ needs.shared-infrastructure.outputs.communicationServiceName }}"
+          ACS_CONN="${{ needs.shared-infrastructure.outputs.communicationServiceConnectionString }}"
+          
+          # DNS zone names
+          BLOB_DNS_NAME="${{ needs.shared-infrastructure.outputs.blobDnsZoneName }}"
+          TABLE_DNS_NAME="${{ needs.shared-infrastructure.outputs.tableDnsZoneName }}"
+          OPENAI_DNS_NAME="${{ needs.shared-infrastructure.outputs.openaiDnsZoneName }}"
+          POSTGRES_DNS_NAME="${{ needs.shared-infrastructure.outputs.postgresDnsZoneName }}"
+          KEYVAULT_DNS_NAME="${{ needs.shared-infrastructure.outputs.keyVaultDnsZoneName }}"
+          ACR_DNS_NAME="${{ needs.shared-infrastructure.outputs.acrDnsZoneName }}"
+          
+          # Reconstruct full resource IDs
+          LOG_ANALYTICS_ID="/subscriptions/${{ secrets.AZURE_SUBSCRIPTION_ID }}/resourceGroups/rg-truepulse-shared/providers/Microsoft.OperationalInsights/workspaces/${LOG_ANALYTICS_NAME}"
+          ACR_RESOURCE_ID="/subscriptions/${{ secrets.AZURE_SUBSCRIPTION_ID }}/resourceGroups/rg-truepulse-shared/providers/Microsoft.ContainerRegistry/registries/${ACR_NAME}"
+          BLOB_DNS_ID="/subscriptions/${{ secrets.AZURE_SUBSCRIPTION_ID }}/resourceGroups/rg-truepulse-shared/providers/Microsoft.Network/privateDnsZones/${BLOB_DNS_NAME}"
+          TABLE_DNS_ID="/subscriptions/${{ secrets.AZURE_SUBSCRIPTION_ID }}/resourceGroups/rg-truepulse-shared/providers/Microsoft.Network/privateDnsZones/${TABLE_DNS_NAME}"
+          OPENAI_DNS_ID="/subscriptions/${{ secrets.AZURE_SUBSCRIPTION_ID }}/resourceGroups/rg-truepulse-shared/providers/Microsoft.Network/privateDnsZones/${OPENAI_DNS_NAME}"
+          POSTGRES_DNS_ID="/subscriptions/${{ secrets.AZURE_SUBSCRIPTION_ID }}/resourceGroups/rg-truepulse-shared/providers/Microsoft.Network/privateDnsZones/${POSTGRES_DNS_NAME}"
+          KEYVAULT_DNS_ID="/subscriptions/${{ secrets.AZURE_SUBSCRIPTION_ID }}/resourceGroups/rg-truepulse-shared/providers/Microsoft.Network/privateDnsZones/${KEYVAULT_DNS_NAME}"
+          ACR_DNS_ID="/subscriptions/${{ secrets.AZURE_SUBSCRIPTION_ID }}/resourceGroups/rg-truepulse-shared/providers/Microsoft.Network/privateDnsZones/${ACR_DNS_NAME}"
+          
+          # Write step outputs
+          echo "logAnalyticsWorkspaceId=$LOG_ANALYTICS_ID" >> $GITHUB_OUTPUT
+          echo "containerRegistryName=$ACR_NAME" >> $GITHUB_OUTPUT
+          echo "containerRegistryLoginServer=$ACR_LOGIN" >> $GITHUB_OUTPUT
+          echo "containerRegistryResourceId=$ACR_RESOURCE_ID" >> $GITHUB_OUTPUT
+          echo "communicationServiceName=$ACS_NAME" >> $GITHUB_OUTPUT
+          echo "communicationServiceConnectionString=$ACS_CONN" >> $GITHUB_OUTPUT
+          echo "blobDnsZoneId=$BLOB_DNS_ID" >> $GITHUB_OUTPUT
+          echo "tableDnsZoneId=$TABLE_DNS_ID" >> $GITHUB_OUTPUT
+          echo "openaiDnsZoneId=$OPENAI_DNS_ID" >> $GITHUB_OUTPUT
+          echo "postgresDnsZoneId=$POSTGRES_DNS_ID" >> $GITHUB_OUTPUT
+          echo "keyVaultDnsZoneId=$KEYVAULT_DNS_ID" >> $GITHUB_OUTPUT
+          echo "acrDnsZoneId=$ACR_DNS_ID" >> $GITHUB_OUTPUT
+
+      - name: Deploy Infrastructure
+        id: deploy
+        run: |
+          echo "Deploying infrastructure for ${{ inputs.environment }}..."
+          
+          # Get existing OpenAI key if it exists
+          EXISTING_OPENAI_KEY=$(az cognitiveservices account keys list \
+            --name "aoai-truepulse-${{ inputs.environment }}" \
+            --resource-group "rg-truepulse-${{ inputs.environment }}" \
+            --query 'key1' -o tsv 2>/dev/null || echo "")
+          
+          if [ -z "$EXISTING_OPENAI_KEY" ]; then
+            echo "No existing OpenAI key found, will be created during deployment"
+            OPENAI_KEY_PARAM=""
+          else
+            echo "Found existing OpenAI key"
+            OPENAI_KEY_PARAM="--parameters azureOpenAIKey=$EXISTING_OPENAI_KEY"
+          fi
+          
+          DEPLOYMENT_OUTPUT=$(az deployment sub create \
+            --name "${{ inputs.environment }}-infra-$(date +%Y%m%d%H%M%S)" \
+            --location ${{ env.AZURE_LOCATION }} \
+            --template-file infra/main.bicep \
+            --parameters environmentName=${{ inputs.environment }} \
+            --parameters postgresAdminPassword='${{ secrets.POSTGRES_ADMIN_PASSWORD }}' \
+            --parameters jwtSecretKey='${{ secrets.JWT_SECRET_KEY }}' \
+            --parameters voteHashSecret='${{ secrets.VOTE_HASH_SECRET }}' \
+            --parameters newsDataApiKey='${{ secrets.NEWSDATA_API_KEY }}' \
+            --parameters newsApiOrgKey='${{ secrets.NEWSAPI_ORG_KEY }}' \
+            --parameters fieldEncryptionKey='${{ secrets.FIELD_ENCRYPTION_KEY }}' \
+            --parameters emailSenderAddress='${{ secrets.EMAIL_SENDER_ADDRESS }}' \
+            --parameters enableCMK=true \
+            --parameters enableCustomDomain=true \
+            --parameters sharedLogAnalyticsWorkspaceId='${{ steps.shared.outputs.logAnalyticsWorkspaceId }}' \
+            --parameters sharedContainerRegistryName='${{ steps.shared.outputs.containerRegistryName }}' \
+            --parameters sharedContainerRegistryLoginServer='${{ steps.shared.outputs.containerRegistryLoginServer }}' \
+            --parameters sharedCommunicationServiceConnectionString='${{ steps.shared.outputs.communicationServiceConnectionString }}' \
+            --parameters sharedCommunicationServiceName='${{ steps.shared.outputs.communicationServiceName }}' \
+            --parameters sharedBlobDnsZoneId='${{ steps.shared.outputs.blobDnsZoneId }}' \
+            --parameters sharedTableDnsZoneId='${{ steps.shared.outputs.tableDnsZoneId }}' \
+            --parameters sharedOpenaiDnsZoneId='${{ steps.shared.outputs.openaiDnsZoneId }}' \
+            --parameters sharedPostgresDnsZoneId='${{ steps.shared.outputs.postgresDnsZoneId }}' \
+            --parameters sharedKeyVaultDnsZoneId='${{ steps.shared.outputs.keyVaultDnsZoneId }}' \
+            --parameters sharedAcrDnsZoneId='${{ steps.shared.outputs.acrDnsZoneId }}' \
+            --parameters sharedContainerRegistryResourceId='${{ steps.shared.outputs.containerRegistryResourceId }}' \
+            $OPENAI_KEY_PARAM \
+            --query 'properties.outputs' \
+            --output json)
+          
+          echo "resourceGroupName=$(echo $DEPLOYMENT_OUTPUT | jq -r '.resourceGroupName.value')" >> $GITHUB_OUTPUT
+          echo "acrLoginServer=${{ steps.shared.outputs.containerRegistryLoginServer }}" >> $GITHUB_OUTPUT
+          echo "apiFqdn=$(echo $DEPLOYMENT_OUTPUT | jq -r '.containerAppApiFqdn.value')" >> $GITHUB_OUTPUT
+          echo "swaHostname=$(echo $DEPLOYMENT_OUTPUT | jq -r '.staticWebAppHostname.value')" >> $GITHUB_OUTPUT
+          echo "keyVaultUri=$(echo $DEPLOYMENT_OUTPUT | jq -r '.keyVaultUri.value')" >> $GITHUB_OUTPUT
+
+      - name: Save SWA Deployment Token to Key Vault
+        run: |
+          SWA_NAME=$(az resource list \
+            --resource-group ${{ steps.deploy.outputs.resourceGroupName }} \
+            --resource-type Microsoft.Web/staticSites \
+            --query '[0].name' -o tsv)
+          
+          SWA_TOKEN=$(az staticwebapp secrets list \
+            --name $SWA_NAME \
+            --resource-group ${{ steps.deploy.outputs.resourceGroupName }} \
+            --query 'properties.apiKey' -o tsv)
+          
+          KV_NAME=$(az keyvault list \
+            --resource-group ${{ steps.deploy.outputs.resourceGroupName }} \
+            --query '[0].name' -o tsv)
+          
+          az keyvault secret set \
+            --vault-name $KV_NAME \
+            --name swa-deployment-token \
+            --value "$SWA_TOKEN" || true
+
+  # ============================================================================
+  # Run Database Migrations (Optional)
+  # ============================================================================
+  run-migrations:
+    name: Run Database Migrations
+    runs-on: ubuntu-latest
+    needs: [infrastructure]
+    if: inputs.run_migrations == true
+    environment: ${{ inputs.environment }}
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Run database migration
+        run: |
+          CONTAINER_APP_NAME="ca-truepulse-api-${{ inputs.environment }}"
+          RESOURCE_GROUP="${{ needs.infrastructure.outputs.resourceGroupName }}"
+          MIGRATION_SCRIPT="${{ inputs.migration_script }}"
+          
+          echo "=========================================="
+          echo "Running Database Migration"
+          echo "Script: $MIGRATION_SCRIPT"
+          echo "Environment: ${{ inputs.environment }}"
+          echo "=========================================="
+          
+          # Get current revision
+          CURRENT_REVISION=$(az containerapp revision list \
+            --name "$CONTAINER_APP_NAME" \
+            --resource-group "$RESOURCE_GROUP" \
+            --query "[?properties.active==\`true\`].name | [0]" \
+            -o tsv)
+          
+          echo "Current revision: $CURRENT_REVISION"
+          
+          # Deploy with migration env var
+          NEW_REVISION=$(az containerapp update \
+            --name "$CONTAINER_APP_NAME" \
+            --resource-group "$RESOURCE_GROUP" \
+            --set-env-vars "RUN_MIGRATION=$MIGRATION_SCRIPT" \
+            --min-replicas 1 \
+            --max-replicas 1 \
+            --query "properties.latestRevisionName" \
+            -o tsv)
+          
+          echo "Migration revision: $NEW_REVISION"
+          
+          # Wait for revision to be ready
+          for i in {1..30}; do
+            STATUS=$(az containerapp revision show \
+              --name "$CONTAINER_APP_NAME" \
+              --resource-group "$RESOURCE_GROUP" \
+              --revision "$NEW_REVISION" \
+              --query "properties.runningState" \
+              -o tsv 2>/dev/null || echo "Unknown")
+            
+            echo "Attempt $i/30: Revision status = $STATUS"
+            
+            if [ "$STATUS" == "Running" ]; then
+              echo "✅ Revision is running"
+              break
+            elif [ "$STATUS" == "Failed" ] || [ "$STATUS" == "Degraded" ]; then
+              echo "❌ Revision failed to start!"
+              exit 1
+            fi
+            
+            sleep 10
+          done
+          
+          # Wait for migration
+          echo "Waiting for migration script to execute (60 seconds)..."
+          sleep 60
+          
+          # Get logs
+          echo "Migration Logs:"
+          az containerapp logs show \
+            --name "$CONTAINER_APP_NAME" \
+            --resource-group "$RESOURCE_GROUP" \
+            --type console \
+            --tail 100 \
+            --follow false 2>&1 || echo "Could not fetch logs"
+          
+          # Clear migration env var
+          az containerapp update \
+            --name "$CONTAINER_APP_NAME" \
+            --resource-group "$RESOURCE_GROUP" \
+            --remove-env-vars "RUN_MIGRATION" \
+            --query "properties.latestRevisionName" \
+            -o tsv || echo "Warning: Could not clear env var"
+          
+          echo "✅ Migration completed"
+
+      - name: Verify application health
+        run: |
+          CONTAINER_APP_NAME="ca-truepulse-api-${{ inputs.environment }}"
+          RESOURCE_GROUP="${{ needs.infrastructure.outputs.resourceGroupName }}"
+          
+          echo "Waiting for app to stabilize..."
+          sleep 30
+          
+          for i in {1..10}; do
+            STATUS=$(az containerapp show \
+              --name "$CONTAINER_APP_NAME" \
+              --resource-group "$RESOURCE_GROUP" \
+              --query "properties.runningStatus" -o tsv 2>/dev/null || echo "Unknown")
+            
+            PROVISIONING=$(az containerapp show \
+              --name "$CONTAINER_APP_NAME" \
+              --resource-group "$RESOURCE_GROUP" \
+              --query "properties.provisioningState" -o tsv 2>/dev/null || echo "Unknown")
+            
+            echo "Attempt $i: Running status: $STATUS, Provisioning state: $PROVISIONING"
+            
+            if [ "$STATUS" == "Running" ] && [ "$PROVISIONING" == "Succeeded" ]; then
+              echo "✅ Application is healthy after migration"
+              exit 0
+            fi
+            
+            sleep 10
+          done
+          
+          echo "⚠️ Health check did not pass after migration"
+
+  # ============================================================================
+  # Deployment Summary
+  # ============================================================================
+  summary:
+    name: Deployment Summary
+    runs-on: ubuntu-latest
+    needs: [shared-infrastructure, infrastructure, run-migrations]
+    if: always()
+    steps:
+      - name: Summary
+        run: |
+          echo "## Infrastructure Deployment Complete! 🏗️" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Environment:** ${{ inputs.environment }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Resources Deployed" >> $GITHUB_STEP_SUMMARY
+          echo "- Shared: ACR, Log Analytics, DNS Zones, Communication Services" >> $GITHUB_STEP_SUMMARY
+          echo "- Environment: VNet, PostgreSQL, Storage, Key Vault, OpenAI, Container App, SWA" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ inputs.run_migrations }}" == "true" ]; then
+            echo "### Database Migrations" >> $GITHUB_STEP_SUMMARY
+            echo "- Script: ${{ inputs.migration_script }}" >> $GITHUB_STEP_SUMMARY
+            echo "- Status: ${{ needs.run-migrations.result }}" >> $GITHUB_STEP_SUMMARY
+          fi
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Next Steps" >> $GITHUB_STEP_SUMMARY
+          echo "Run the **Deploy Apps** workflow to deploy application code." >> $GITHUB_STEP_SUMMARY
