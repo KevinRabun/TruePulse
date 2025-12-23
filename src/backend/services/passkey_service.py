@@ -136,11 +136,7 @@ class PasskeyService:
         # Store challenge for verification
         challenge_id = str(uuid4())
         challenge_str = bytes_to_base64url(options.challenge)
-        logger.debug(
-            "passkey_challenge_stored",
-            challenge_id=challenge_id,
-            challenge_length=len(challenge_str),
-        )
+        logger.debug(f"passkey_challenge_stored: challenge_id={challenge_id}, challenge_length={len(challenge_str)}")
         await self._store_challenge(
             challenge_id=challenge_id,
             challenge=challenge_str,
@@ -241,14 +237,14 @@ class PasskeyService:
                     client_data = json.loads(raw_client_data)
                 client_challenge = client_data.get("challenge", "NOT_FOUND")
             except Exception as decode_err:
+                raw_preview = raw_client_data[:100].decode("utf-8", errors="replace") if raw_client_data else "None"
                 logger.error(
-                    f"Failed to decode clientDataJSON: {decode_err}, raw type: {type(raw_client_data)}, raw[:100]: {raw_client_data[:100] if raw_client_data else 'None'}"
+                    f"Failed to decode clientDataJSON: {decode_err}, raw type: {type(raw_client_data)}, raw[:100]: {raw_preview}"
                 )
                 client_challenge = f"DECODE_ERROR: {decode_err}"
 
             logger.debug(
-                "passkey_challenge_verification",
-                stored_challenge_match=stored_challenge == client_challenge,
+                f"passkey_challenge_verification: stored_challenge_match={stored_challenge == client_challenge}"
             )
 
             # Verify the registration
