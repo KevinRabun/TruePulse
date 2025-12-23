@@ -145,7 +145,7 @@ export default function LoginPage() {
               <div className="pt-4 border-t border-gray-200 dark:border-slate-700">
                 <button
                   onClick={() => setShowMagicLink(true)}
-                  className="w-full text-sm text-gray-500 dark:text-slate-400 hover:text-primary-600 dark:hover:text-purple-400 transition-colors"
+                  className="w-full text-sm text-gray-500 dark:text-slate-400 hover:text-primary-600 dark:hover:text-purple-400 transition-colors cursor-pointer"
                 >
                   <EnvelopeIcon className="h-4 w-4 inline-block mr-1" />
                   No passkey? Sign in with email link
@@ -177,7 +177,7 @@ export default function LoginPage() {
                       setMagicLinkSent(false);
                       setMagicLinkEmail('');
                     }}
-                    className="mt-4 text-sm text-primary-600 dark:text-purple-400 hover:underline"
+                    className="mt-4 text-sm text-primary-600 dark:text-purple-400 hover:underline cursor-pointer"
                   >
                     Send to a different email
                   </button>
@@ -228,7 +228,7 @@ export default function LoginPage() {
                       setMagicLinkSent(false);
                       setMagicLinkEmail('');
                     }}
-                    className="w-full text-sm text-gray-500 dark:text-slate-400 hover:text-primary-600 dark:hover:text-purple-400 transition-colors"
+                    className="w-full text-sm text-gray-500 dark:text-slate-400 hover:text-primary-600 dark:hover:text-purple-400 transition-colors cursor-pointer"
                   >
                     <FingerPrintIcon className="h-4 w-4 inline-block mr-1" />
                     Sign in with passkey instead
