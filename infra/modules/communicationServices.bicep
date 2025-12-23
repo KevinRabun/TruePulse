@@ -34,6 +34,9 @@ param dataLocation string = 'United States'
 @description('Log Analytics Workspace ID for diagnostics')
 param logAnalyticsWorkspaceId string = ''
 
+@description('List of email domain resource IDs to link to this communication service')
+param linkedDomains array = []
+
 // ============================================================================
 // Communication Service using Azure Verified Module
 // ============================================================================
@@ -45,6 +48,7 @@ module communicationService 'br/public:avm/res/communication/communication-servi
     dataLocation: dataLocation
     location: location
     tags: tags
+    linkedDomains: !empty(linkedDomains) ? linkedDomains : null
     managedIdentities: {
       systemAssigned: true
     }

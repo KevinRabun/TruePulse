@@ -36,9 +36,48 @@ param dataLocation string = 'United States'
 @description('Enable user engagement tracking (open/click tracking)')
 param enableUserEngagementTracking bool = false
 
+@description('Custom domain name for email sending (must be verified in DNS)')
+param customDomain string = ''
+
 // ============================================================================
 // Email Service using Azure Verified Module
 // ============================================================================
+
+// Build domains array - always include Azure-managed, optionally add custom domain
+var azureManagedDomain = {
+  name: 'AzureManagedDomain'
+  domainManagement: 'AzureManaged'
+  userEngagementTracking: enableUserEngagementTracking ? 'Enabled' : 'Disabled'
+  senderUsernames: [
+    {
+      name: 'donotreply'
+      username: 'DoNotReply'
+      displayName: 'TruePulse'
+    }
+    {
+      name: 'verification'
+      username: 'verification'
+      displayName: 'TruePulse Verification'
+    }
+  ]
+  tags: tags
+}
+
+var customDomainConfig = !empty(customDomain) ? {
+  name: customDomain
+  domainManagement: 'CustomerManaged'
+  userEngagementTracking: enableUserEngagementTracking ? 'Enabled' : 'Disabled'
+  senderUsernames: [
+    {
+      name: 'donotreply'
+      username: 'DoNotReply'
+      displayName: 'TruePulse'
+    }
+  ]
+  tags: tags
+} : {}
+
+var domains = !empty(customDomain) ? [azureManagedDomain, customDomainConfig] : [azureManagedDomain]
 
 module emailService 'br/public:avm/res/communication/email-service:0.3.0' = {
   name: 'email-service-deployment'
@@ -47,29 +86,7 @@ module emailService 'br/public:avm/res/communication/email-service:0.3.0' = {
     dataLocation: dataLocation
     location: 'global'
     tags: tags
-    // Configure Azure-managed domain for immediate use
-    // This provides a *.azurecomm.net sender address without DNS setup
-    domains: [
-      {
-        name: 'AzureManagedDomain'
-        domainManagement: 'AzureManaged'
-        userEngagementTracking: enableUserEngagementTracking ? 'Enabled' : 'Disabled'
-        // Default sender usernames for the Azure-managed domain
-        senderUsernames: [
-          {
-            name: 'donotreply'
-            username: 'DoNotReply'
-            displayName: 'TruePulse'
-          }
-          {
-            name: 'verification'
-            username: 'verification'
-            displayName: 'TruePulse Verification'
-          }
-        ]
-        tags: tags
-      }
-    ]
+    domains: domains
   }
 }
 

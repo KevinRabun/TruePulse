@@ -98,7 +98,15 @@ module communicationServices 'modules/communicationServices.bicep' = {
   params: {
     name: communicationServiceName
     tags: tags
+    // Link to the custom email domain for sending emails
+    // The domain must exist in the email service before linking
+    linkedDomains: [
+      '${emailServices.outputs.resourceId}/domains/${customDomain}'
+    ]
   }
+  dependsOn: [
+    emailServices
+  ]
 }
 
 // Email Communication Services - Email API (stateless, pay-per-use)
@@ -108,6 +116,7 @@ module emailServices 'modules/emailServices.bicep' = {
   params: {
     name: emailServiceName
     tags: tags
+    customDomain: customDomain
   }
 }
 
