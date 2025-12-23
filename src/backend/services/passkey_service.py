@@ -135,9 +135,14 @@ class PasskeyService:
 
         # Store challenge for verification
         challenge_id = str(uuid4())
+        challenge_str = bytes_to_base64url(options.challenge)
+        logger.info(
+            f"Storing challenge - id: {challenge_id}, challenge: {challenge_str} "
+            f"(len={len(challenge_str)}, original_bytes_len={len(options.challenge)})"
+        )
         await self._store_challenge(
             challenge_id=challenge_id,
-            challenge=bytes_to_base64url(options.challenge),
+            challenge=challenge_str,
             user_id=user.id,
             operation="registration",
             device_info=device_info,
@@ -214,10 +219,18 @@ class PasskeyService:
             # Parse the credential
             credential = parse_registration_credential_json(credential_json)
 
+            # Debug: Log challenge comparison
+            stored_challenge = challenge_data["challenge"]
+            stored_challenge_bytes = base64url_to_bytes(stored_challenge)
+            logger.info(
+                f"Challenge verification debug - stored: {stored_challenge} "
+                f"(len={len(stored_challenge)}, bytes_len={len(stored_challenge_bytes)})"
+            )
+
             # Verify the registration
             verification = verify_registration_response(
                 credential=credential,
-                expected_challenge=base64url_to_bytes(challenge_data["challenge"]),
+                expected_challenge=stored_challenge_bytes,
                 expected_rp_id=self.RP_ID,
                 expected_origin=self.ORIGIN,
                 require_user_verification=True,
