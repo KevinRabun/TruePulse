@@ -362,6 +362,25 @@ module containerApp 'br/public:avm/res/app/container-app:0.19.0' = if (!usePlace
             name: 'SECRET_KEY'
             secretRef: 'jwt-secret-key'
           }
+          // WebAuthn/Passkey configuration
+          {
+            name: 'WEBAUTHN_RP_ID'
+            value: !empty(customDomain) ? (environmentName == 'prod' 
+              ? customDomain 
+              : '${environmentName}.${customDomain}') 
+              : 'localhost'
+          }
+          {
+            name: 'WEBAUTHN_RP_NAME'
+            value: 'TruePulse'
+          }
+          {
+            name: 'WEBAUTHN_ORIGIN'
+            value: !empty(customDomain) ? (environmentName == 'prod' 
+              ? 'https://${customDomain}' 
+              : 'https://${environmentName}.${customDomain}') 
+              : 'http://localhost:3000'
+          }
         ]
         // Only configure health probes for our actual application, not the placeholder
         probes: usePlaceholderImage ? [] : [
