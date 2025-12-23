@@ -129,7 +129,7 @@ async def service_status() -> dict:
 
     services = {
         "email": {
-            "configured": email_service.is_configured,
+            "configured": email_service.is_available,
             "details": {
                 "has_connection_string": email_service._client is not None,
                 "has_sender_address": email_service._sender_address is not None,
@@ -137,7 +137,7 @@ async def service_status() -> dict:
             },
         },
         "database": {
-            "configured": bool(settings.DATABASE_URL),
+            "configured": bool(settings.POSTGRES_HOST),
             "details": {
                 "host": settings.POSTGRES_HOST or "not set",
             },
