@@ -134,19 +134,19 @@ async def service_status() -> dict:
                 "has_connection_string": email_service._client is not None,
                 "has_sender_address": email_service._sender_address is not None,
                 "sender_address": email_service._sender_address[:20] + "..." if email_service._sender_address else None,
-            }
+            },
         },
         "database": {
             "configured": bool(settings.DATABASE_URL),
             "details": {
                 "host": settings.POSTGRES_HOST or "not set",
-            }
+            },
         },
         "openai": {
             "configured": bool(settings.AZURE_OPENAI_ENDPOINT),
             "details": {
                 "endpoint": settings.AZURE_OPENAI_ENDPOINT[:30] + "..." if settings.AZURE_OPENAI_ENDPOINT else None,
-            }
+            },
         },
     }
 
