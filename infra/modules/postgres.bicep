@@ -77,19 +77,24 @@ var skuConfig = {
 
 var selectedSku = skuConfig[environmentName]
 
+// CMK is only supported on GeneralPurpose and MemoryOptimized tiers, not Burstable
+// See: https://learn.microsoft.com/en-us/azure/postgresql/flexible-server/concepts-data-encryption
+var cmkSupported = selectedSku.tier != 'Burstable'
+var effectiveEnableCMK = enableCMK && cmkSupported
+
 // ============================================================================
 // Resources
 // ============================================================================
 
 // User-assigned managed identity for CMK access
-resource postgresIdentity 'Microsoft.ManagedIdentity/userAssignedIdentities@2023-01-31' = if (enableCMK) {
+resource postgresIdentity 'Microsoft.ManagedIdentity/userAssignedIdentities@2023-01-31' = if (effectiveEnableCMK) {
   name: '${name}-identity'
   location: location
   tags: tags
 }
 
 // Reference to existing Key Vault for role assignment scope
-resource keyVault 'Microsoft.KeyVault/vaults@2023-07-01' existing = if (enableCMK) {
+resource keyVault 'Microsoft.KeyVault/vaults@2023-07-01' existing = if (effectiveEnableCMK) {
   name: last(split(keyVaultResourceId, '/'))
 }
 
@@ -97,7 +102,7 @@ resource keyVault 'Microsoft.KeyVault/vaults@2023-07-01' existing = if (enableCM
 // Required for PostgreSQL to use CMK from Key Vault
 // CRITICAL: Must be scoped to Key Vault, not resource group
 // Note: GUID includes 'kv-scope' to differentiate from old resource-group-scoped assignment
-resource keyVaultCryptoUserRole 'Microsoft.Authorization/roleAssignments@2022-04-01' = if (enableCMK) {
+resource keyVaultCryptoUserRole 'Microsoft.Authorization/roleAssignments@2022-04-01' = if (effectiveEnableCMK) {
   name: guid(keyVaultResourceId, postgresIdentity.id, 'Key Vault Crypto Service Encryption User', 'postgres-cmk-kv-scope')
   scope: keyVault
   properties: {
@@ -133,13 +138,14 @@ module postgres 'br/public:avm/res/db-for-postgre-sql/flexible-server:0.14.0' = 
       passwordAuth: 'Enabled'
     }
     // Customer Managed Key (CMK) configuration
-    customerManagedKey: enableCMK ? {
+    // Note: CMK only supported on GeneralPurpose and MemoryOptimized tiers, not Burstable
+    customerManagedKey: effectiveEnableCMK ? {
       keyVaultResourceId: keyVaultResourceId
       keyName: 'cmk-postgres'
       keyVersion: last(split(cmkKeyUri, '/'))
       userAssignedIdentityResourceId: postgresIdentity.id
     } : null
-    managedIdentities: enableCMK ? {
+    managedIdentities: effectiveEnableCMK ? {
       userAssignedResourceIds: [
         postgresIdentity.id
       ]
@@ -203,7 +209,7 @@ module postgres 'br/public:avm/res/db-for-postgre-sql/flexible-server:0.14.0' = 
       }
     ]
   }
-  dependsOn: enableCMK ? [keyVaultCryptoUserRole] : []
+  dependsOn: effectiveEnableCMK ? [keyVaultCryptoUserRole] : []
 }
 
 // ============================================================================
