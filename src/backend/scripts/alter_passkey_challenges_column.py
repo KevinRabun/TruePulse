@@ -57,9 +57,7 @@ async def run_migration() -> None:
         print(f"Current challenge column size: {current_length}")
         print("Altering challenge column to VARCHAR(256)...")
 
-        await conn.execute(
-            text("ALTER TABLE passkey_challenges ALTER COLUMN challenge TYPE VARCHAR(256)")
-        )
+        await conn.execute(text("ALTER TABLE passkey_challenges ALTER COLUMN challenge TYPE VARCHAR(256)"))
 
         print("Migration completed successfully!")
 
