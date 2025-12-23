@@ -3,8 +3,15 @@
 import Link from 'next/link';
 import { BarChart3, Github, Twitter, Linkedin } from 'lucide-react';
 import { ResponsiveAdBanner } from '@/components/ads';
+import { useEffect, useState } from 'react';
 
 export function Footer() {
+  const [year, setYear] = useState<number | null>(null);
+  
+  useEffect(() => {
+    setYear(new Date().getFullYear());
+  }, []);
+  
   return (
     <footer className="bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700">
       {/* Ad Banner before footer content */}
@@ -139,7 +146,7 @@ export function Footer() {
 
         <div className="mt-12 border-t border-gray-200 dark:border-gray-700 pt-8">
           <p className="text-sm text-gray-500 dark:text-gray-400">
-            © {new Date().getFullYear()} TruePulse. All rights reserved. Open source on{' '}
+            © {year ?? '2025'} TruePulse. All rights reserved. Open source on{' '}
             <a
               href="https://github.com/KevinRabun/TruePulse"
               className="text-primary-600 hover:text-primary-700"

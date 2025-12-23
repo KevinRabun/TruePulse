@@ -29,10 +29,13 @@ function generateActivity() {
 
 export function LiveActivityIndicator({ className = '', variant = 'compact' }: LiveActivityIndicatorProps) {
   const [activeUsers, setActiveUsers] = useState<number | null>(null);
-  const [recentActivity, setRecentActivity] = useState(generateActivity());
+  const [recentActivity, setRecentActivity] = useState<ReturnType<typeof generateActivity> | null>(null);
   const [showActivity, setShowActivity] = useState(false);
 
   useEffect(() => {
+    // Initialize activity on client side to avoid hydration mismatch
+    setRecentActivity(generateActivity());
+    
     // Fetch real stats from API
     const fetchStats = async () => {
       try {
@@ -117,7 +120,7 @@ export function LiveActivityIndicator({ className = '', variant = 'compact' }: L
           
           {/* Recent activity ticker */}
           <AnimatePresence mode="wait">
-            {showActivity && (
+            {showActivity && recentActivity && (
               <motion.div
                 key={recentActivity.id}
                 initial={{ opacity: 0, y: 10 }}

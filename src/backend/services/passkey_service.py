@@ -10,7 +10,7 @@ import json
 import logging
 import secrets
 from datetime import UTC, datetime, timedelta
-from typing import Any
+from typing import Any, ClassVar
 from uuid import uuid4
 
 from sqlalchemy import select
@@ -83,10 +83,14 @@ class PasskeyService:
     ORIGIN = settings.WEBAUTHN_ORIGIN  # Expected origin
     CHALLENGE_TIMEOUT = timedelta(minutes=5)  # Challenge validity period
 
+    # Class-level challenge store shared across all instances
+    # This ensures challenges persist between registration options and verification calls
+    # Note: In a multi-replica deployment, use Redis or database storage instead
+    _challenge_store: ClassVar[dict[str, dict[str, Any]]] = {}
+
     def __init__(self, db: AsyncSession):
         """Initialize the passkey service."""
         self.db = db
-        self._challenge_store: dict[str, dict[str, Any]] = {}  # In-memory for now, use Redis in production
 
     async def generate_registration_options(
         self,

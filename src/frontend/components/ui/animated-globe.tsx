@@ -40,13 +40,14 @@ const sizes = {
 };
 
 export function AnimatedGlobe({ size = 'lg', showActivity = true, className = '' }: AnimatedGlobeProps) {
-  // Initialize activity points synchronously to avoid setState in effect
-  const [activityPoints, setActivityPoints] = useState<ReturnType<typeof generateActivityPoints>>(() => 
-    showActivity ? generateActivityPoints(8) : []
-  );
+  // Initialize with empty array on server, populate on client to avoid hydration mismatch
+  const [activityPoints, setActivityPoints] = useState<ReturnType<typeof generateActivityPoints>>([]);
   
   useEffect(() => {
     if (showActivity) {
+      // Initialize points on client side
+      setActivityPoints(generateActivityPoints(8));
+      
       // Regenerate points periodically
       const interval = setInterval(() => {
         setActivityPoints(generateActivityPoints(8));
