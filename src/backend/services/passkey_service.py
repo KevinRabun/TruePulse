@@ -222,9 +222,20 @@ class PasskeyService:
             # Debug: Log challenge comparison
             stored_challenge = challenge_data["challenge"]
             stored_challenge_bytes = base64url_to_bytes(stored_challenge)
+
+            # Extract challenge from client data to see what browser sent
+            import base64
+            client_data_json = base64.urlsafe_b64decode(
+                credential.response.client_data_json + "=="
+            )
+            client_data = json.loads(client_data_json)
+            client_challenge = client_data.get("challenge", "NOT_FOUND")
+
             logger.warning(
-                f"DEBUG Challenge verification - stored: {stored_challenge} "
-                f"(len={len(stored_challenge)}, bytes_len={len(stored_challenge_bytes)})"
+                f"DEBUG Challenge comparison - "
+                f"stored_b64: {stored_challenge} (len={len(stored_challenge)}), "
+                f"client_b64: {client_challenge} (len={len(client_challenge)}), "
+                f"match: {stored_challenge == client_challenge}"
             )
 
             # Verify the registration
