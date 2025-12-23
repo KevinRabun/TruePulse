@@ -101,7 +101,7 @@ resource keyVaultCryptoUserRole 'Microsoft.Authorization/roleAssignments@2022-04
 }
 
 // Using Azure Verified Module: br/public:avm/res/db-for-postgre-sql/flexible-server
-module postgres 'br/public:avm/res/db-for-postgre-sql/flexible-server:0.5.0' = {
+module postgres 'br/public:avm/res/db-for-postgre-sql/flexible-server:0.14.0' = {
   name: 'postgres-server'
   params: {
     name: name
@@ -116,10 +116,15 @@ module postgres 'br/public:avm/res/db-for-postgre-sql/flexible-server:0.5.0' = {
     backupRetentionDays: selectedSku.backupRetentionDays
     geoRedundantBackup: environmentName == 'prod' ? 'Enabled' : 'Disabled'
     highAvailability: selectedSku.highAvailability
-    availabilityZone: '1'
-    // Security settings
-    passwordAuth: 'Enabled'
-    activeDirectoryAuth: 'Enabled'
+    availabilityZone: 1
+    // Security settings - CRITICAL: Disable public network access
+    // All access must go through private endpoints only
+    publicNetworkAccess: 'Disabled'
+    // Authentication configuration
+    authConfig: {
+      activeDirectoryAuth: 'Enabled'
+      passwordAuth: 'Enabled'
+    }
     // Customer Managed Key (CMK) configuration
     customerManagedKey: enableCMK ? {
       keyVaultResourceId: keyVaultResourceId
@@ -200,4 +205,4 @@ module postgres 'br/public:avm/res/db-for-postgre-sql/flexible-server:0.5.0' = {
 
 output resourceId string = postgres.outputs.resourceId
 output name string = postgres.outputs.name
-output fqdn string = postgres.outputs.fqdn
+output fqdn string = postgres.outputs.fqdn ?? ''
