@@ -57,10 +57,16 @@ async def run_migration() -> None:
 
         print("Creating indexes for passkey_challenges...")
         await conn.execute(
-            text("""
-                CREATE INDEX ix_passkey_challenges_user_id ON passkey_challenges(user_id);
-                CREATE INDEX ix_passkey_challenges_expires_at ON passkey_challenges(expires_at);
-            """)
+            text(
+                "CREATE INDEX ix_passkey_challenges_user_id "
+                "ON passkey_challenges(user_id)"
+            )
+        )
+        await conn.execute(
+            text(
+                "CREATE INDEX ix_passkey_challenges_expires_at "
+                "ON passkey_challenges(expires_at)"
+            )
         )
 
         print("Migration completed successfully!")
