@@ -96,8 +96,9 @@ resource keyVault 'Microsoft.KeyVault/vaults@2023-07-01' existing = if (enableCM
 // Role assignment for Key Vault Crypto Service Encryption User
 // Required for PostgreSQL to use CMK from Key Vault
 // CRITICAL: Must be scoped to Key Vault, not resource group
+// Note: GUID includes 'kv-scope' to differentiate from old resource-group-scoped assignment
 resource keyVaultCryptoUserRole 'Microsoft.Authorization/roleAssignments@2022-04-01' = if (enableCMK) {
-  name: guid(keyVaultResourceId, postgresIdentity.id, 'e147488a-f6f5-4113-8e2d-b22465e65bf6-postgres')
+  name: guid(keyVaultResourceId, postgresIdentity.id, 'Key Vault Crypto Service Encryption User', 'postgres-cmk-kv-scope')
   scope: keyVault
   properties: {
     roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', 'e147488a-f6f5-4113-8e2d-b22465e65bf6') // Key Vault Crypto Service Encryption User
