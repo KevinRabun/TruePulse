@@ -216,6 +216,10 @@ class PasskeyService:
             raise PasskeyRegistrationError("Invalid challenge type")
 
         try:
+            # Initialize debug variables at the start
+            stored_challenge = "NOT_SET"
+            client_challenge = "NOT_SET"
+
             # Parse the credential
             credential = parse_registration_credential_json(credential_json)
 
@@ -299,16 +303,7 @@ class PasskeyService:
 
         except Exception as e:
             # Include debug info in error for troubleshooting
-            debug_info = " | Debug: "
-            try:
-                stored_val = locals().get("stored_challenge", "UNDEFINED")
-                client_val = locals().get("client_challenge", "UNDEFINED")
-                if stored_val != "UNDEFINED" and client_val != "UNDEFINED":
-                    debug_info += f"stored={stored_val}, client={client_val}, match={stored_val == client_val}"
-                else:
-                    debug_info += f"stored={stored_val}, client={client_val}"
-            except Exception as debug_err:
-                debug_info += f"debug_error={debug_err}"
+            debug_info = f" | Debug: stored={stored_challenge}, client={client_challenge}, match={stored_challenge == client_challenge}"
             logger.error(f"Passkey registration failed for user {user.id}: {e}{debug_info}")
             raise PasskeyRegistrationError(f"Registration verification failed: {e}{debug_info}") from e
 
