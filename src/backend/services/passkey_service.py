@@ -22,6 +22,7 @@ from webauthn import (
     verify_registration_response,
 )
 from webauthn.helpers import (
+    base64url_to_bytes,
     bytes_to_base64url,
     parse_authentication_credential_json,
     parse_registration_credential_json,
@@ -216,7 +217,7 @@ class PasskeyService:
             # Verify the registration
             verification = verify_registration_response(
                 credential=credential,
-                expected_challenge=challenge_data["challenge"].encode(),
+                expected_challenge=base64url_to_bytes(challenge_data["challenge"]),
                 expected_rp_id=self.RP_ID,
                 expected_origin=self.ORIGIN,
                 require_user_verification=True,
@@ -374,7 +375,7 @@ class PasskeyService:
             # Verify authentication
             verification = verify_authentication_response(
                 credential=credential,
-                expected_challenge=challenge_data["challenge"].encode(),
+                expected_challenge=base64url_to_bytes(challenge_data["challenge"]),
                 expected_rp_id=self.RP_ID,
                 expected_origin=self.ORIGIN,
                 credential_public_key=passkey.public_key,
