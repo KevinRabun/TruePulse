@@ -9,10 +9,10 @@ These endpoints require admin authentication and are used for:
 
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 
-from api.deps import get_current_user
+from api.deps import get_current_admin_user
 from schemas.user import UserInDB
 
 router = APIRouter()
@@ -43,19 +43,9 @@ class SchedulerStatus(BaseModel):
     jobs: list[dict]
 
 
-def require_admin(current_user: Annotated[UserInDB, Depends(get_current_user)]) -> UserInDB:
-    """Dependency to require admin access."""
-    if not current_user.is_admin:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Admin access required",
-        )
-    return current_user
-
-
 @router.post("/poll-rotation", response_model=RotationResult)
 async def trigger_poll_rotation(
-    _admin: Annotated[UserInDB, Depends(require_admin)],
+    _admin: Annotated[UserInDB, Depends(get_current_admin_user)],
 ) -> RotationResult:
     """
     Manually trigger a poll rotation cycle.
@@ -82,7 +72,7 @@ async def trigger_poll_rotation(
 
 @router.post("/poll-generation", response_model=GenerationResult)
 async def trigger_poll_generation(
-    _admin: Annotated[UserInDB, Depends(require_admin)],
+    _admin: Annotated[UserInDB, Depends(get_current_admin_user)],
 ) -> GenerationResult:
     """
     Manually trigger poll generation from current events.
@@ -103,7 +93,7 @@ async def trigger_poll_generation(
 
 @router.get("/scheduler-status", response_model=SchedulerStatus)
 async def get_scheduler_status(
-    _admin: Annotated[UserInDB, Depends(require_admin)],
+    _admin: Annotated[UserInDB, Depends(get_current_admin_user)],
 ) -> SchedulerStatus:
     """
     Get the status of the background scheduler.

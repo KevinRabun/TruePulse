@@ -8,6 +8,7 @@ import asyncio
 
 from sqlalchemy import select
 
+import scripts._common  # noqa: F401 - Sets up sys.path for imports
 from db.session import async_session_maker
 from models.achievement import CommunityAchievement
 

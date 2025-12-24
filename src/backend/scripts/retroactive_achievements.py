@@ -9,12 +9,11 @@ achievements to users who already qualify.
 """
 
 import asyncio
-from datetime import datetime, timezone
 
 from sqlalchemy import select
 
+import scripts._common  # noqa: F401 - Sets up sys.path for imports
 from db.session import async_session_maker
-from models.achievement import Achievement, UserAchievement
 from models.user import User
 from services.achievement_service import AchievementService
 
@@ -73,7 +72,7 @@ async def award_retroactive_achievements():
                 total_awarded += len(user_awarded)
                 print(f"  📊 Total new achievements for {user.username}: {len(user_awarded)}")
             else:
-                print(f"  ℹ️  No new achievements to award (may already have them)")
+                print("  ℹ️  No new achievements to award (may already have them)")
 
         # Commit all changes
         await db.commit()

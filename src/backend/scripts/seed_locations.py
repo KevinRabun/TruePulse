@@ -4,14 +4,12 @@ Downloads JSON data from GitHub and imports into the database.
 """
 
 import asyncio
-import sys
 
 import httpx
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-sys.path.insert(0, "/app")
-
+import scripts._common  # noqa: F401 - Sets up sys.path for imports
 from db.session import async_session_maker
 from models.location import City, Country, StateProvince
 

@@ -353,10 +353,16 @@ class PasskeyService:
             return passkey
 
         except Exception as e:
-            # Include debug info in error for troubleshooting
-            debug_info = f" | Debug: stored={stored_challenge}, client={client_challenge}, match={stored_challenge == client_challenge}"
-            logger.error(f"Passkey registration failed for user {user.id}: {e}{debug_info}")
-            raise PasskeyRegistrationError(f"Registration verification failed: {e}{debug_info}") from e
+            # Log debug info for troubleshooting but don't expose in exception
+            logger.error(
+                f"Passkey registration failed for user {user.id}: {e}",
+                extra={
+                    "stored_challenge": stored_challenge[:16] + "..." if stored_challenge else None,
+                    "client_challenge": client_challenge[:16] + "..." if client_challenge else None,
+                    "challenge_match": stored_challenge == client_challenge,
+                },
+            )
+            raise PasskeyRegistrationError(f"Registration verification failed: {e}") from e
 
     async def generate_authentication_options(
         self,

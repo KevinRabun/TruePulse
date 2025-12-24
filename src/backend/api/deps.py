@@ -30,6 +30,36 @@ security_optional = HTTPBearer(auto_error=False)
 
 
 # =============================================================================
+# Helper Functions
+# =============================================================================
+
+
+def _user_model_to_schema(user: User) -> UserInDB:
+    """
+    Convert a User SQLAlchemy model to a UserInDB Pydantic schema.
+
+    This is the single source of truth for User -> UserInDB conversion,
+    ensuring consistent field mapping across all authentication flows.
+    """
+    return UserInDB(
+        id=str(user.id),
+        email=user.email,
+        username=user.username,
+        display_name=user.display_name,
+        is_active=user.is_active,
+        is_verified=user.is_verified,
+        is_admin=user.is_admin,
+        email_verified=user.email_verified,
+        points=user.total_points,
+        level=user.level,
+        votes_cast=user.votes_cast,
+        current_streak=user.current_streak,
+        longest_streak=user.longest_streak,
+        created_at=user.created_at,
+    )
+
+
+# =============================================================================
 # User Authentication (JWT-based)
 # =============================================================================
 
@@ -86,22 +116,7 @@ async def get_current_user(
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    return UserInDB(
-        id=str(user.id),
-        email=user.email,
-        username=user.username,
-        display_name=user.display_name,
-        is_active=user.is_active,
-        is_verified=user.is_verified,
-        is_admin=user.is_admin,
-        email_verified=user.email_verified,
-        points=user.total_points,
-        level=user.level,
-        votes_cast=user.votes_cast,
-        current_streak=user.current_streak,
-        longest_streak=user.longest_streak,
-        created_at=user.created_at,
-    )
+    return _user_model_to_schema(user)
 
 
 async def get_current_user_optional(
@@ -135,22 +150,7 @@ async def get_current_user_optional(
     if not user:
         return None
 
-    return UserInDB(
-        id=str(user.id),
-        email=user.email,
-        username=user.username,
-        display_name=user.display_name,
-        is_active=user.is_active,
-        is_verified=user.is_verified,
-        is_admin=user.is_admin,
-        email_verified=user.email_verified,
-        points=user.total_points,
-        level=user.level,
-        votes_cast=user.votes_cast,
-        current_streak=user.current_streak,
-        longest_streak=user.longest_streak,
-        created_at=user.created_at,
-    )
+    return _user_model_to_schema(user)
 
 
 async def get_current_active_user(
