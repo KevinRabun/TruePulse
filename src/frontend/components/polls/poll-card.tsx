@@ -78,7 +78,7 @@ function PollTypeHeader({ pollType }: { pollType?: string }) {
 }
 
 export function PollCard({ poll, showVoteButton = true }: PollCardProps) {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, refreshUser } = useAuth();
   const [selectedChoice, setSelectedChoice] = useState<string | null>(null);
   const [hasVoted, setHasVoted] = useState(false);
   const [, setIsCheckingVoteStatus] = useState(true);
@@ -158,6 +158,9 @@ export function PollCard({ poll, showVoteButton = true }: PollCardProps) {
       setEarnedPoints(result.points_earned || 10);
       setShowCelebration(true);
       setTimeout(() => setShowPoints(true), 300);
+      
+      // Refresh user to update points in nav bar
+      refreshUser();
     } catch (err) {
       console.error('Vote failed:', err);
       setError(err instanceof Error ? err.message : 'Failed to submit vote');

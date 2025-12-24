@@ -48,33 +48,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [storeClearAuth]);
 
-  // Sync with Zustand store when it changes
+  // Sync with Zustand store when it changes - only for initial login
+  // Don't override if we already have full user data from API
   useEffect(() => {
     if (storeUser && storeToken) {
-      // Map store user to UserProfile format
-      setUserState({
-        id: storeUser.id,
-        email: storeUser.email,
-        username: storeUser.username,
-        display_name: storeUser.display_name || storeUser.username,
-        created_at: '',
-        total_votes: 0,
-        accuracy_score: 0,
-        current_streak: 0,
-        longest_streak: 0,
-        points: 0,
-        level: 1,
-        achievements_count: 0,
-        achievements: [],
-        recent_votes: [],
-        badges: [],
-        is_verified: storeUser.isVerified,
-        email_verified: storeUser.emailVerified,
-      });
+      // Only set minimal user if we don't have user data yet
+      // After refreshUser() runs, user will have full profile data
+      if (!user) {
+        // Immediately fetch full profile when store has user
+        refreshUser();
+      }
     } else if (!storeToken) {
       setUserState(null);
     }
-  }, [storeUser, storeToken]);
+  }, [storeUser, storeToken, user, refreshUser]);
 
   useEffect(() => {
     const initAuth = async () => {
