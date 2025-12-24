@@ -114,7 +114,7 @@ class PasskeyService:
                 mod4 = original_len % 4
                 # Calculate padding needed: base64 must be multiple of 4
                 padding_needed = (4 - mod4) % 4
-                
+
                 # CRITICAL: If length % 4 == 1, the data is fundamentally invalid
                 # (not just missing padding) - log this for debugging
                 if mod4 == 1:
@@ -127,12 +127,12 @@ class PasskeyService:
                     logger.debug(
                         f"Base64url field '{field_name}': length={original_len}, mod4={mod4}, padding_needed={padding_needed}"
                     )
-                
+
                 return value + "=" * padding_needed
 
             # Log all field lengths for diagnosis
             logger.info(f"Processing credential JSON, top-level keys: {list(data.keys())}")
-            
+
             # Pad known base64url fields
             if "id" in data:
                 data["id"] = add_padding("id", data["id"])

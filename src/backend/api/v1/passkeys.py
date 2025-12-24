@@ -210,7 +210,7 @@ async def verify_registration(
         # Debug: Log the incoming credential JSON with detailed field analysis
         logger.info(f"Registration verify - credential_json length: {len(request.credential)}")
         logger.debug(f"Registration verify - credential_json preview: {request.credential[:200]}...")
-        
+
         # Detailed field length logging to find corrupted data
         try:
             import json as json_mod
