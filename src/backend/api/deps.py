@@ -172,11 +172,8 @@ async def get_current_verified_user(
     Verification requires email verification.
     This is required for voting to ensure account authenticity.
     """
-    if not current_user.is_verified:
-        if not current_user.email_verified:
-            detail = "Please verify your email address to vote"
-        else:
-            detail = "Account verification required to vote"
+    if not current_user.email_verified:
+        detail = "Please verify your email address to vote"
 
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
