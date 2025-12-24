@@ -57,6 +57,7 @@ interface AuthenticateResult {
     id: string;
     email: string;
     username: string;
+    display_name?: string;
     isVerified: boolean;
     phoneVerified: boolean;
     emailVerified: boolean;
