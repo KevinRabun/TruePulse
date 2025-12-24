@@ -187,30 +187,8 @@ export async function registerPasskey(
     }
 
     // Step 3: Send credential to server for verification
-    // DEBUG: Log credential field lengths to diagnose base64url corruption
-    const credentialJson = JSON.stringify(credential);
-    console.log("DEBUG: Passkey registration credential analysis:");
-    console.log("  credentialJson total length:", credentialJson.length);
-    console.log("  credential.id length:", credential.id?.length, "mod4:", credential.id?.length % 4);
-    console.log("  credential.rawId length:", credential.rawId?.length, "mod4:", credential.rawId?.length % 4);
-    if (credential.response) {
-      const resp = credential.response;
-      console.log("  response.clientDataJSON length:", resp.clientDataJSON?.length, "mod4:", resp.clientDataJSON?.length % 4);
-      console.log("  response.attestationObject length:", resp.attestationObject?.length, "mod4:", resp.attestationObject?.length % 4);
-    }
-    // Check for any field with length % 4 === 1 (invalid base64)
-    const checkField = (name: string, val: string | undefined) => {
-      if (val && val.length % 4 === 1) {
-        console.error(`INVALID BASE64: ${name} has length ${val.length} (mod 4 = 1) - THIS IS CORRUPTED DATA`);
-        console.error(`  First 50 chars: ${val.substring(0, 50)}`);
-        console.error(`  Last 20 chars: ${val.substring(val.length - 20)}`);
-      }
-    };
-    checkField("id", credential.id);
-    checkField("rawId", credential.rawId);
-    checkField("clientDataJSON", credential.response?.clientDataJSON);
-    checkField("attestationObject", credential.response?.attestationObject);
-
+    // Send credential as an object (not stringified) - matches SimpleWebAuthn examples
+    // The backend accepts it as a dict and passes directly to parse_registration_credential_json
     const verifyResponse = await fetch(`${API_BASE}/passkeys/register/verify`, {
       method: "POST",
       headers: {
@@ -219,7 +197,7 @@ export async function registerPasskey(
       },
       body: JSON.stringify({
         challengeId,
-        credential: credentialJson,
+        credential,  // Object, not JSON.stringify(credential) - avoids double-stringify
         deviceName: deviceName || `${deviceInfo.platform} - ${new Date().toLocaleDateString()}`,
       }),
     });
@@ -327,7 +305,7 @@ export async function authenticateWithPasskey(
       },
       body: JSON.stringify({
         challengeId,
-        credential: JSON.stringify(credential),
+        credential,
       }),
     });
 

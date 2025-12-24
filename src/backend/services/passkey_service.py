@@ -88,76 +88,6 @@ class PasskeyService:
         """Initialize the passkey service."""
         self.db = db
 
-    @staticmethod
-    def _add_base64url_padding(credential_json: str) -> str:
-        """
-        Add padding to base64url-encoded fields in the credential JSON.
-
-        The browser sends base64url strings without padding, but py_webauthn
-        may require properly padded base64 strings. This method parses the JSON,
-        adds padding to known base64url fields, and returns the fixed JSON.
-
-        Args:
-            credential_json: The credential JSON string from the browser
-
-        Returns:
-            The credential JSON with padded base64url fields
-        """
-        try:
-            data = json.loads(credential_json)
-
-            def add_padding(field_name: str, value: str) -> str:
-                """Add base64url padding if needed and log diagnostics."""
-                if not isinstance(value, str):
-                    return value
-                original_len = len(value)
-                mod4 = original_len % 4
-                # Calculate padding needed: base64 must be multiple of 4
-                padding_needed = (4 - mod4) % 4
-
-                # CRITICAL: If length % 4 == 1, the data is fundamentally invalid
-                # (not just missing padding) - log this for debugging
-                if mod4 == 1:
-                    logger.error(
-                        f"BASE64URL_CORRUPTION_DETECTED: Field '{field_name}' has length {original_len} "
-                        f"(mod 4 = {mod4}). This is INVALID base64 - data is corrupted, not just missing padding. "
-                        f"First 50 chars: {value[:50]}... Last 20 chars: ...{value[-20:]}"
-                    )
-                else:
-                    logger.debug(
-                        f"Base64url field '{field_name}': length={original_len}, mod4={mod4}, padding_needed={padding_needed}"
-                    )
-
-                return value + "=" * padding_needed
-
-            # Log all field lengths for diagnosis
-            logger.info(f"Processing credential JSON, top-level keys: {list(data.keys())}")
-
-            # Pad known base64url fields
-            if "id" in data:
-                data["id"] = add_padding("id", data["id"])
-            if "rawId" in data:
-                data["rawId"] = add_padding("rawId", data["rawId"])
-
-            if "response" in data:
-                response = data["response"]
-                logger.info(f"Response keys: {list(response.keys())}")
-                if "clientDataJSON" in response:
-                    response["clientDataJSON"] = add_padding("clientDataJSON", response["clientDataJSON"])
-                if "attestationObject" in response:
-                    response["attestationObject"] = add_padding("attestationObject", response["attestationObject"])
-                if "authenticatorData" in response:
-                    response["authenticatorData"] = add_padding("authenticatorData", response["authenticatorData"])
-                if "publicKey" in response:
-                    response["publicKey"] = add_padding("publicKey", response["publicKey"])
-                if "signature" in response:
-                    response["signature"] = add_padding("signature", response["signature"])
-
-            return json.dumps(data)
-        except (json.JSONDecodeError, KeyError, TypeError) as e:
-            logger.warning(f"Failed to add base64url padding: {e}, using original")
-            return credential_json
-
     async def generate_registration_options(
         self,
         user: User,
@@ -252,7 +182,7 @@ class PasskeyService:
         self,
         user: User,
         challenge_id: str,
-        credential_json: str,
+        credential_data: dict[str, Any],
         credential_name: str | None = None,
     ) -> PasskeyCredential:
         """
@@ -261,7 +191,7 @@ class PasskeyService:
         Args:
             user: The user registering the passkey
             challenge_id: The challenge ID from registration options
-            credential_json: The credential JSON from the client
+            credential_data: The credential dict from the client (not JSON string)
             credential_name: Optional friendly name for the passkey
 
         Returns:
@@ -287,12 +217,11 @@ class PasskeyService:
             stored_challenge = "NOT_SET"
             client_challenge = "NOT_SET"
 
-            # Preprocess credential JSON to add base64url padding
-            # Browser sends base64url without padding, but py_webauthn may need it
-            credential_json_fixed = self._add_base64url_padding(credential_json)
-
-            # Parse the credential
-            credential = parse_registration_credential_json(credential_json_fixed)
+            # Pass credential dict directly to parse_registration_credential_json
+            # It accepts Union[str, dict], so no JSON string manipulation needed
+            # This avoids double-stringify issues that could corrupt base64url data
+            logger.info(f"Processing credential with keys: {list(credential_data.keys())}")
+            credential = parse_registration_credential_json(credential_data)
 
             # Debug: Log challenge comparison
             stored_challenge = challenge_data["challenge"]
@@ -499,14 +428,14 @@ class PasskeyService:
     async def verify_authentication(
         self,
         challenge_id: str,
-        credential_json: str,
+        credential_data: dict[str, Any],
     ) -> tuple[User, PasskeyCredential]:
         """
         Verify a WebAuthn authentication response.
 
         Args:
             challenge_id: The challenge ID from authentication options
-            credential_json: The credential JSON from the client
+            credential_data: The credential data from the client (as dict)
 
         Returns:
             Tuple of (authenticated user, passkey credential used)
@@ -524,11 +453,8 @@ class PasskeyService:
             raise PasskeyAuthenticationError("Invalid challenge type")
 
         try:
-            # Preprocess credential JSON to add base64url padding
-            credential_json_fixed = self._add_base64url_padding(credential_json)
-
-            # Parse the credential
-            credential = parse_authentication_credential_json(credential_json_fixed)
+            # Parse the credential - py_webauthn handles base64url padding
+            credential = parse_authentication_credential_json(credential_data)
 
             # Find the passkey by credential ID
             passkey = await self._get_credential_by_id(credential.raw_id)

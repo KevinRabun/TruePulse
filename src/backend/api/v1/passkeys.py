@@ -67,7 +67,7 @@ class RegistrationVerifyRequest(BaseModel):
     """Request to verify passkey registration."""
 
     challenge_id: str = Field(..., alias="challengeId")
-    credential: str = Field(..., description="JSON-encoded WebAuthn credential")
+    credential: dict = Field(..., description="WebAuthn credential object from startRegistration()")
     credential_name: str | None = Field(None, alias="deviceName", description="Friendly name for the passkey")
 
     class Config:
@@ -99,7 +99,7 @@ class AuthenticationVerifyRequest(BaseModel):
     """Request to verify passkey authentication."""
 
     challenge_id: str = Field(..., alias="challengeId")
-    credential: str = Field(..., description="JSON-encoded WebAuthn credential")
+    credential: dict = Field(..., description="WebAuthn credential object")
 
     class Config:
         populate_by_name = True
@@ -207,38 +207,14 @@ async def verify_registration(
     try:
         passkey_service = get_passkey_service(db)
 
-        # Debug: Log the incoming credential JSON with detailed field analysis
-        logger.info(f"Registration verify - credential_json length: {len(request.credential)}")
-        logger.debug(f"Registration verify - credential_json preview: {request.credential[:200]}...")
-
-        # Detailed field length logging to find corrupted data
-        try:
-            import json as json_mod
-
-            cred_data = json_mod.loads(request.credential)
-            logger.info(f"Credential top-level keys: {list(cred_data.keys())}")
-            for key in ["id", "rawId", "type"]:
-                if key in cred_data:
-                    val = cred_data[key]
-                    if isinstance(val, str):
-                        logger.info(f"  {key}: length={len(val)}, mod4={len(val) % 4}")
-            if "response" in cred_data:
-                resp = cred_data["response"]
-                logger.info(f"Response keys: {list(resp.keys())}")
-                for key in ["clientDataJSON", "attestationObject", "authenticatorData", "publicKey", "signature"]:
-                    if key in resp:
-                        val = resp[key]
-                        if isinstance(val, str):
-                            mod4 = len(val) % 4
-                            status = "INVALID" if mod4 == 1 else "ok"
-                            logger.info(f"  {key}: length={len(val)}, mod4={mod4} ({status})")
-        except Exception as e:
-            logger.warning(f"Failed to analyze credential fields: {e}")
+        # Credential is now received as a dict (object), not a JSON string
+        # This matches the SimpleWebAuthn pattern and avoids double-stringify issues
+        logger.info(f"Registration verify - credential keys: {list(request.credential.keys())}")
 
         passkey = await passkey_service.verify_registration(
             user=current_user,
             challenge_id=request.challenge_id,
-            credential_json=request.credential,
+            credential_data=request.credential,  # Now a dict, not JSON string
             credential_name=request.credential_name,
         )
 
@@ -336,7 +312,7 @@ async def verify_authentication(
 
         user, passkey = await passkey_service.verify_authentication(
             challenge_id=request.challenge_id,
-            credential_json=request.credential,
+            credential_data=request.credential,
         )
 
         # Update last login
