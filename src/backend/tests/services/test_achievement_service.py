@@ -3,16 +3,13 @@ Tests for Achievement Service.
 
 Tests the achievement awarding functionality including:
 - Voting achievements
-- Streak achievements  
+- Streak achievements
 - Profile/demographic achievements
 - Email verification achievements
 - Achievement idempotency (not double-awarding)
 """
 
 import os
-from datetime import datetime, timezone
-from unittest.mock import AsyncMock, MagicMock, patch
-from uuid import uuid4
 
 import pytest
 
