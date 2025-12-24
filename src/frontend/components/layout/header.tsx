@@ -2,14 +2,14 @@
 
 import Link from 'next/link';
 import { useState, useRef, useEffect } from 'react';
-import { Menu, X, User, BarChart3, LogOut, Settings, Trophy } from 'lucide-react';
+import { Menu, X, User, BarChart3, LogOut, Settings, Trophy, Loader2 } from 'lucide-react';
 import { useAuth } from '@/lib/auth';
 import { useToast } from '@/components/ui/toast';
 
 export function Header() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
-  const { user, isAuthenticated, logout } = useAuth();
+  const { user, isAuthenticated, isLoading: authLoading, logout } = useAuth();
   const { success } = useToast();
   const userMenuRef = useRef<HTMLDivElement>(null);
 
@@ -74,7 +74,11 @@ export function Header() {
 
           {/* Auth Buttons / User Menu */}
           <div className="hidden md:flex md:items-center md:space-x-4">
-            {isAuthenticated && user ? (
+            {authLoading ? (
+              <div className="flex items-center space-x-2 px-3 py-2">
+                <Loader2 className="h-5 w-5 animate-spin text-gray-400" />
+              </div>
+            ) : isAuthenticated && user ? (
               <div className="relative" ref={userMenuRef}>
                 <button
                   onClick={() => setUserMenuOpen(!userMenuOpen)}
@@ -179,7 +183,11 @@ export function Header() {
         {/* Mobile menu */}
         {mobileMenuOpen && (
           <div className="md:hidden py-4 space-y-4">
-            {isAuthenticated && user && (
+            {authLoading ? (
+              <div className="flex items-center justify-center pb-4 border-b border-gray-200 dark:border-gray-700">
+                <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
+              </div>
+            ) : isAuthenticated && user && (
               <div className="flex items-center space-x-3 pb-4 border-b border-gray-200 dark:border-gray-700">
                 <div className="h-10 w-10 rounded-full bg-linear-to-r from-purple-500 to-cyan-500 flex items-center justify-center text-white font-semibold">
                   {user.display_name?.[0]?.toUpperCase() || user.email?.[0]?.toUpperCase() || 'U'}
@@ -224,7 +232,11 @@ export function Header() {
               About
             </Link>
             <div className="pt-4 border-t border-gray-200 dark:border-gray-700 space-y-4">
-              {isAuthenticated && user ? (
+              {authLoading ? (
+                <div className="flex items-center justify-center">
+                  <Loader2 className="h-5 w-5 animate-spin text-gray-400" />
+                </div>
+              ) : isAuthenticated && user ? (
                 <>
                   <Link
                     href="/profile"
