@@ -227,7 +227,7 @@ export function TurnstileCaptcha({
         data-sitekey={siteKey}
       />
       {!isLoaded && (
-        <div className="animate-pulse bg-gray-200 rounded h-16 w-[300px]" />
+        <div className="animate-pulse bg-gray-200 rounded h-16 w-75" />
       )}
     </div>
   );

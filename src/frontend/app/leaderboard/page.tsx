@@ -130,7 +130,7 @@ export default function LeaderboardPage() {
                       <div className="w-20 h-20 mx-auto mb-2 rounded-full bg-linear-to-br from-slate-200 to-slate-300 dark:from-slate-500/30 dark:to-slate-400/30 border-2 border-slate-300 dark:border-slate-500/50 flex items-center justify-center">
                         <UserCircleIcon className="h-12 w-12 text-slate-500 dark:text-slate-400" />
                       </div>
-                      <p className="font-semibold text-gray-900 dark:text-white text-sm truncate max-w-[100px]">
+                      <p className="font-semibold text-gray-900 dark:text-white text-sm truncate max-w-25">
                         {leaderboard[1].display_name || leaderboard[1].username}
                       </p>
                       <p className="text-gray-600 dark:text-slate-400 text-sm">{leaderboard[1].points.toLocaleString()} pts</p>
@@ -154,7 +154,7 @@ export default function LeaderboardPage() {
                           <UserCircleIcon className="h-14 w-14 text-yellow-600 dark:text-yellow-400" />
                         </div>
                       </div>
-                      <p className="font-bold text-gray-900 dark:text-white truncate max-w-[120px]">
+                      <p className="font-bold text-gray-900 dark:text-white truncate max-w-30">
                         {leaderboard[0].display_name || leaderboard[0].username}
                       </p>
                       <p className="text-yellow-600 dark:text-yellow-400 font-semibold">{leaderboard[0].points.toLocaleString()} pts</p>
@@ -175,7 +175,7 @@ export default function LeaderboardPage() {
                       <div className="w-20 h-20 mx-auto mb-2 rounded-full bg-linear-to-br from-amber-200 to-orange-300 dark:from-amber-600/30 dark:to-orange-600/30 border-2 border-amber-400 dark:border-amber-600/50 flex items-center justify-center">
                         <UserCircleIcon className="h-12 w-12 text-amber-700 dark:text-amber-600" />
                       </div>
-                      <p className="font-semibold text-gray-900 dark:text-white text-sm truncate max-w-[100px]">
+                      <p className="font-semibold text-gray-900 dark:text-white text-sm truncate max-w-25">
                         {leaderboard[2].display_name || leaderboard[2].username}
                       </p>
                       <p className="text-gray-600 dark:text-slate-400 text-sm">{leaderboard[2].points.toLocaleString()} pts</p>
