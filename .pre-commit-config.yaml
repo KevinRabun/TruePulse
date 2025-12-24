@@ -1,0 +1,59 @@
+# Pre-commit hooks for TruePulse
+# Install: pip install pre-commit && pre-commit install
+
+repos:
+  # Backend Python checks
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.8.6
+    hooks:
+      - id: ruff
+        args: [--fix]
+        files: ^src/backend/
+      - id: ruff-format
+        files: ^src/backend/
+
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v1.14.1
+    hooks:
+      - id: mypy
+        files: ^src/backend/
+        args: [--ignore-missing-imports, --exclude, tests/, --exclude, scripts/, --explicit-package-bases]
+        pass_filenames: false
+        entry: bash -c 'cd src/backend && mypy . --ignore-missing-imports --exclude tests/ --exclude scripts/ --explicit-package-bases'
+
+  # Frontend checks
+  - repo: local
+    hooks:
+      - id: eslint
+        name: ESLint
+        entry: bash -c 'cd src/frontend && npm run lint'
+        language: system
+        files: ^src/frontend/.*\.(ts|tsx|js|jsx)$
+        pass_filenames: false
+
+      - id: typescript
+        name: TypeScript Check
+        entry: bash -c 'cd src/frontend && npm run type-check'
+        language: system
+        files: ^src/frontend/.*\.(ts|tsx)$
+        pass_filenames: false
+
+  # General checks
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: trailing-whitespace
+        exclude: ^src/frontend/package-lock\.json$
+      - id: end-of-file-fixer
+        exclude: ^src/frontend/package-lock\.json$
+      - id: check-yaml
+      - id: check-json
+        exclude: ^src/frontend/package-lock\.json$
+      - id: check-added-large-files
+        args: ['--maxkb=1000']
+
+  # Security - prevent committing secrets
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.23.3
+    hooks:
+      - id: gitleaks

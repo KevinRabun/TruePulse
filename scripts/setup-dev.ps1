@@ -38,9 +38,15 @@ if (-not (Test-Path ".env")) {
 
 Write-Host "✅ Backend setup complete" -ForegroundColor Green
 
+# Pre-commit setup
+Write-Host "`n🪝 Setting up pre-commit hooks..." -ForegroundColor Yellow
+Pop-Location
+pip install pre-commit -q
+pre-commit install
+Write-Host "✅ Pre-commit hooks installed" -ForegroundColor Green
+
 # Frontend setup
 Write-Host "`n⚛️ Setting up Frontend..." -ForegroundColor Yellow
-Pop-Location
 Push-Location src/frontend
 
 Write-Host "   Installing npm packages..."
