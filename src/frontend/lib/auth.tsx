@@ -40,6 +40,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const refreshUser = useCallback(async () => {
     try {
       const profile = await api.getProfile();
+      console.log('[Auth] refreshUser - API returned profile:', {
+        username: profile.username,
+        display_name: profile.display_name,
+        email: profile.email,
+      });
       setUserState(profile);
     } catch {
       setUserState(null);
