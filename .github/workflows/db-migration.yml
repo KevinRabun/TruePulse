@@ -33,6 +33,7 @@ on:
           - seed_achievements.py
           - seed_community_achievements.py
           - seed_locations.py
+          - retroactive_achievements.py
           - remove_phone_verified.py
           - migrate_to_passkey_only.py
           - add_distributed_locks.py
