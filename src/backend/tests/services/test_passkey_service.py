@@ -169,8 +169,12 @@ class TestPasskeyRegistrationOptions:
                 "authenticatorAttachment": auth_selection.authenticator_attachment.value
                 if auth_selection and auth_selection.authenticator_attachment
                 else None,
-                "residentKey": auth_selection.resident_key.value if auth_selection else None,
-                "userVerification": auth_selection.user_verification.value if auth_selection else None,
+                "residentKey": auth_selection.resident_key.value
+                if auth_selection and auth_selection.resident_key
+                else None,
+                "userVerification": auth_selection.user_verification.value
+                if auth_selection and auth_selection.user_verification
+                else None,
             },
         }
 
@@ -184,10 +188,13 @@ class TestPasskeyRegistrationOptions:
         assert "authenticatorSelection" in options_dict
 
         # Verify values
-        assert options_dict["rp"]["id"] == "localhost"
-        assert options_dict["user"]["name"] == "test@example.com"
+        rp = options_dict["rp"]
+        user = options_dict["user"]
+        auth_sel = options_dict["authenticatorSelection"]
+        assert isinstance(rp, dict) and rp["id"] == "localhost"
+        assert isinstance(user, dict) and user["name"] == "test@example.com"
         assert options_dict["attestation"] == "none"
-        assert options_dict["authenticatorSelection"]["userVerification"] == "required"
+        assert isinstance(auth_sel, dict) and auth_sel["userVerification"] == "required"
 
 
 @pytest.mark.integration

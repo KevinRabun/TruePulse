@@ -11,5 +11,15 @@
     "strings": true
   },
   "python.defaultInterpreterPath": "${workspaceFolder}/src/backend/.venv/Scripts/python.exe",
-  "python.analysis.typeCheckingMode": "standard"
+  "python.analysis.typeCheckingMode": "standard",
+
+  // Suppress false positive GitHub Actions workflow warnings
+  // These env vars are set dynamically in previous steps via GITHUB_ENV
+  "github-actions.workflows.pinned-version": false,
+
+  // Suppress Tailwind arbitrary value suggestions (style preference)
+  "tailwindCSS.lint.cssConflict": "warning",
+
+  // Bicep settings
+  "bicep.suppressedWarnings": []
 }

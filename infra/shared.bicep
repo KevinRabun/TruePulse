@@ -104,9 +104,7 @@ module communicationServices 'modules/communicationServices.bicep' = {
       '${emailServices.outputs.resourceId}/domains/${customDomain}'
     ]
   }
-  dependsOn: [
-    emailServices
-  ]
+  // Note: dependsOn emailServices is implicit via the reference above
 }
 
 // Email Communication Services - Email API (stateless, pay-per-use)
