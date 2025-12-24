@@ -214,6 +214,7 @@ async def verify_registration(
         # Detailed field length logging to find corrupted data
         try:
             import json as json_mod
+
             cred_data = json_mod.loads(request.credential)
             logger.info(f"Credential top-level keys: {list(cred_data.keys())}")
             for key in ["id", "rawId", "type"]:
