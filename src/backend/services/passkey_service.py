@@ -106,32 +106,52 @@ class PasskeyService:
         try:
             data = json.loads(credential_json)
 
-            def add_padding(value: str) -> str:
-                """Add base64url padding if needed."""
+            def add_padding(field_name: str, value: str) -> str:
+                """Add base64url padding if needed and log diagnostics."""
                 if not isinstance(value, str):
                     return value
+                original_len = len(value)
+                mod4 = original_len % 4
                 # Calculate padding needed: base64 must be multiple of 4
-                padding_needed = (4 - len(value) % 4) % 4
+                padding_needed = (4 - mod4) % 4
+                
+                # CRITICAL: If length % 4 == 1, the data is fundamentally invalid
+                # (not just missing padding) - log this for debugging
+                if mod4 == 1:
+                    logger.error(
+                        f"BASE64URL_CORRUPTION_DETECTED: Field '{field_name}' has length {original_len} "
+                        f"(mod 4 = {mod4}). This is INVALID base64 - data is corrupted, not just missing padding. "
+                        f"First 50 chars: {value[:50]}... Last 20 chars: ...{value[-20:]}"
+                    )
+                else:
+                    logger.debug(
+                        f"Base64url field '{field_name}': length={original_len}, mod4={mod4}, padding_needed={padding_needed}"
+                    )
+                
                 return value + "=" * padding_needed
 
+            # Log all field lengths for diagnosis
+            logger.info(f"Processing credential JSON, top-level keys: {list(data.keys())}")
+            
             # Pad known base64url fields
             if "id" in data:
-                data["id"] = add_padding(data["id"])
+                data["id"] = add_padding("id", data["id"])
             if "rawId" in data:
-                data["rawId"] = add_padding(data["rawId"])
+                data["rawId"] = add_padding("rawId", data["rawId"])
 
             if "response" in data:
                 response = data["response"]
+                logger.info(f"Response keys: {list(response.keys())}")
                 if "clientDataJSON" in response:
-                    response["clientDataJSON"] = add_padding(response["clientDataJSON"])
+                    response["clientDataJSON"] = add_padding("clientDataJSON", response["clientDataJSON"])
                 if "attestationObject" in response:
-                    response["attestationObject"] = add_padding(response["attestationObject"])
+                    response["attestationObject"] = add_padding("attestationObject", response["attestationObject"])
                 if "authenticatorData" in response:
-                    response["authenticatorData"] = add_padding(response["authenticatorData"])
+                    response["authenticatorData"] = add_padding("authenticatorData", response["authenticatorData"])
                 if "publicKey" in response:
-                    response["publicKey"] = add_padding(response["publicKey"])
+                    response["publicKey"] = add_padding("publicKey", response["publicKey"])
                 if "signature" in response:
-                    response["signature"] = add_padding(response["signature"])
+                    response["signature"] = add_padding("signature", response["signature"])
 
             return json.dumps(data)
         except (json.JSONDecodeError, KeyError, TypeError) as e:
