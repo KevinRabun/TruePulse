@@ -26,6 +26,15 @@ def create_start_app_handler(app: FastAPI) -> Callable:
         await init_db()
         logger.info("Database initialized")
 
+        # Seed required data (achievements, etc.) - safe to run multiple times
+        try:
+            from services.startup_seeder import seed_all
+
+            await seed_all()
+        except Exception as e:
+            logger.warning(f"Startup seeder failed: {e}")
+            logger.info("Achievements can be manually seeded via migration workflow")
+
         # Initialize Azure Table Storage (for votes, tokens, rate limiting)
         try:
             from services.table_service import get_table_service
