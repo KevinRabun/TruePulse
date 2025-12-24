@@ -93,7 +93,7 @@ const categoryInfo: Record<string, { label: string; icon: React.ReactNode; color
 const tierOrder = ['bronze', 'silver', 'gold', 'platinum'];
 
 export default function AchievementsPage() {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, isLoading: authLoading } = useAuth();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [selectedTier, setSelectedTier] = useState<string | null>(null);
@@ -101,6 +101,7 @@ export default function AchievementsPage() {
   const [showFilters, setShowFilters] = useState(false);
 
   // Fetch achievements based on auth status
+  // Wait for auth to initialize before fetching to ensure correct endpoint is called
   const { data: achievements, isLoading } = useQuery<Achievement[]>({
     queryKey: ['all-achievements', isAuthenticated, selectedCategory, selectedTier, searchQuery, showUnlockedOnly],
     queryFn: () => {
@@ -119,6 +120,7 @@ export default function AchievementsPage() {
         });
       }
     },
+    enabled: !authLoading, // Don't fetch until auth state is determined
   });
 
   // Calculate stats
@@ -377,8 +379,8 @@ export default function AchievementsPage() {
           </Link>
         </div>
 
-        {/* Loading State */}
-        {isLoading && (
+        {/* Loading State - show while auth or data is loading */}
+        {(authLoading || isLoading) && (
           <div className="space-y-4">
             {[1, 2, 3].map((i) => (
               <div key={i} className="animate-pulse">
@@ -394,7 +396,7 @@ export default function AchievementsPage() {
         )}
 
         {/* Achievements Grid */}
-        {!isLoading && achievements && (
+        {!authLoading && !isLoading && achievements && (
           <div className="space-y-8">
             {Object.entries(groupedAchievements).map(([category, categoryAchievements]) => {
               const info = categoryInfo[category] || {
