@@ -6,7 +6,7 @@ All passkey operations require phone verification for credential binding.
 """
 
 import logging
-from typing import Annotated
+from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from pydantic import BaseModel, Field
@@ -67,7 +67,7 @@ class RegistrationVerifyRequest(BaseModel):
     """Request to verify passkey registration."""
 
     challenge_id: str = Field(..., alias="challengeId")
-    credential: dict = Field(..., description="WebAuthn credential object from startRegistration()")
+    credential: dict[str, Any] = Field(..., description="WebAuthn credential object from startRegistration()")
     credential_name: str | None = Field(None, alias="deviceName", description="Friendly name for the passkey")
 
     class Config:
@@ -99,7 +99,7 @@ class AuthenticationVerifyRequest(BaseModel):
     """Request to verify passkey authentication."""
 
     challenge_id: str = Field(..., alias="challengeId")
-    credential: dict = Field(..., description="WebAuthn credential object")
+    credential: dict[str, Any] = Field(..., description="WebAuthn credential object")
 
     class Config:
         populate_by_name = True
