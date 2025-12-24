@@ -516,6 +516,12 @@ async def activate_poll(
         },
     )
 
+    if not updated:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Poll not found after update",
+        )
+
     logger.info(
         f"Admin {admin.id} activated poll {poll_id}",
         extra={"admin_id": str(admin.id), "poll_id": poll_id},
@@ -561,6 +567,12 @@ async def close_poll(
         },
     )
 
+    if not updated:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Poll not found after update",
+        )
+
     logger.info(
         f"Admin {admin.id} closed poll {poll_id}",
         extra={"admin_id": str(admin.id), "poll_id": poll_id},
@@ -591,6 +603,12 @@ async def toggle_featured(
         )
 
     updated = await repo.update_poll(poll_id, {"is_featured": featured})
+
+    if not updated:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Poll not found after update",
+        )
 
     logger.info(
         f"Admin {admin.id} set poll {poll_id} featured={featured}",
