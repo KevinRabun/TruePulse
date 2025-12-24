@@ -9,7 +9,7 @@ import logging
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.deps import get_current_user, get_db
@@ -49,6 +49,8 @@ class RegistrationOptionsRequest(BaseModel):
 class RegistrationOptionsResponse(BaseModel):
     """Response with WebAuthn registration options."""
 
+    model_config = ConfigDict(populate_by_name=True)
+
     challenge_id: str = Field(..., alias="challengeId")
     rp: dict
     user: dict
@@ -59,19 +61,15 @@ class RegistrationOptionsResponse(BaseModel):
     exclude_credentials: list = Field(..., alias="excludeCredentials")
     authenticator_selection: dict = Field(..., alias="authenticatorSelection")
 
-    class Config:
-        populate_by_name = True
-
 
 class RegistrationVerifyRequest(BaseModel):
     """Request to verify passkey registration."""
 
+    model_config = ConfigDict(populate_by_name=True)
+
     challenge_id: str = Field(..., alias="challengeId")
     credential: dict[str, Any] = Field(..., description="WebAuthn credential object from startRegistration()")
     credential_name: str | None = Field(None, alias="deviceName", description="Friendly name for the passkey")
-
-    class Config:
-        populate_by_name = True
 
 
 class AuthenticationOptionsRequest(BaseModel):
@@ -84,6 +82,8 @@ class AuthenticationOptionsRequest(BaseModel):
 class AuthenticationOptionsResponse(BaseModel):
     """Response with WebAuthn authentication options."""
 
+    model_config = ConfigDict(populate_by_name=True)
+
     challenge_id: str = Field(..., alias="challengeId")
     rp_id: str = Field(..., alias="rpId")
     challenge: str
@@ -91,34 +91,31 @@ class AuthenticationOptionsResponse(BaseModel):
     user_verification: str = Field(..., alias="userVerification")
     allow_credentials: list = Field(..., alias="allowCredentials")
 
-    class Config:
-        populate_by_name = True
-
 
 class AuthenticationVerifyRequest(BaseModel):
     """Request to verify passkey authentication."""
 
+    model_config = ConfigDict(populate_by_name=True)
+
     challenge_id: str = Field(..., alias="challengeId")
     credential: dict[str, Any] = Field(..., description="WebAuthn credential object")
-
-    class Config:
-        populate_by_name = True
 
 
 class AuthenticationVerifyResponse(BaseModel):
     """Response after successful authentication."""
+
+    model_config = ConfigDict(populate_by_name=True)
 
     access_token: str = Field(..., alias="accessToken")
     refresh_token: str = Field(..., alias="refreshToken")
     token_type: str = Field(default="bearer", alias="tokenType")
     user: dict
 
-    class Config:
-        populate_by_name = True
-
 
 class PasskeyInfo(BaseModel):
     """Information about a registered passkey."""
+
+    model_config = ConfigDict(populate_by_name=True)
 
     id: str
     credential_name: str = Field(..., alias="deviceName")
@@ -126,9 +123,6 @@ class PasskeyInfo(BaseModel):
     last_used_at: str | None = Field(None, alias="lastUsedAt")
     is_backup_eligible: bool = Field(..., alias="backupEligible")
     is_backed_up: bool = Field(..., alias="backupState")
-
-    class Config:
-        populate_by_name = True
 
 
 class PasskeysListResponse(BaseModel):
@@ -140,10 +134,9 @@ class PasskeysListResponse(BaseModel):
 class DeletePasskeyRequest(BaseModel):
     """Request to delete a passkey."""
 
-    passkey_id: str = Field(..., alias="passkeyId")
+    model_config = ConfigDict(populate_by_name=True)
 
-    class Config:
-        populate_by_name = True
+    passkey_id: str = Field(..., alias="passkeyId")
 
 
 # --- Registration Endpoints ---
