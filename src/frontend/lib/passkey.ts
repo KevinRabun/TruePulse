@@ -204,9 +204,19 @@ export async function registerPasskey(
 
     if (!verifyResponse.ok) {
       const error = await verifyResponse.json();
+      // Handle both string detail and Pydantic validation error array format
+      let errorMessage = "Failed to verify registration";
+      if (typeof error.detail === "string") {
+        errorMessage = error.detail;
+      } else if (Array.isArray(error.detail) && error.detail.length > 0) {
+        // Pydantic validation error format: [{type, loc, msg, input}, ...]
+        errorMessage = error.detail.map((e: { msg: string; loc: string[] }) => 
+          `${e.loc?.join(".")}: ${e.msg}`
+        ).join("; ");
+      }
       return {
         success: false,
-        error: error.detail || "Failed to verify registration",
+        error: errorMessage,
       };
     }
 
@@ -311,9 +321,19 @@ export async function authenticateWithPasskey(
 
     if (!verifyResponse.ok) {
       const error = await verifyResponse.json();
+      // Handle both string detail and Pydantic validation error array format
+      let errorMessage = "Authentication failed";
+      if (typeof error.detail === "string") {
+        errorMessage = error.detail;
+      } else if (Array.isArray(error.detail) && error.detail.length > 0) {
+        // Pydantic validation error format: [{type, loc, msg, input}, ...]
+        errorMessage = error.detail.map((e: { msg: string; loc: string[] }) => 
+          `${e.loc?.join(".")}: ${e.msg}`
+        ).join("; ");
+      }
       return {
         success: false,
-        error: error.detail || "Authentication failed",
+        error: errorMessage,
       };
     }
 
