@@ -61,9 +61,7 @@ async def award_retroactive_achievements():
 
             # Check verification achievements (email verified)
             if user.email_verified:
-                verif_awarded = await service.check_and_award_verification_achievements(
-                    user, "email"
-                )
+                verif_awarded = await service.check_and_award_verification_achievements(user, "email")
                 if verif_awarded:
                     user_awarded.extend(verif_awarded)
                     print(f"  ✅ Verification achievements: {[a.name for a in verif_awarded]}")

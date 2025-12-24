@@ -31,8 +31,7 @@ def poll_model_to_schema(poll: "PollModel") -> Poll:
         id=str(poll.id),
         question=poll.question,
         choices=[
-            PollChoice(id=str(c.id), text=c.text, order=c.order)
-            for c in sorted(poll.choices, key=lambda x: x.order)
+            PollChoice(id=str(c.id), text=c.text, order=c.order) for c in sorted(poll.choices, key=lambda x: x.order)
         ],
         category=poll.category,
         source_event=poll.source_event,

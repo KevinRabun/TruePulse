@@ -178,8 +178,7 @@ class TestAchievementIdempotency:
 
         # Check if already has this achievement
         already_has = any(
-            ua["achievement_id"] == non_repeatable["id"] and ua["is_unlocked"]
-            for ua in user_achievements
+            ua["achievement_id"] == non_repeatable["id"] and ua["is_unlocked"] for ua in user_achievements
         )
 
         assert already_has is True
@@ -200,9 +199,7 @@ class TestAchievementIdempotency:
         # Check if already has for today's period
         today_period = "2025-12-24"
         already_has_today = any(
-            ua["achievement_id"] == repeatable["id"]
-            and ua["is_unlocked"]
-            and ua.get("period_key") == today_period
+            ua["achievement_id"] == repeatable["id"] and ua["is_unlocked"] and ua.get("period_key") == today_period
             for ua in user_achievements
         )
 
