@@ -328,6 +328,7 @@ class PollScheduler:
         Run a complete poll rotation cycle.
 
         This should be called at the top of each hour (or poll interval).
+        Handles both pulse (daily 12-hour) and flash (hourly) polls independently.
 
         Returns:
             Summary of actions taken
@@ -340,25 +341,22 @@ class PollScheduler:
         # 2. Activate scheduled polls
         activated_polls = await self.activate_scheduled_polls()
 
-        # 3. Check if we need to generate a new poll
-        current_poll = await self.get_current_poll()
+        # 3. Generate polls if auto-generate is enabled
         generated_poll = None
+        if settings.POLL_AUTO_GENERATE:
+            # Check if we need to generate a poll
+            # The _generate_poll_from_events method determines the correct poll type
+            # (pulse vs flash) based on the current time window
+            generated_poll = await self._generate_poll_from_events()
 
-        # Only generate if no current poll AND auto-generate is enabled AND
-        # we don't already have upcoming polls (prevent duplicate generation)
-        if not current_poll and settings.POLL_AUTO_GENERATE:
-            upcoming_polls = await self.get_upcoming_polls(limit=5)
-            if len(upcoming_polls) < 1:
-                logger.info("No active poll and no upcoming polls, generating new poll...")
-                generated_poll = await self._generate_poll_from_events()
-            else:
-                logger.info(f"No active poll but {len(upcoming_polls)} upcoming polls exist, skipping generation")
+        # Get current poll status for return value
+        current_poll = await self.get_current_poll()
 
         return {
             "closed_count": len(closed_polls),
             "activated_count": len(activated_polls),
             "current_poll_id": current_poll.id if current_poll else None,
-            "generated_poll_id": generated_poll.id if generated_poll else None,
+            "generated_poll": generated_poll,
         }
 
     async def _get_recently_used_categories(self, hours: int = 48) -> set[str]:
