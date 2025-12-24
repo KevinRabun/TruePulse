@@ -14,6 +14,7 @@ from pydantic import BaseModel, EmailStr
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from api.deps import rate_limit_auth
 from core.config import settings
 from core.security import (
     create_access_token,
@@ -41,7 +42,11 @@ class ForgotPasswordRequest(BaseModel):
 
 
 @router.post("/register", response_model=TokenResponse, status_code=status.HTTP_201_CREATED)
-async def register(user_data: UserCreate, db: AsyncSession = Depends(get_db)) -> TokenResponse:
+async def register(
+    user_data: UserCreate,
+    db: AsyncSession = Depends(get_db),
+    _rate_limit: None = Depends(rate_limit_auth),
+) -> TokenResponse:
     """
     Register a new user account.
 
@@ -274,6 +279,7 @@ async def verify_email(
 async def send_magic_link(
     email: EmailStr = Body(..., embed=True),
     db: AsyncSession = Depends(get_db),
+    _rate_limit: None = Depends(rate_limit_auth),
 ) -> dict[str, str]:
     """
     Send a magic link login email.

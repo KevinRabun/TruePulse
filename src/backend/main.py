@@ -124,29 +124,20 @@ async def service_status() -> dict:
 
     Returns the configuration status of all external services.
     Used by smoke tests to verify deployment completeness.
+
+    Note: Details are intentionally omitted to avoid information disclosure.
     """
     from services.email_service import email_service
 
     services = {
         "email": {
             "configured": email_service.is_available,
-            "details": {
-                "has_connection_string": email_service._client is not None,
-                "has_sender_address": email_service._sender_address is not None,
-                "sender_address": email_service._sender_address[:20] + "..." if email_service._sender_address else None,
-            },
         },
         "database": {
             "configured": bool(settings.POSTGRES_HOST),
-            "details": {
-                "host": settings.POSTGRES_HOST or "not set",
-            },
         },
         "openai": {
             "configured": bool(settings.AZURE_OPENAI_ENDPOINT),
-            "details": {
-                "endpoint": settings.AZURE_OPENAI_ENDPOINT[:30] + "..." if settings.AZURE_OPENAI_ENDPOINT else None,
-            },
         },
     }
 

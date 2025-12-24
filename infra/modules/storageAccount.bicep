@@ -73,7 +73,7 @@ module storageAccount 'br/public:avm/res/storage/storage-account:0.18.0' = {
     accessTier: 'Hot'
     allowBlobPublicAccess: false
     allowCrossTenantReplication: false
-    allowSharedKeyAccess: true
+    allowSharedKeyAccess: false // Require Azure AD authentication - shared keys can be leaked
     minimumTlsVersion: 'TLS1_2'
     supportsHttpsTrafficOnly: true
     publicNetworkAccess: 'Disabled'

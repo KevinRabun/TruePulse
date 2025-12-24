@@ -479,8 +479,15 @@ module containerApp 'br/public:avm/res/app/container-app:0.19.0' = if (!usePlace
         'DELETE'
         'OPTIONS'
       ]
+      // Explicit header list instead of wildcard for security
       allowedHeaders: [
-        '*'
+        'Authorization'
+        'Content-Type'
+        'Accept'
+        'Origin'
+        'X-Requested-With'
+        'X-Request-ID'
+        'X-Frontend-Secret'
       ]
       exposeHeaders: [
         'X-Request-ID'

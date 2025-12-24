@@ -42,7 +42,7 @@ module openAI 'br/public:avm/res/cognitive-services/account:0.10.1' = {
     sku: 'S0'
     customSubDomainName: name
     publicNetworkAccess: 'Disabled'
-    disableLocalAuth: false
+    disableLocalAuth: true // Require managed identity - API keys can be leaked
     networkAcls: {
       defaultAction: 'Deny'
       bypass: 'AzureServices'

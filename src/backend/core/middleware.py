@@ -26,8 +26,7 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
     - Referrer-Policy: Controls referrer information
     - Permissions-Policy: Restricts browser features
     - Content-Security-Policy: For API responses, restricts content loading
-
-    Note: HSTS should be handled at the Azure load balancer/CDN level
+    - Strict-Transport-Security: Enforces HTTPS (defense-in-depth with CDN/LB)
     """
 
     async def dispatch(self, request: Request, call_next: Callable) -> Response:
@@ -54,6 +53,9 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
 
         # CSP for API responses - very restrictive
         response.headers["Content-Security-Policy"] = "default-src 'none'; frame-ancestors 'none'"
+
+        # HSTS - enforce HTTPS (defense-in-depth, CDN/LB also sets this)
+        response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
 
         # Cache control for API responses - generally don't cache
         if "Cache-Control" not in response.headers:

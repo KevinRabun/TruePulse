@@ -78,7 +78,8 @@ async def get_current_user(
         HTTPException: If token is invalid, blacklisted, or user not found.
     """
     token = credentials.credentials
-    payload = decode_token(token)
+    # Validate token type is "access" to prevent refresh token misuse
+    payload = decode_token(token, expected_type="access")
 
     if payload is None:
         raise HTTPException(

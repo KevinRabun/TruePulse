@@ -7,7 +7,7 @@ All configuration is loaded from environment variables or Azure Key Vault.
 from functools import lru_cache
 from typing import Annotated, Any
 
-from pydantic import BeforeValidator, field_validator
+from pydantic import BeforeValidator, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -64,6 +64,16 @@ class Settings(BaseSettings):
         if not v:
             raise ValueError(f"{info.field_name} must be set in environment")
         return v
+
+    @model_validator(mode="after")
+    def validate_frontend_secret(self) -> "Settings":
+        """Validate FRONTEND_API_SECRET is set when enforcement is enabled."""
+        if self.ENFORCE_FRONTEND_ONLY:
+            if not self.FRONTEND_API_SECRET or self.FRONTEND_API_SECRET == "not-set":
+                raise ValueError("FRONTEND_API_SECRET must be set when ENFORCE_FRONTEND_ONLY is True")
+            if len(self.FRONTEND_API_SECRET) < 32:
+                raise ValueError("FRONTEND_API_SECRET must be at least 32 characters")
+        return self
 
     @property
     def POSTGRES_URL(self) -> str:
