@@ -49,7 +49,7 @@ structlog>=24.1.0,<25.0.0
 webauthn>=2.0.0,<3.0.0
 
 # Redis for caching
-redis>=5.0.0,<6.0.0
+redis>=5.0.0,<8.0.0
 
 # Encryption
 cryptography>=42.0.0,<47.0.0
