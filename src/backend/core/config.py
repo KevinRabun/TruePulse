@@ -7,23 +7,13 @@ All configuration is loaded from environment variables or Azure Key Vault.
 from functools import lru_cache
 from typing import Annotated, Any
 
-from pydantic import BeforeValidator, field_validator, model_validator
-from pydantic_settings import BaseSettings, SettingsConfigDict
-
-
-def _ensure_string(v: Any) -> str:
-    """Ensure the value is returned as a string, preventing JSON auto-parsing."""
-    if isinstance(v, str):
-        return v
-    # If pydantic-settings already parsed it as a list, convert back to comma-separated
-    if isinstance(v, list):
-        return ",".join(str(item) for item in v)
-    return str(v) if v is not None else ""
-
+from pydantic import field_validator, model_validator
+from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
 # Type alias for string fields that should NOT be JSON-parsed
 # pydantic-settings 2.x aggressively tries to parse strings containing commas/brackets as JSON
-RawString = Annotated[str, BeforeValidator(_ensure_string)]
+# Using NoDecode prevents pydantic-settings from parsing the value as JSON
+RawString = Annotated[str, NoDecode]
 
 
 class Settings(BaseSettings):
