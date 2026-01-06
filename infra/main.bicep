@@ -371,6 +371,17 @@ module acrRoleAssignment 'modules/acrRoleAssignment.bicep' = {
   }
 }
 
+// Grant Azure OpenAI access to the Container App's managed identity
+// Required because disableLocalAuth=true on the OpenAI resource (API keys disabled for security)
+module openaiRoleAssignment 'modules/openaiRoleAssignment.bicep' = {
+  scope: resourceGroup
+  name: 'openai-role-assignment-${environmentName}'
+  params: {
+    openaiResourceId: azureOpenAI.outputs.resourceId
+    principalId: containerAppApi.outputs.managedIdentityPrincipalId
+  }
+}
+
 // Static Web App - can use slots for staging, but separate instance is cleaner
 module staticWebApp 'modules/staticWebApp.bicep' = {
   scope: resourceGroup

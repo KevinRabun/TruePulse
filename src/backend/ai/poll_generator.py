@@ -125,21 +125,45 @@ Output format:
                 logger.warning(f"Failed to initialize Foundry client: {e}, trying direct Azure OpenAI")
 
         # Fall back to direct Azure OpenAI
-        if settings.AZURE_OPENAI_ENDPOINT and settings.AZURE_OPENAI_API_KEY:
+        if settings.AZURE_OPENAI_ENDPOINT:
             try:
                 from openai import AsyncAzureOpenAI
 
-                self._openai_client = AsyncAzureOpenAI(
-                    azure_endpoint=settings.AZURE_OPENAI_ENDPOINT,
-                    api_key=settings.AZURE_OPENAI_API_KEY,
-                    api_version="2024-02-15-preview",
-                )
-                self._initialized = True
-                logger.info("Poll generator initialized with direct Azure OpenAI")
-                return
+                # First try Managed Identity authentication (required when key-based auth is disabled)
+                try:
+                    from azure.identity.aio import DefaultAzureCredential, get_bearer_token_provider
 
-            except ImportError:
-                logger.warning("openai package not installed")
+                    self._credential = DefaultAzureCredential()
+                    token_provider = get_bearer_token_provider(
+                        self._credential,
+                        "https://cognitiveservices.azure.com/.default"
+                    )
+                    self._openai_client = AsyncAzureOpenAI(
+                        azure_endpoint=settings.AZURE_OPENAI_ENDPOINT,
+                        azure_ad_token_provider=token_provider,
+                        api_version="2024-02-15-preview",
+                    )
+                    self._initialized = True
+                    logger.info("Poll generator initialized with direct Azure OpenAI (Managed Identity)")
+                    return
+                except ImportError:
+                    logger.info("azure-identity not installed, falling back to API key auth")
+                except Exception as e:
+                    logger.warning(f"Managed Identity auth failed: {e}, falling back to API key auth")
+
+                # Fall back to API key authentication
+                if settings.AZURE_OPENAI_API_KEY:
+                    self._openai_client = AsyncAzureOpenAI(
+                        azure_endpoint=settings.AZURE_OPENAI_ENDPOINT,
+                        api_key=settings.AZURE_OPENAI_API_KEY,
+                        api_version="2024-02-15-preview",
+                    )
+                    self._initialized = True
+                    logger.info("Poll generator initialized with direct Azure OpenAI (API key)")
+                    return
+
+            except ImportError as e:
+                logger.warning(f"Required package not installed: {e}")
             except Exception as e:
                 logger.error(f"Failed to initialize Azure OpenAI client: {e}")
 
