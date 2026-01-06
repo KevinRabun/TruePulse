@@ -220,6 +220,12 @@ class UserRepository:
         employment_status: Optional[str] = None,
         industry: Optional[str] = None,
         political_leaning: Optional[str] = None,
+        marital_status: Optional[str] = None,
+        religious_affiliation: Optional[str] = None,
+        ethnicity: Optional[str] = None,
+        household_income: Optional[str] = None,
+        parental_status: Optional[str] = None,
+        housing_status: Optional[str] = None,
     ) -> Optional[User]:
         """Update user demographics."""
         updates = {}
@@ -243,6 +249,18 @@ class UserRepository:
             updates["industry"] = industry
         if political_leaning is not None:
             updates["political_leaning"] = political_leaning
+        if marital_status is not None:
+            updates["marital_status"] = marital_status
+        if religious_affiliation is not None:
+            updates["religious_affiliation"] = religious_affiliation
+        if ethnicity is not None:
+            updates["ethnicity"] = ethnicity
+        if household_income is not None:
+            updates["household_income"] = household_income
+        if parental_status is not None:
+            updates["parental_status"] = parental_status
+        if housing_status is not None:
+            updates["housing_status"] = housing_status
 
         if not updates:
             return await self.get_by_id(user_id)

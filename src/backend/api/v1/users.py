@@ -247,6 +247,12 @@ async def update_demographics(
         employment_status=demographics.employment_status,
         industry=demographics.industry,
         political_leaning=demographics.political_leaning,
+        marital_status=demographics.marital_status,
+        religious_affiliation=demographics.religious_affiliation,
+        ethnicity=demographics.ethnicity,
+        household_income=demographics.household_income,
+        parental_status=demographics.parental_status,
+        housing_status=demographics.housing_status,
     )
 
     # Award gamification points if any earned
