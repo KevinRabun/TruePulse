@@ -356,6 +356,7 @@ class PollScheduler:
         return {
             "closed_count": len(closed_polls),
             "activated_count": len(activated_polls),
+            "activated_polls": activated_polls,
             "current_poll_id": current_poll.id if current_poll else None,
             "generated_poll": generated_poll,
         }

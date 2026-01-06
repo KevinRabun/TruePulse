@@ -338,3 +338,4 @@ class DistributedLockService:
 # Lock names for standard jobs
 LOCK_POLL_ROTATION = "poll_rotation"
 LOCK_POLL_GENERATION = "poll_generation"
+LOCK_POLL_NOTIFICATION = "poll_notification"

@@ -20,18 +20,31 @@ if TYPE_CHECKING:
     from models.poll import Poll as PollModel
 
 
-def poll_model_to_schema(poll: "PollModel") -> Poll:
+def poll_model_to_schema(poll: "PollModel", include_vote_counts: bool = False) -> Poll:
     """
     Convert a Poll SQLAlchemy model to a Poll Pydantic schema.
 
     This is the single source of truth for Poll model -> schema conversion.
     Used by both public and admin endpoints.
+
+    Args:
+        poll: The poll model to convert
+        include_vote_counts: If True, include vote counts in choices (for closed polls)
     """
+    # Include vote counts if requested or if poll is closed
+    should_include_votes = include_vote_counts or poll.status in ("closed", "archived")
+
     return Poll(
         id=str(poll.id),
         question=poll.question,
         choices=[
-            PollChoice(id=str(c.id), text=c.text, order=c.order) for c in sorted(poll.choices, key=lambda x: x.order)
+            PollChoice(
+                id=str(c.id),
+                text=c.text,
+                order=c.order,
+                vote_count=c.vote_count if should_include_votes else None,
+            )
+            for c in sorted(poll.choices, key=lambda x: x.order)
         ],
         category=poll.category,
         source_event=poll.source_event,

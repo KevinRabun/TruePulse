@@ -32,6 +32,7 @@ class PollChoice(BaseModel):
     id: str
     text: str
     order: int = 0
+    vote_count: Optional[int] = Field(None, description="Vote count (included in closed poll results)")
 
 
 class PollChoiceWithResults(PollChoice):

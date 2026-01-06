@@ -38,6 +38,7 @@ async def poll_rotation_job() -> None:
     1. Closes any expired polls
     2. Activates any scheduled polls whose time has come
     3. Generates new polls from current events if needed
+    4. Sends notifications for newly activated polls
 
     Uses distributed locking to ensure only one replica runs at a time.
     """
@@ -63,8 +64,34 @@ async def poll_rotation_job() -> None:
                     f"activated={result.get('activated_count', 0)}, "
                     f"generated={'yes' if result.get('generated_poll') else 'no'}"
                 )
+
+                # Send notifications for newly activated polls
+                activated_polls = result.get("activated_polls", [])
+                if activated_polls:
+                    await _send_notifications_for_polls(db, activated_polls)
+
     except Exception as e:
         logger.error(f"Poll rotation job failed: {e}", exc_info=True)
+
+
+async def _send_notifications_for_polls(db, polls: list) -> None:
+    """Send notifications for a list of newly activated polls."""
+    from services.notification_service import send_poll_notifications
+
+    for poll in polls:
+        try:
+            poll_type = getattr(poll, "poll_type", "standard")
+            if poll_type in ("pulse", "flash"):
+                result = await send_poll_notifications(db, poll, poll_type)
+                logger.info(
+                    "poll_notifications_complete",
+                    poll_id=str(poll.id),
+                    poll_type=poll_type,
+                    sent=result.get("sent", 0),
+                    skipped=result.get("skipped", 0),
+                )
+        except Exception as e:
+            logger.error(f"Failed to send notifications for poll {poll.id}: {e}")
 
 
 async def generate_polls_job() -> None:
