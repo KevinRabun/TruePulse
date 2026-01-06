@@ -2,10 +2,10 @@
 
 from schemas.auth import RefreshTokenRequest, TokenResponse
 from schemas.feedback import (
+    FeedbackIssueInfo,
     FeedbackIssueType,
     FeedbackResponse,
     FeedbackSubmit,
-    IssueTypeInfo,
     PollFeedbackSummary,
 )
 from schemas.poll import Poll, PollCreate, PollWithResults
@@ -29,5 +29,5 @@ __all__ = [
     "FeedbackResponse",
     "FeedbackIssueType",
     "PollFeedbackSummary",
-    "IssueTypeInfo",
+    "FeedbackIssueInfo",
 ]
