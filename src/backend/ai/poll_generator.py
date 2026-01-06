@@ -135,8 +135,7 @@ Output format:
 
                     self._credential = DefaultAzureCredential()
                     token_provider = get_bearer_token_provider(
-                        self._credential,
-                        "https://cognitiveservices.azure.com/.default"
+                        self._credential, "https://cognitiveservices.azure.com/.default"
                     )
                     self._openai_client = AsyncAzureOpenAI(
                         azure_endpoint=settings.AZURE_OPENAI_ENDPOINT,
