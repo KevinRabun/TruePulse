@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { api, UserProfile, Achievement } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import {
@@ -73,11 +73,19 @@ const categoryLabels: Record<string, string> = {
 
 export default function ProfilePage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const queryClient = useQueryClient();
   const { user, isAuthenticated, logout } = useAuth();
   const [isEditing, setIsEditing] = useState(false);
   const [displayName, setDisplayName] = useState(user?.display_name || '');
-  const [activeTab, setActiveTab] = useState<'overview' | 'achievements' | 'history' | 'settings'>('overview');
+  
+  // Get initial tab from URL query parameter
+  const tabParam = searchParams.get('tab');
+  const validTabs = ['overview', 'achievements', 'history', 'settings'] as const;
+  const initialTab = tabParam && validTabs.includes(tabParam as typeof validTabs[number]) 
+    ? (tabParam as typeof validTabs[number]) 
+    : 'overview';
+  const [activeTab, setActiveTab] = useState<'overview' | 'achievements' | 'history' | 'settings'>(initialTab);
 
   // Redirect if not authenticated
   useEffect(() => {
