@@ -35,6 +35,7 @@ class TestPollModelToSchema:
         poll.status = "active"
         poll.category = "preferences"
         poll.source_event = "Test Event"
+        poll.source_event_url = "https://example.com/article"
         poll.scheduled_start = datetime.now(timezone.utc)
         poll.scheduled_end = datetime.now(timezone.utc)
         poll.created_at = datetime.now(timezone.utc)
