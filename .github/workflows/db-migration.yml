@@ -42,6 +42,7 @@ on:
           - add_new_demographics.py
           - add_poll_types_and_community.py
           - add_theme_preference.py
+          - add_poll_feedback.py
           - custom
       custom_script:
         description: 'Custom script path (only if migration_script is "custom")'

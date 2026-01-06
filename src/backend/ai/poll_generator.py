@@ -173,6 +173,7 @@ Output format:
         self,
         event: NewsEvent,
         context: dict | None = None,
+        feedback_guidance: list[str] | None = None,
     ) -> GeneratedPoll | None:
         """
         Generate an unbiased poll question from a news event.
@@ -180,6 +181,7 @@ Output format:
         Args:
             event: The news event to generate a poll from
             context: Additional context including diverse perspectives
+            feedback_guidance: List of guidance strings from user feedback analysis
 
         Returns:
             A generated poll or None if generation failed
@@ -190,6 +192,13 @@ Output format:
         scope_info = ""
         if hasattr(event, "scope"):
             scope_info = f"\nGEOGRAPHIC SCOPE: {event.scope.value}"
+
+        # Build feedback guidance section if available
+        feedback_section = ""
+        if feedback_guidance:
+            feedback_section = "\n\nLEARNED QUALITY IMPROVEMENTS (based on user feedback):\n"
+            for i, guidance in enumerate(feedback_guidance, 1):
+                feedback_section += f"{i}. {guidance}\n"
 
         # Build the prompt
         prompt = f"""Generate an unbiased poll question based on this news event:
@@ -202,7 +211,7 @@ CATEGORY: {event.category}
 
 KEYWORDS: {", ".join(event.keywords)}{scope_info}
 
-{f"ADDITIONAL CONTEXT: {context}" if context else ""}
+{f"ADDITIONAL CONTEXT: {context}" if context else ""}{feedback_section}
 
 Create a poll that:
 1. Captures the key question the public might have about this event
@@ -713,12 +722,18 @@ Respond in JSON format:
         self,
         events: list[NewsEvent],
         count: int = 5,
+        feedback_guidance_by_category: dict[str, list[str]] | None = None,
     ) -> list[Poll]:
         """
         Generate the daily set of featured polls.
 
         Selects diverse events across categories and generates
         unbiased poll questions for each.
+
+        Args:
+            events: List of news events to generate polls from
+            count: Number of polls to generate
+            feedback_guidance_by_category: Optional dict mapping category to guidance strings
         """
         generated_polls = []
 
@@ -738,7 +753,12 @@ Respond in JSON format:
 
         # Generate polls
         for event in events_to_use:
-            generated = await self.generate_poll_from_event(event)
+            # Get category-specific feedback guidance if available
+            feedback_guidance = None
+            if feedback_guidance_by_category and event.category in feedback_guidance_by_category:
+                feedback_guidance = feedback_guidance_by_category[event.category]
+
+            generated = await self.generate_poll_from_event(event, feedback_guidance=feedback_guidance)
             if generated and generated.bias_check_passed:
                 poll = Poll(
                     id=str(uuid4()),

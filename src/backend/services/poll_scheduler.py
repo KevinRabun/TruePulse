@@ -20,6 +20,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.config import settings
 from models.poll import Poll, PollChoice, PollStatus
+from repositories.feedback_repository import FeedbackRepository
 
 logger = structlog.get_logger(__name__)
 
@@ -546,13 +547,27 @@ class PollScheduler:
 
             logger.info(f"Filtered to {len(filtered_events)} unique events from {len(events)} total")
 
+            # Fetch feedback guidance for categories being used
+            feedback_repo = FeedbackRepository(self.db)
+            feedback_guidance_by_category: dict[str, list[str]] = {}
+
+            categories_in_events = set(e.category for e in filtered_events)
+            for category in categories_in_events:
+                feedback_context = await feedback_repo.get_feedback_context_for_generation(category)
+                if feedback_context.get("has_patterns") and feedback_context.get("specific_guidance"):
+                    feedback_guidance_by_category[category] = feedback_context["specific_guidance"]
+                    logger.info(
+                        f"Loaded feedback guidance for {category}: {len(feedback_context['specific_guidance'])} items"
+                    )
+
             # Initialize the poll generator
             generator = PollGenerator()
 
-            # Generate a poll from the events
+            # Generate a poll from the events with feedback guidance
             generated_polls = await generator.generate_daily_polls(
                 events=filtered_events,
                 count=1,
+                feedback_guidance_by_category=feedback_guidance_by_category if feedback_guidance_by_category else None,
             )
 
             if not generated_polls:

@@ -9,6 +9,7 @@ from api.v1.admin_polls import router as admin_polls_router
 from api.v1.ads import router as ads_router
 from api.v1.auth import router as auth_router
 from api.v1.community_achievements import router as community_achievements_router
+from api.v1.feedback import router as feedback_router
 from api.v1.gamification import router as gamification_router
 from api.v1.locations import router as locations_router
 from api.v1.passkeys import router as passkeys_router
@@ -30,6 +31,7 @@ router.include_router(
     prefix="/secure-votes",
     tags=["Secure Voting (Fraud Prevention)"],
 )
+router.include_router(feedback_router, prefix="/feedback", tags=["Poll Quality Feedback"])
 router.include_router(gamification_router, prefix="/gamification", tags=["Gamification"])
 router.include_router(stats_router, prefix="/stats", tags=["Platform Statistics"])
 router.include_router(locations_router, tags=["Locations"])

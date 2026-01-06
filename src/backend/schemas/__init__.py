@@ -1,6 +1,13 @@
 """Schemas module initialization."""
 
 from schemas.auth import RefreshTokenRequest, TokenResponse
+from schemas.feedback import (
+    FeedbackIssueType,
+    FeedbackResponse,
+    FeedbackSubmit,
+    IssueTypeInfo,
+    PollFeedbackSummary,
+)
 from schemas.poll import Poll, PollCreate, PollWithResults
 from schemas.user import UserCreate, UserInDB, UserProfileUpdate, UserResponse
 from schemas.vote import VoteCreate, VoteResponse, VoteStatus
@@ -18,4 +25,9 @@ __all__ = [
     "VoteStatus",
     "TokenResponse",
     "RefreshTokenRequest",
+    "FeedbackSubmit",
+    "FeedbackResponse",
+    "FeedbackIssueType",
+    "PollFeedbackSummary",
+    "IssueTypeInfo",
 ]
