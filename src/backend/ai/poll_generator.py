@@ -769,6 +769,7 @@ Respond in JSON format:
                     ],
                     category=generated.category,
                     source_event=event.title,
+                    source_event_url=event.url,
                     created_at=datetime.now(timezone.utc),
                     expires_at=datetime.now(timezone.utc) + timedelta(hours=generated.suggested_duration_hours),
                     is_active=True,

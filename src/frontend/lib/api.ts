@@ -15,6 +15,7 @@ export interface Poll {
   choices: PollChoice[];
   category: string;
   source_event: string;
+  source_event_url?: string;
   status: PollStatus;
   created_at: string;
   expires_at: string;

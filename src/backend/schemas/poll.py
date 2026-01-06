@@ -49,6 +49,7 @@ class PollBase(BaseModel):
     choices: list[PollChoice] = Field(..., min_length=2, max_length=10)
     category: str
     source_event: Optional[str] = Field(None, description="The current event that inspired this poll")
+    source_event_url: Optional[str] = Field(None, description="URL to the source article")
 
 
 class PollCreate(PollBase):
@@ -95,6 +96,7 @@ class PollWithResults(BaseModel):
     choices: list[PollChoiceWithResults]
     category: str
     source_event: Optional[str] = None
+    source_event_url: Optional[str] = None
     status: PollStatusEnum = PollStatusEnum.CLOSED
     created_at: datetime
     expires_at: datetime

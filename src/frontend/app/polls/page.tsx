@@ -34,6 +34,7 @@ interface DisplayPoll {
   totalVotes: number;
   category: string;
   sourceEvent?: string;
+  sourceEventUrl?: string;
   expiresAt: Date;
   pollType?: PollType;
   isClosed?: boolean;
@@ -55,6 +56,7 @@ function transformPoll(poll: Poll): DisplayPoll {
     totalVotes,
     category: poll.category,
     sourceEvent: poll.source_event,
+    sourceEventUrl: poll.source_event_url,
     expiresAt,
     pollType: poll.poll_type,
     isClosed: expiresAt < new Date() || poll.status === 'closed',

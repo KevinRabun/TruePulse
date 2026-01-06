@@ -23,6 +23,7 @@ interface Poll {
   totalVotes: number;
   category: string;
   sourceEvent?: string;
+  sourceEventUrl?: string;
   expiresAt: Date;
   pollType?: 'pulse' | 'flash' | 'standard';
   isClosed?: boolean;
@@ -239,7 +240,19 @@ export function PollCard({ poll, showVoteButton = true }: PollCardProps) {
         {poll.sourceEvent && (
           <p className="relative text-sm text-gray-500 dark:text-gray-400 mb-4 flex items-center gap-1">
             <Sparkles className="h-3 w-3 text-primary-400" />
-            Based on: {poll.sourceEvent}
+            Based on:{' '}
+            {poll.sourceEventUrl ? (
+              <a
+                href={poll.sourceEventUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-primary-600 dark:text-primary-400 hover:underline"
+              >
+                {poll.sourceEvent}
+              </a>
+            ) : (
+              poll.sourceEvent
+            )}
           </p>
         )}
 
