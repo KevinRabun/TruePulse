@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
@@ -71,7 +71,17 @@ const categoryLabels: Record<string, string> = {
   leaderboard: '🏆 Leaderboard',
 };
 
-export default function ProfilePage() {
+// Loading fallback for Suspense
+function ProfilePageLoading() {
+  return (
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
+      <div className="animate-pulse text-gray-500">Loading profile...</div>
+    </div>
+  );
+}
+
+// Inner component that uses useSearchParams
+function ProfilePageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const queryClient = useQueryClient();
@@ -532,5 +542,14 @@ export default function ProfilePage() {
         </AnimatePresence>
       </div>
     </div>
+  );
+}
+
+// Exported component wrapped in Suspense for useSearchParams
+export default function ProfilePage() {
+  return (
+    <Suspense fallback={<ProfilePageLoading />}>
+      <ProfilePageContent />
+    </Suspense>
   );
 }
