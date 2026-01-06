@@ -545,3 +545,6 @@ output name string = usePlaceholderImage ? placeholderContainerApp!.name : conta
 output fqdn string = usePlaceholderImage ? placeholderContainerApp!.properties.configuration.ingress.fqdn : containerApp!.outputs.fqdn
 output managedIdentityId string = managedIdentity.id
 output managedIdentityPrincipalId string = managedIdentity.properties.principalId
+// System-assigned identity principal ID (only available when not using placeholder image)
+// Placeholder uses UserAssigned only, while full deployment uses both SystemAssigned and UserAssigned
+output systemAssignedPrincipalId string = usePlaceholderImage ? '' : containerApp!.outputs.systemAssignedMIPrincipalId

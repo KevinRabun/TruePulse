@@ -87,3 +87,5 @@ output name string = containerApp.outputs.name
 output fqdn string = containerApp.outputs.fqdn
 output managedIdentityId string = managedIdentity.id
 output managedIdentityPrincipalId string = managedIdentity.properties.principalId
+// System-assigned identity principal ID (only available when systemAssigned: true)
+output systemAssignedPrincipalId string = containerApp.outputs.systemAssignedMIPrincipalId

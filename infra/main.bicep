@@ -371,14 +371,16 @@ module acrRoleAssignment 'modules/acrRoleAssignment.bicep' = {
   }
 }
 
-// Grant Azure OpenAI access to the Container App's managed identity
+// Grant Azure OpenAI access to the Container App's managed identities
 // Required because disableLocalAuth=true on the OpenAI resource (API keys disabled for security)
+// Both system-assigned and user-assigned identities need access as DefaultAzureCredential may use either
 module openaiRoleAssignment 'modules/openaiRoleAssignment.bicep' = {
   scope: resourceGroup
   name: 'openai-role-assignment-${environmentName}'
   params: {
     openaiResourceId: azureOpenAI.outputs.resourceId
-    principalId: containerAppApi.outputs.managedIdentityPrincipalId
+    userAssignedPrincipalId: containerAppApi.outputs.managedIdentityPrincipalId
+    systemAssignedPrincipalId: containerAppApi.outputs.systemAssignedPrincipalId
   }
 }
 
