@@ -99,9 +99,7 @@ async def submit_feedback(
     vote_hash = generate_vote_hash(str(current_user.id), feedback_data.poll_id)
 
     # Check if user already submitted feedback
-    existing = await feedback_repo.get_feedback_by_vote_hash(
-        feedback_data.poll_id, vote_hash
-    )
+    existing = await feedback_repo.get_feedback_by_vote_hash(feedback_data.poll_id, vote_hash)
     if existing:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,

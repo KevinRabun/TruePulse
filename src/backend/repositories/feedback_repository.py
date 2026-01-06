@@ -105,9 +105,7 @@ class FeedbackRepository:
         - top_issues
         """
         # Get all feedback for this poll
-        result = await self.db.execute(
-            select(PollFeedback).where(PollFeedback.poll_id == poll_id)
-        )
+        result = await self.db.execute(select(PollFeedback).where(PollFeedback.poll_id == poll_id))
         feedback_list = list(result.scalars().all())
 
         if not feedback_list:
@@ -138,8 +136,7 @@ class FeedbackRepository:
 
         # Sort issues by frequency
         top_issues = [
-            {"issue": issue, "count": count}
-            for issue, count in sorted(issue_counts.items(), key=lambda x: -x[1])[:5]
+            {"issue": issue, "count": count} for issue, count in sorted(issue_counts.items(), key=lambda x: -x[1])[:5]
         ]
 
         return {
@@ -157,9 +154,7 @@ class FeedbackRepository:
     ) -> Optional[CategoryFeedbackPattern]:
         """Get learned feedback patterns for a category."""
         result = await self.db.execute(
-            select(CategoryFeedbackPattern).where(
-                CategoryFeedbackPattern.category == category
-            )
+            select(CategoryFeedbackPattern).where(CategoryFeedbackPattern.category == category)
         )
         return result.scalar_one_or_none()
 
@@ -299,9 +294,7 @@ class FeedbackRepository:
         summary = await self.get_poll_feedback_summary(poll_id)
 
         # Check if aggregate exists
-        result = await self.db.execute(
-            select(FeedbackAggregate).where(FeedbackAggregate.poll_id == poll_id)
-        )
+        result = await self.db.execute(select(FeedbackAggregate).where(FeedbackAggregate.poll_id == poll_id))
         aggregate = result.scalar_one_or_none()
 
         # Find most common issue
@@ -310,10 +303,7 @@ class FeedbackRepository:
             most_common = summary["top_issues"][0]["issue"]
 
         # Convert issue list to counts dict
-        issue_counts = {
-            item["issue"]: item["count"]
-            for item in summary["top_issues"]
-        }
+        issue_counts = {item["issue"]: item["count"] for item in summary["top_issues"]}
 
         if aggregate:
             # Update existing
@@ -379,26 +369,19 @@ class FeedbackRepository:
 
         # Get or create pattern record
         result = await self.db.execute(
-            select(CategoryFeedbackPattern).where(
-                CategoryFeedbackPattern.category == category
-            )
+            select(CategoryFeedbackPattern).where(CategoryFeedbackPattern.category == category)
         )
         pattern = result.scalar_one_or_none()
 
         # Count total polls in this category
-        poll_count_result = await self.db.execute(
-            select(func.count(Poll.id)).where(Poll.category == category)
-        )
+        poll_count_result = await self.db.execute(select(func.count(Poll.id)).where(Poll.category == category))
         total_polls = poll_count_result.scalar() or 0
 
         # Extract top issues
         top_issues = [item["issue"] for item in context["common_issues"][:3]]
 
         # Build issue frequencies
-        issue_frequencies = {
-            item["issue"]: round(item["frequency"] * 100, 1)
-            for item in context["common_issues"]
-        }
+        issue_frequencies = {item["issue"]: round(item["frequency"] * 100, 1) for item in context["common_issues"]}
 
         if pattern:
             pattern.total_polls_analyzed = total_polls
@@ -420,9 +403,5 @@ class FeedbackRepository:
 
     async def get_user_feedback_count(self, vote_hash: str) -> int:
         """Get the number of feedback submissions by a user."""
-        result = await self.db.execute(
-            select(func.count(PollFeedback.id)).where(
-                PollFeedback.vote_hash == vote_hash
-            )
-        )
+        result = await self.db.execute(select(func.count(PollFeedback.id)).where(PollFeedback.vote_hash == vote_hash))
         return result.scalar() or 0
