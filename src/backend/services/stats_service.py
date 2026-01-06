@@ -74,14 +74,14 @@ class StatsService:
     def __init__(
         self,
         db: AsyncSession,
-        cache_ttl_hours: int = 24,
+        cache_ttl_hours: int = 1,
     ):
         """
         Initialize stats service.
 
         Args:
             db: Database session
-            cache_ttl_hours: How long to cache stats (default: 24 hours)
+            cache_ttl_hours: How long to cache stats (default: 1 hour)
         """
         self.db = db
         self.cache_ttl_hours = cache_ttl_hours

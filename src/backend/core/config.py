@@ -174,7 +174,7 @@ class Settings(BaseSettings):
     POLL_TIMEZONE: str = "UTC"  # Timezone for poll scheduling
 
     # Platform Statistics Cache
-    STATS_CACHE_TTL_HOURS: int = 24  # How often to refresh platform stats (default: 24 hours)
+    STATS_CACHE_TTL_HOURS: int = 1  # How often to refresh platform stats (default: 1 hour)
 
     # Feature Flags
     ENABLE_AI_POLL_GENERATION: bool = True

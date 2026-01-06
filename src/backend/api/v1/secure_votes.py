@@ -33,6 +33,7 @@ from services.fraud_detection import (
     UserReputationScore,
     fraud_detection_service,
 )
+from services.stats_service import StatsService
 
 logger = structlog.get_logger(__name__)
 
@@ -389,6 +390,10 @@ async def cast_secure_vote(
 
     # Update user vote count and streak
     await user_repo.increment_votes_cast(current_user.id)
+
+    # Invalidate platform stats cache so votes_cast updates on home page
+    stats_service = StatsService(db)
+    await stats_service.invalidate_cache()
 
     await db.commit()
 

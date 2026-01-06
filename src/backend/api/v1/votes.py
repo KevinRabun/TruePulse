@@ -22,6 +22,7 @@ from repositories.vote_repository import VoteRepository
 from schemas.user import UserInDB
 from schemas.vote import VoteCreate, VoteResponse, VoteStatus
 from services.achievement_service import AchievementService
+from services.stats_service import StatsService
 
 router = APIRouter()
 
@@ -164,6 +165,10 @@ async def cast_vote(
         achievement_service = AchievementService(db)
         await achievement_service.check_and_award_voting_achievements(user)
         await achievement_service.check_and_award_streak_achievements(user)
+
+    # Invalidate platform stats cache so votes_cast updates on home page
+    stats_service = StatsService(db)
+    await stats_service.invalidate_cache()
 
     return VoteResponse(
         success=True,
