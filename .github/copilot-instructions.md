@@ -36,6 +36,7 @@ contract:
     - tests_that_dont_verify_intent_of_production_code
     - using_raw_bicep_when_avm_possible
     - changing_infra_or_code_outside_of_github_ci_cd
+    - pushing_to_github_without_passing_local_checks
   required:
     - fix_root_cause_not_tests
     - show_commands_and_outputs
@@ -54,4 +55,14 @@ contract:
   validation_gate:
     - run_full_local_test_suite
     - block_output_if_any_check_fails
+  pre_push_checklist:
+    description: "MANDATORY before any git push to GitHub"
+    backend_checks:
+      - "cd src/backend && python -m pytest tests/ -v --tb=short"
+      - "cd src/backend && python -m ruff check ."
+      - "cd src/backend && python -m ruff format --check ."
+    frontend_checks:
+      - "cd src/frontend && npm run lint"
+      - "cd src/frontend && npm run type-check"
+    rule: "ALL checks must pass before pushing. Fix any failures first."
 ```
