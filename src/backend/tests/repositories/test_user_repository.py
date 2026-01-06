@@ -175,3 +175,137 @@ class TestUserRepositoryPointsCalculation:
         for points, expected_level in test_cases:
             calculated_level = max(1, (points // 500) + 1)
             assert calculated_level == expected_level, f"Points {points} should be level {expected_level}"
+
+
+@pytest.mark.unit
+class TestUserRepositoryStreakCalculation:
+    """Test voting streak calculation logic."""
+
+    def test_first_vote_ever_starts_streak_at_one(self) -> None:
+        """Test that first vote sets streak to 1."""
+        from datetime import datetime, timezone
+
+        from repositories.user_repository import UserRepository
+
+        repo = UserRepository(MagicMock())
+        now = datetime.now(timezone.utc)
+
+        result = repo._calculate_new_streak(None, 0, now)
+        assert result == 1
+
+    def test_same_day_vote_keeps_streak(self) -> None:
+        """Test that voting same day doesn't change streak."""
+        from datetime import datetime, timezone
+
+        from repositories.user_repository import UserRepository
+
+        repo = UserRepository(MagicMock())
+        now = datetime.now(timezone.utc)
+        # Last vote was earlier today
+        last_vote = now.replace(hour=8, minute=0, second=0)
+
+        result = repo._calculate_new_streak(last_vote, 5, now)
+        assert result == 5
+
+    def test_same_day_first_vote_sets_streak_to_one(self) -> None:
+        """Test that same day vote with 0 streak sets to 1."""
+        from datetime import datetime, timezone
+
+        from repositories.user_repository import UserRepository
+
+        repo = UserRepository(MagicMock())
+        now = datetime.now(timezone.utc)
+        last_vote = now.replace(hour=8, minute=0, second=0)
+
+        result = repo._calculate_new_streak(last_vote, 0, now)
+        assert result == 1
+
+    def test_consecutive_day_increments_streak(self) -> None:
+        """Test that voting on consecutive day increments streak."""
+        from datetime import datetime, timedelta, timezone
+
+        from repositories.user_repository import UserRepository
+
+        repo = UserRepository(MagicMock())
+        now = datetime.now(timezone.utc)
+        # Last vote was yesterday
+        last_vote = now - timedelta(days=1)
+
+        result = repo._calculate_new_streak(last_vote, 3, now)
+        assert result == 4
+
+    def test_two_day_gap_resets_streak(self) -> None:
+        """Test that 2+ day gap resets streak to 1."""
+        from datetime import datetime, timedelta, timezone
+
+        from repositories.user_repository import UserRepository
+
+        repo = UserRepository(MagicMock())
+        now = datetime.now(timezone.utc)
+        # Last vote was 2 days ago
+        last_vote = now - timedelta(days=2)
+
+        result = repo._calculate_new_streak(last_vote, 10, now)
+        assert result == 1
+
+    def test_week_gap_resets_streak(self) -> None:
+        """Test that week-long gap resets streak to 1."""
+        from datetime import datetime, timedelta, timezone
+
+        from repositories.user_repository import UserRepository
+
+        repo = UserRepository(MagicMock())
+        now = datetime.now(timezone.utc)
+        # Last vote was 7 days ago
+        last_vote = now - timedelta(days=7)
+
+        result = repo._calculate_new_streak(last_vote, 50, now)
+        assert result == 1
+
+    def test_naive_datetime_handled(self) -> None:
+        """Test that naive datetime is handled correctly."""
+        from datetime import datetime, timedelta, timezone
+
+        from repositories.user_repository import UserRepository
+
+        repo = UserRepository(MagicMock())
+        now = datetime.now(timezone.utc)
+        # Naive datetime (no timezone)
+        last_vote = datetime.now() - timedelta(days=1)
+
+        result = repo._calculate_new_streak(last_vote, 3, now)
+        assert result == 4
+
+    def test_midnight_boundary_same_day(self) -> None:
+        """Test voting just before and after midnight on same calendar day."""
+        from datetime import datetime, timezone
+
+        from repositories.user_repository import UserRepository
+
+        repo = UserRepository(MagicMock())
+        # Vote at 11:59 PM
+        last_vote = datetime(2024, 1, 15, 23, 59, 0, tzinfo=timezone.utc)
+        # Vote at 12:01 AM same day
+        now = datetime(2024, 1, 15, 0, 1, 0, tzinfo=timezone.utc)
+
+        # Since now is earlier in the day, this is actually a negative day diff
+        # This edge case is handled by comparing dates
+        result = repo._calculate_new_streak(last_vote, 5, now)
+        # Same calendar day
+        assert result == 5
+
+    def test_midnight_boundary_next_day(self) -> None:
+        """Test voting just before midnight and just after midnight next day."""
+        from datetime import datetime, timezone
+
+        from repositories.user_repository import UserRepository
+
+        repo = UserRepository(MagicMock())
+        # Vote at 11:59 PM on Jan 15
+        last_vote = datetime(2024, 1, 15, 23, 59, 0, tzinfo=timezone.utc)
+        # Vote at 12:01 AM on Jan 16
+        now = datetime(2024, 1, 16, 0, 1, 0, tzinfo=timezone.utc)
+
+        result = repo._calculate_new_streak(last_vote, 5, now)
+        # Consecutive days
+        assert result == 6

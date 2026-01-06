@@ -104,16 +104,64 @@ class UserRepository:
         return user
 
     async def increment_votes_cast(self, user_id: str) -> bool:
-        """Increment the user's vote count."""
+        """Increment the user's vote count and update streak."""
+        user = await self.get_by_id(user_id)
+        if not user:
+            return False
+
+        now = datetime.now(timezone.utc)
+        new_streak = self._calculate_new_streak(user.last_vote_at, user.current_streak, now)
+        new_longest = max(user.longest_streak, new_streak)
+
         result = await self.db.execute(
             update(User)
             .where(User.id == user_id)
             .values(
                 votes_cast=User.votes_cast + 1,
-                last_vote_at=datetime.now(timezone.utc),
+                last_vote_at=now,
+                current_streak=new_streak,
+                longest_streak=new_longest,
             )
         )
         return self._get_rowcount(result) > 0
+
+    def _calculate_new_streak(
+        self,
+        last_vote_at: Optional[datetime],
+        current_streak: int,
+        now: datetime,
+    ) -> int:
+        """
+        Calculate the new voting streak based on the last vote time.
+
+        Streak rules:
+        - First vote ever: streak = 1
+        - Voted same day: streak unchanged
+        - Voted yesterday (within 24-48 hours): streak + 1
+        - Voted more than 48 hours ago: streak resets to 1
+        """
+        if last_vote_at is None:
+            # First vote ever
+            return 1
+
+        # Ensure timezone-aware comparison
+        if last_vote_at.tzinfo is None:
+            last_vote_at = last_vote_at.replace(tzinfo=timezone.utc)
+
+        # Calculate days since last vote using calendar dates
+        last_vote_date = last_vote_at.date()
+        today_date = now.date()
+        days_since_last_vote = (today_date - last_vote_date).days
+
+        if days_since_last_vote == 0:
+            # Same day - streak stays the same (but ensure at least 1)
+            return max(current_streak, 1)
+        elif days_since_last_vote == 1:
+            # Consecutive day - increment streak
+            return current_streak + 1
+        else:
+            # Streak broken (more than 1 day gap) - reset to 1
+            return 1
 
     async def update_streak(self, user_id: str, new_streak: int) -> bool:
         """Update user's voting streak."""
