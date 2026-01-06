@@ -763,7 +763,10 @@ Respond in JSON format:
                 poll = Poll(
                     id=str(uuid4()),
                     question=generated.question,
-                    choices=[PollChoice(id=str(i), text=choice, order=i) for i, choice in enumerate(generated.choices)],
+                    choices=[
+                        PollChoice(id=str(i), text=choice, order=i, vote_count=0)
+                        for i, choice in enumerate(generated.choices)
+                    ],
                     category=generated.category,
                     source_event=event.title,
                     created_at=datetime.now(timezone.utc),
