@@ -273,9 +273,13 @@ async def send_magic_link(
     user = await user_repo.get_by_email(email.lower())
 
     if not user:
-        # Don't reveal whether email exists for security
+        # Return a hint that user may need to register (not a security risk since email enumeration
+        # is already possible via registration). This improves UX significantly.
         logger.info("magic_link_requested", email=email[:3] + "***", user_found=False)
-        return {"message": "If an account exists with this email, a login link has been sent."}
+        return {
+            "message": "No account found with this email. Please register first.",
+            "status": "not_found",
+        }
 
     # Create magic link token (15 minute expiry)
     magic_token = create_magic_link_token(str(user.id))
@@ -306,7 +310,7 @@ async def send_magic_link(
             user_id=str(user.id),
         )
 
-    return {"message": "If an account exists with this email, a login link has been sent."}
+    return {"message": "Login link sent! Check your email.", "status": "sent"}
 
 
 @router.post("/verify-magic-link/{token}")

@@ -25,6 +25,7 @@ export default function LoginPage() {
   const [magicLinkEmail, setMagicLinkEmail] = useState('');
   const [magicLinkSent, setMagicLinkSent] = useState(false);
   const [magicLinkLoading, setMagicLinkLoading] = useState(false);
+  const [showNotFound, setShowNotFound] = useState(false);
 
   useEffect(() => {
     // Only check async platform authenticator in effect
@@ -51,11 +52,16 @@ export default function LoginPage() {
     e.preventDefault();
     setMagicLinkLoading(true);
     setError(null);
+    setShowNotFound(false);
     
     try {
-      await api.sendMagicLink(magicLinkEmail);
-      setMagicLinkSent(true);
-      success('Check your email', 'We sent you a login link. Click it to sign in.');
+      const response = await api.sendMagicLink(magicLinkEmail);
+      if (response.status === 'not_found') {
+        setShowNotFound(true);
+      } else {
+        setMagicLinkSent(true);
+        success('Check your email', 'We sent you a login link. Click it to sign in.');
+      }
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to send login link';
       setError(message);
@@ -158,7 +164,37 @@ export default function LoginPage() {
               animate={{ opacity: 1 }}
               className="space-y-6"
             >
-              {magicLinkSent ? (
+              {showNotFound ? (
+                <div className="text-center py-4">
+                  <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center">
+                    <EnvelopeIcon className="h-8 w-8 text-amber-600 dark:text-amber-400" />
+                  </div>
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
+                    No account found
+                  </h3>
+                  <p className="text-sm text-gray-600 dark:text-slate-400 mb-4">
+                    We couldn&apos;t find an account for <strong>{magicLinkEmail}</strong>.
+                  </p>
+                  <p className="text-sm text-gray-600 dark:text-slate-400 mb-6">
+                    Would you like to create a new account?
+                  </p>
+                  <Link
+                    href={`/register?email=${encodeURIComponent(magicLinkEmail)}`}
+                    className="inline-block w-full py-3 px-4 rounded-lg bg-primary-600 dark:bg-purple-600 text-white font-medium hover:bg-primary-700 dark:hover:bg-purple-700 transition-colors text-center"
+                  >
+                    Create an account
+                  </Link>
+                  <button
+                    onClick={() => {
+                      setShowNotFound(false);
+                      setMagicLinkEmail('');
+                    }}
+                    className="mt-4 text-sm text-gray-500 dark:text-slate-400 hover:text-primary-600 dark:hover:text-purple-400 transition-colors cursor-pointer w-full"
+                  >
+                    Try a different email
+                  </button>
+                </div>
+              ) : magicLinkSent ? (
                 <div className="text-center py-4">
                   <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
                     <EnvelopeIcon className="h-8 w-8 text-green-600 dark:text-green-400" />

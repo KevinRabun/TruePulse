@@ -433,8 +433,8 @@ class ApiClient {
     });
   }
 
-  async sendMagicLink(email: string): Promise<{ message: string }> {
-    return this.request<{ message: string }>('/auth/send-magic-link', {
+  async sendMagicLink(email: string): Promise<{ message: string; status?: 'sent' | 'not_found' }> {
+    return this.request<{ message: string; status?: 'sent' | 'not_found' }>('/auth/send-magic-link', {
       method: 'POST',
       body: JSON.stringify({ email }),
     });
