@@ -42,6 +42,9 @@ param cmkKeyName string = ''
 @description('Skip container deployment (used when CMK is enabled to deploy containers separately)')
 param skipContainers bool = false
 
+@description('User-Assigned Managed Identity resource ID for CMK (required for CMK with continuous backup)')
+param cmkUserAssignedIdentityId string = ''
+
 // ============================================================================
 // Variables
 // ============================================================================
@@ -227,8 +230,12 @@ resource cosmosAccount 'Microsoft.DocumentDB/databaseAccounts@2024-05-15' = {
   location: location
   tags: tags
   kind: 'GlobalDocumentDB'
-  identity: enableCMK ? {
-    type: 'SystemAssigned'
+  // Use User-Assigned Managed Identity for CMK - required for CMK + Continuous backup
+  identity: enableCMK && !empty(cmkUserAssignedIdentityId) ? {
+    type: 'UserAssigned'
+    userAssignedIdentities: {
+      '${cmkUserAssignedIdentityId}': {}
+    }
   } : null
   properties: {
     databaseAccountOfferType: 'Standard'
@@ -263,9 +270,9 @@ resource cosmosAccount 'Microsoft.DocumentDB/databaseAccounts@2024-05-15' = {
       }
     }
     // Customer Managed Keys (CMK) for encryption at rest
-    // defaultIdentity is required when using CMK with Continuous backup
+    // User-Assigned Identity is required for CMK with Continuous backup during initial provisioning
     keyVaultKeyUri: enableCMK && !empty(keyVaultResourceId) && !empty(cmkKeyName) ? '${reference(keyVaultResourceId, '2023-07-01').vaultUri}keys/${cmkKeyName}' : null
-    defaultIdentity: enableCMK ? 'SystemAssignedIdentity' : null
+    defaultIdentity: enableCMK && !empty(cmkUserAssignedIdentityId) ? 'UserAssignedIdentity=${cmkUserAssignedIdentityId}' : null
   }
 }
 
@@ -319,18 +326,8 @@ resource dataContributorRoleAssignment 'Microsoft.DocumentDB/databaseAccounts/sq
   }
 }
 
-// Key Vault Crypto Service Encryption User role for CMK access
-// Allows Cosmos DB's managed identity to use the CMK for encryption
-var keyVaultCryptoServiceEncryptionUserRoleId = 'e147488a-f6f5-4113-8e2d-b22465e65bf6'
-resource keyVaultRoleAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = if (enableCMK && !empty(keyVaultResourceId)) {
-  name: guid(cosmosAccount.id, keyVaultResourceId, keyVaultCryptoServiceEncryptionUserRoleId)
-  scope: resourceGroup()
-  properties: {
-    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', keyVaultCryptoServiceEncryptionUserRoleId)
-    principalId: cosmosAccount.identity.principalId
-    principalType: 'ServicePrincipal'
-  }
-}
+// Note: Key Vault role assignment for CMK is done in main.bicep before Cosmos DB creation
+// The User-Assigned MI must have Key Vault access before Cosmos DB can use it for CMK
 
 // Private Endpoint (for all environments - public access is disabled)
 // Dev environment uses emulator locally, but Azure resources still need private endpoints
