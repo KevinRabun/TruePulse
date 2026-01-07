@@ -263,7 +263,9 @@ resource cosmosAccount 'Microsoft.DocumentDB/databaseAccounts@2024-05-15' = {
       }
     }
     // Customer Managed Keys (CMK) for encryption at rest
+    // defaultIdentity is required when using CMK with Continuous backup
     keyVaultKeyUri: enableCMK && !empty(keyVaultResourceId) && !empty(cmkKeyName) ? '${reference(keyVaultResourceId, '2023-07-01').vaultUri}keys/${cmkKeyName}' : null
+    defaultIdentity: enableCMK ? 'SystemAssignedIdentity' : null
   }
 }
 
