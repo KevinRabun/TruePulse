@@ -570,6 +570,47 @@ class CosmosPollRepository:
         results = await query_items(POLLS_CONTAINER, query, parameters=parameters)
         return [PollDocument(**r) for r in results]
 
+    async def get_poll_by_scheduled_start(
+        self,
+        scheduled_start: datetime,
+        poll_type: Optional[str] = None,
+    ) -> Optional[PollDocument]:
+        """
+        Get a poll by its exact scheduled start time.
+
+        This is used to prevent duplicate poll generation during race conditions.
+        Multiple scheduler instances running concurrently should all check for
+        existing polls at the exact scheduled time window.
+
+        Args:
+            scheduled_start: The exact scheduled start datetime
+            poll_type: Optional filter by poll type (pulse, flash)
+
+        Returns:
+            The existing poll if found, None otherwise
+        """
+        conditions = [
+            "c.scheduled_start = @scheduled_start",
+            "(NOT IS_DEFINED(c.document_type) OR c.document_type = null)",
+        ]
+        parameters: list[dict[str, Any]] = [
+            {"name": "@scheduled_start", "value": scheduled_start.isoformat()},
+        ]
+
+        if poll_type:
+            conditions.append("c.poll_type = @poll_type")
+            parameters.append({"name": "@poll_type", "value": poll_type})
+
+        where_clause = " AND ".join(conditions)
+        query = f"""
+            SELECT * FROM c
+            WHERE {where_clause}
+        """
+        results = await query_items(POLLS_CONTAINER, query, parameters=parameters)
+        if results:
+            return PollDocument(**results[0])
+        return None
+
     # ========================================================================
     # Admin Methods
     # ========================================================================

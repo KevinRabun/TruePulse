@@ -152,3 +152,65 @@ class TestPollDocument:
         assert choice.text == "Option A"
         assert choice.vote_count == 50
         assert choice.order == 0
+
+
+@pytest.mark.unit
+class TestGetPollByScheduledStart:
+    """Test get_poll_by_scheduled_start method for duplicate detection."""
+
+    @pytest.mark.asyncio
+    async def test_get_poll_by_scheduled_start_returns_poll(self, sample_poll_doc) -> None:
+        """Test finding a poll by scheduled_start returns the poll."""
+        from repositories.cosmos_poll_repository import CosmosPollRepository
+
+        with patch("repositories.cosmos_poll_repository.query_items") as mock_query:
+            mock_query.return_value = [sample_poll_doc.model_dump()]
+
+            repo = CosmosPollRepository()
+            # poll_type from fixture is PollType enum, use .value
+            poll_type_value = (
+                sample_poll_doc.poll_type.value
+                if hasattr(sample_poll_doc.poll_type, "value")
+                else str(sample_poll_doc.poll_type)
+            )
+            result = await repo.get_poll_by_scheduled_start(
+                scheduled_start=sample_poll_doc.scheduled_start,
+                poll_type=poll_type_value,
+            )
+
+            assert result is not None
+            assert result.id == sample_poll_doc.id
+            mock_query.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_get_poll_by_scheduled_start_returns_none_when_not_found(self) -> None:
+        """Test that None is returned when no poll exists for the scheduled start."""
+        from repositories.cosmos_poll_repository import CosmosPollRepository
+
+        with patch("repositories.cosmos_poll_repository.query_items") as mock_query:
+            mock_query.return_value = []
+
+            repo = CosmosPollRepository()
+            result = await repo.get_poll_by_scheduled_start(
+                scheduled_start=datetime.now(timezone.utc),
+                poll_type="pulse",
+            )
+
+            assert result is None
+
+    @pytest.mark.asyncio
+    async def test_get_poll_by_scheduled_start_without_poll_type(self, sample_poll_doc) -> None:
+        """Test finding a poll by scheduled_start without poll_type filter."""
+        from repositories.cosmos_poll_repository import CosmosPollRepository
+
+        with patch("repositories.cosmos_poll_repository.query_items") as mock_query:
+            mock_query.return_value = [sample_poll_doc.model_dump()]
+
+            repo = CosmosPollRepository()
+            result = await repo.get_poll_by_scheduled_start(
+                scheduled_start=sample_poll_doc.scheduled_start,
+            )
+
+            assert result is not None
+            # Verify query was called without poll_type in the query
+            mock_query.assert_called_once()

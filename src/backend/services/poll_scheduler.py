@@ -322,14 +322,12 @@ class PollScheduler:
             poll_type, window_start, window_end = await self._determine_next_poll_type()
 
             # *** CRITICAL: Check if a poll already exists for this time window ***
-            # This prevents duplicate polls from concurrent scheduler invocations
-            # Use repository to check for existing polls by type and scheduled start
-            existing_polls = await self.repo.get_polls_created_since(
-                window_start - timedelta(minutes=1),  # Small buffer for timing
+            # This prevents duplicate polls from concurrent scheduler invocations.
+            # Use the exact scheduled_start to detect duplicates more reliably.
+            existing_poll = await self.repo.get_poll_by_scheduled_start(
+                scheduled_start=window_start,
                 poll_type=poll_type,
             )
-            # Filter to exact window start
-            existing_poll = next((p for p in existing_polls if p.scheduled_start == window_start), None)
 
             if existing_poll:
                 logger.info(
@@ -435,6 +433,20 @@ class PollScheduler:
 
             # Extract choices from poll_data
             choices = [choice.text if hasattr(choice, "text") else str(choice) for choice in poll_data.choices]
+
+            # *** FINAL CHECK: Re-verify no poll exists before creating ***
+            # This handles TOCTOU race conditions where another instance created a poll
+            # between our initial check and now
+            final_check = await self.repo.get_poll_by_scheduled_start(
+                scheduled_start=window_start,
+                poll_type=poll_type,
+            )
+            if final_check:
+                logger.warning(
+                    f"Race condition detected: poll {final_check.id} was created by another instance "
+                    f"for {poll_type} window {window_start.isoformat()} - returning existing"
+                )
+                return final_check
 
             # Create the poll using the repository
             new_poll = await self.repo.create(
