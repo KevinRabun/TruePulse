@@ -64,10 +64,15 @@ module containerAppsEnv 'br/public:avm/res/app/managed-environment:0.11.0' = {
     }
     // COST OPTIMIZATION: Consumption-only workload profile
     // - No dedicated D4 workload profile = no base compute cost
-    // - Consumption profile is automatically included
+    // - Consumption profile must be explicitly specified
     // - Pay only for vCPU-seconds and GiB-seconds when containers are running
     // - FastAPI backend is lightweight and doesn't need dedicated compute
-    workloadProfiles: []
+    workloadProfiles: [
+      {
+        name: 'Consumption'
+        workloadProfileType: 'Consumption'
+      }
+    ]
     // Peer traffic encryption
     peerTrafficEncryption: true
     // Managed identity
