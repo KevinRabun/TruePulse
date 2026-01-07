@@ -143,6 +143,9 @@ var containers = [
         { path: '/action_type/?' }
         { path: '/category/?' }
         { path: '/tier/?' }
+        { path: '/sort_order/?' }
+        { path: '/target_count/?' }
+        { path: '/is_secret/?' }
       ]
       excludedPaths: [
         { path: '/*' }

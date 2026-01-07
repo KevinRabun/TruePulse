@@ -46,28 +46,43 @@ var containers = [
     indexingPolicy: {
       indexingMode: 'consistent'
       includedPaths: [
+        { path: '/status/?' }
         { path: '/poll_type/?' }
-        { path: '/is_active/?' }
-        { path: '/start_time/?' }
-        { path: '/end_time/?' }
+        { path: '/scheduled_start/?' }
+        { path: '/scheduled_end/?' }
         { path: '/created_at/?' }
+        { path: '/category/?' }
+        { path: '/is_active/?' }
       ]
       excludedPaths: [
         { path: '/*' }
         { path: '/_etag/?' }
+      ]
+      compositeIndexes: [
+        [
+          { path: '/status', order: 'ascending' }
+          { path: '/scheduled_start', order: 'ascending' }
+        ]
+        [
+          { path: '/status', order: 'ascending' }
+          { path: '/poll_type', order: 'ascending' }
+        ]
       ]
     }
   }
   {
     name: 'votes'
     partitionKey: '/poll_id'
-    uniqueKeys: []
+    uniqueKeys: [
+      { paths: [ '/vote_hash' ] }
+    ]
     indexingPolicy: {
       indexingMode: 'consistent'
       includedPaths: [
-        { path: '/user_id/?' }
-        { path: '/created_at/?' }
         { path: '/vote_hash/?' }
+        { path: '/choice_id/?' }
+        { path: '/created_at/?' }
+        { path: '/demographics_bucket/?' }
       ]
       excludedPaths: [
         { path: '/*' }
@@ -85,6 +100,9 @@ var containers = [
         { path: '/action_type/?' }
         { path: '/category/?' }
         { path: '/tier/?' }
+        { path: '/sort_order/?' }
+        { path: '/target_count/?' }
+        { path: '/is_secret/?' }
       ]
       excludedPaths: [
         { path: '/*' }
