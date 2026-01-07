@@ -24,6 +24,7 @@ ACHIEVEMENTS_CONTAINER = "achievements"
 USER_ACHIEVEMENTS_CONTAINER = "user-achievements"
 EMAIL_LOOKUP_CONTAINER = "email-lookup"
 USERNAME_LOOKUP_CONTAINER = "username-lookup"
+AUTH_CHALLENGES_CONTAINER = "auth-challenges"
 
 # Global client instances (lazy-initialized)
 _cosmos_client: CosmosClient | None = None

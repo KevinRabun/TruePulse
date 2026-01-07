@@ -36,9 +36,9 @@ from webauthn.helpers.structs import (
 
 from core.config import settings
 from models.cosmos_documents import PasskeyDocument, UserDocument
+from repositories.cosmos_challenge_repository import CosmosChallengeRepository
 from repositories.cosmos_user_repository import CosmosUserRepository
 from schemas.user import UserInDB
-from services.redis_service import RedisService, get_redis_service
 
 logger = logging.getLogger(__name__)
 
@@ -83,12 +83,11 @@ class PasskeyService:
     RP_NAME = settings.WEBAUTHN_RP_NAME  # Relying Party name
     ORIGIN = settings.WEBAUTHN_ORIGIN  # Expected origin
     CHALLENGE_TIMEOUT = timedelta(minutes=5)  # Challenge validity period
-    CHALLENGE_PREFIX = "passkey:challenge:"  # Redis key prefix for challenges
 
-    def __init__(self, user_repo: CosmosUserRepository, redis_service: RedisService | None = None):
+    def __init__(self, user_repo: CosmosUserRepository):
         """Initialize the passkey service."""
         self.user_repo = user_repo
-        self._redis_service = redis_service
+        self._challenge_repo = CosmosChallengeRepository()
 
     async def generate_registration_options(
         self,
@@ -140,17 +139,15 @@ class PasskeyService:
             timeout=int(self.CHALLENGE_TIMEOUT.total_seconds() * 1000),  # Milliseconds
         )
 
-        # Store challenge for verification
-        challenge_id = str(uuid4())
+        # Store challenge for verification in Cosmos DB
         challenge_str = bytes_to_base64url(options.challenge)
-        logger.debug(f"passkey_challenge_stored: challenge_id={challenge_id}, challenge_length={len(challenge_str)}")
-        await self._store_challenge(
-            challenge_id=challenge_id,
-            challenge=challenge_str,
+        challenge_id = await self._challenge_repo.create_challenge(
             user_id=user.id,
+            challenge=challenge_str,
             operation="registration",
             device_info=device_info,
         )
+        logger.debug(f"passkey_challenge_stored: challenge_id={challenge_id}, challenge_length={len(challenge_str)}")
 
         # Convert to JSON-serializable dict
         # Type ignore comments for webauthn library type issues
@@ -208,8 +205,8 @@ class PasskeyService:
             PasskeyRegistrationError: If verification fails
             ChallengeExpiredError: If the challenge has expired
         """
-        # Retrieve and validate challenge
-        challenge_data = await self._get_challenge(challenge_id)
+        # Retrieve and validate challenge from Cosmos DB
+        challenge_data = await self._challenge_repo.get_challenge(challenge_id, user.id)
         if not challenge_data:
             raise ChallengeExpiredError("Registration challenge not found or expired")
 
@@ -342,8 +339,8 @@ class PasskeyService:
             user_doc.passkeys.append(passkey)
             await self.user_repo.update(user_doc)
 
-            # Invalidate challenge
-            await self._invalidate_challenge(challenge_id)
+            # Invalidate challenge in Cosmos DB
+            await self._challenge_repo.delete_challenge(challenge_id, user.id)
 
             logger.info(f"Registered passkey {passkey.id} for user {user.id}")
             return passkey
@@ -396,12 +393,10 @@ class PasskeyService:
             timeout=int(self.CHALLENGE_TIMEOUT.total_seconds() * 1000),
         )
 
-        # Store challenge
-        challenge_id = str(uuid4())
-        await self._store_challenge(
-            challenge_id=challenge_id,
-            challenge=bytes_to_base64url(options.challenge),
+        # Store challenge in Cosmos DB
+        challenge_id = await self._challenge_repo.create_challenge(
             user_id=user.id if user else None,
+            challenge=bytes_to_base64url(options.challenge),
             operation="authentication",
             device_info=device_info,
         )
@@ -446,13 +441,17 @@ class PasskeyService:
             PasskeyAuthenticationError: If verification fails
             ChallengeExpiredError: If the challenge has expired
         """
-        # Retrieve challenge
-        challenge_data = await self._get_challenge(challenge_id)
+        # Retrieve challenge - try anonymous partition first (discoverable flow)
+        # then try with user_id from the challenge data if found
+        challenge_data = await self._challenge_repo.get_challenge(challenge_id, user_id=None)
         if not challenge_data:
             raise ChallengeExpiredError("Authentication challenge not found or expired")
 
         if challenge_data["operation"] != "authentication":
             raise PasskeyAuthenticationError("Invalid challenge type")
+
+        # Store the user_id from challenge for cleanup later
+        challenge_user_id = challenge_data.get("user_id")
 
         try:
             # Parse the credential - py_webauthn handles base64url padding
@@ -484,8 +483,8 @@ class PasskeyService:
             # Update the user document with the modified passkey
             await self.user_repo.update(user)
 
-            # Invalidate challenge
-            await self._invalidate_challenge(challenge_id)
+            # Invalidate challenge in Cosmos DB (use the user_id from when challenge was created)
+            await self._challenge_repo.delete_challenge(challenge_id, challenge_user_id)
 
             logger.info(f"Authenticated user {user.id} with passkey {passkey.id}")
             return user, passkey
@@ -562,65 +561,6 @@ class PasskeyService:
 
     # --- Helper methods ---
 
-    async def _get_redis_service(self) -> RedisService:
-        """Get or initialize the Redis service."""
-        if self._redis_service is None:
-            redis = await get_redis_service()
-            await redis.initialize()
-            self._redis_service = redis
-        return self._redis_service
-
-    async def _store_challenge(
-        self,
-        challenge_id: str,
-        challenge: str,
-        user_id: str | None,
-        operation: str,
-        device_info: dict[str, Any] | None = None,
-    ) -> None:
-        """Store a challenge in Redis for later verification.
-
-        Uses Redis/Table storage to support multi-worker deployments where
-        each worker has its own memory space.
-        """
-        redis_service = await self._get_redis_service()
-        challenge_data = {
-            "challenge": challenge,
-            "user_id": user_id,
-            "operation": operation,
-            "device_info": device_info,
-            "expires_at": (datetime.now(UTC) + self.CHALLENGE_TIMEOUT).isoformat(),
-        }
-        key = f"{self.CHALLENGE_PREFIX}{challenge_id}"
-        ttl_seconds = int(self.CHALLENGE_TIMEOUT.total_seconds())
-        await redis_service.cache_set(key, json.dumps(challenge_data), ttl_seconds)
-        logger.debug(f"passkey_challenge_stored: challenge_id={challenge_id}")
-
-    async def _get_challenge(self, challenge_id: str) -> dict[str, Any] | None:
-        """Retrieve and validate a challenge from Redis."""
-        redis_service = await self._get_redis_service()
-        key = f"{self.CHALLENGE_PREFIX}{challenge_id}"
-        challenge_json = await redis_service.cache_get(key)
-
-        if not challenge_json:
-            return None
-
-        challenge_data = json.loads(challenge_json)
-
-        # Check expiration (Redis TTL should handle this, but double-check)
-        expires_at = datetime.fromisoformat(challenge_data["expires_at"])
-        if datetime.now(UTC) > expires_at:
-            await redis_service.cache_delete(key)
-            return None
-
-        return challenge_data
-
-    async def _invalidate_challenge(self, challenge_id: str) -> None:
-        """Remove a challenge after use."""
-        redis_service = await self._get_redis_service()
-        key = f"{self.CHALLENGE_PREFIX}{challenge_id}"
-        await redis_service.cache_delete(key)
-
     async def _find_credential_by_id(self, credential_id: bytes) -> tuple[UserDocument | None, PasskeyDocument | None]:
         """
         Find a passkey by its WebAuthn credential ID across all users.
@@ -667,10 +607,7 @@ class PasskeyService:
         return f"Passkey {secrets.token_hex(4)}"
 
 
-# Singleton-style factory for service instances
-def get_passkey_service(
-    user_repo: CosmosUserRepository,
-    redis_service: RedisService | None = None,
-) -> PasskeyService:
+# Factory for service instances
+def get_passkey_service(user_repo: CosmosUserRepository) -> PasskeyService:
     """Get a PasskeyService instance."""
-    return PasskeyService(user_repo, redis_service)
+    return PasskeyService(user_repo)

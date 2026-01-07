@@ -190,6 +190,24 @@ var containers = [
       ]
     }
   }
+  {
+    name: 'auth-challenges'
+    partitionKey: '/user_id'
+    uniqueKeys: []
+    // TTL enabled - challenges auto-expire after 5 minutes
+    defaultTtl: 300
+    indexingPolicy: {
+      indexingMode: 'consistent'
+      includedPaths: [
+        { path: '/operation/?' }
+        { path: '/expires_at/?' }
+      ]
+      excludedPaths: [
+        { path: '/*' }
+        { path: '/_etag/?' }
+      ]
+    }
+  }
 ]
 
 // Built-in Cosmos DB Data Contributor role
@@ -263,19 +281,23 @@ resource cosmosContainers 'Microsoft.DocumentDB/databaseAccounts/sqlDatabases/co
   parent: database
   name: container.name
   properties: {
-    resource: {
-      id: container.name
-      partitionKey: {
-        paths: [
-          container.partitionKey
-        ]
-        kind: 'Hash'
-      }
-      indexingPolicy: container.indexingPolicy
-      uniqueKeyPolicy: length(container.uniqueKeys) > 0 ? {
-        uniqueKeys: container.uniqueKeys
-      } : null
-    }
+    resource: union(
+      {
+        id: container.name
+        partitionKey: {
+          paths: [
+            container.partitionKey
+          ]
+          kind: 'Hash'
+        }
+        indexingPolicy: container.indexingPolicy
+        uniqueKeyPolicy: length(container.uniqueKeys) > 0 ? {
+          uniqueKeys: container.uniqueKeys
+        } : null
+      },
+      // Only add defaultTtl if specified in container config
+      contains(container, 'defaultTtl') ? { defaultTtl: container.defaultTtl } : {}
+    )
     // No throughput options for serverless containers
   }
 }]
