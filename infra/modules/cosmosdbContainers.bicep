@@ -77,13 +77,32 @@ var containers = [
   }
   {
     name: 'achievements'
+    partitionKey: '/id'
+    uniqueKeys: []
+    indexingPolicy: {
+      indexingMode: 'consistent'
+      includedPaths: [
+        { path: '/action_type/?' }
+        { path: '/category/?' }
+        { path: '/tier/?' }
+      ]
+      excludedPaths: [
+        { path: '/*' }
+        { path: '/_etag/?' }
+      ]
+    }
+  }
+  {
+    name: 'user-achievements'
     partitionKey: '/user_id'
     uniqueKeys: []
     indexingPolicy: {
       indexingMode: 'consistent'
       includedPaths: [
-        { path: '/achievement_type/?' }
-        { path: '/earned_at/?' }
+        { path: '/achievement_id/?' }
+        { path: '/is_unlocked/?' }
+        { path: '/period_key/?' }
+        { path: '/unlocked_at/?' }
       ]
       excludedPaths: [
         { path: '/*' }
