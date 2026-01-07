@@ -39,6 +39,9 @@ param keyVaultResourceId string = ''
 @description('CMK key name in Key Vault')
 param cmkKeyName string = ''
 
+@description('Skip container deployment (used when CMK is enabled to deploy containers separately)')
+param skipContainers bool = false
+
 // ============================================================================
 // Variables
 // ============================================================================
@@ -276,8 +279,8 @@ resource database 'Microsoft.DocumentDB/databaseAccounts/sqlDatabases@2024-05-15
   }
 }
 
-// Containers
-resource cosmosContainers 'Microsoft.DocumentDB/databaseAccounts/sqlDatabases/containers@2024-05-15' = [for container in containers: {
+// Containers - skip when CMK is enabled (deployed separately to avoid CMK update conflicts)
+resource cosmosContainers 'Microsoft.DocumentDB/databaseAccounts/sqlDatabases/containers@2024-05-15' = [for container in containers: if (!skipContainers) {
   parent: database
   name: container.name
   properties: {

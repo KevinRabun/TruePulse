@@ -296,9 +296,25 @@ module cosmosDb 'modules/cosmosdb.bicep' = {
     enableCMK: enableCMK
     keyVaultResourceId: enableCMK ? keyVault.outputs.resourceId : ''
     cmkKeyName: enableCMK ? keyVault.outputs.cosmosEncryptionKeyName : ''
+    // Skip containers in main deployment when CMK is enabled (deployed separately to avoid conflicts)
+    skipContainers: enableCMK
   }
   dependsOn: [
     keyVault // Ensure Key Vault and CMK are created before Cosmos DB
+  ]
+}
+
+// Cosmos DB Containers - deployed separately to avoid CMK update conflicts
+// When CMK is enabled, Azure doesn't allow updating CMK settings and containers simultaneously
+module cosmosDbContainers 'modules/cosmosdbContainers.bicep' = if (enableCMK) {
+  scope: resourceGroup
+  name: 'cosmosdb-containers-deployment'
+  params: {
+    accountName: cosmosDbAccountName
+    databaseName: 'truepulse'
+  }
+  dependsOn: [
+    cosmosDb
   ]
 }
 
