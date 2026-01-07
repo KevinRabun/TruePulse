@@ -8,9 +8,6 @@
     "location": {
       "value": "eastus2"
     },
-    "postgresAdminUsername": {
-      "value": "truepulseadmin"
-    },
     "enableCMK": {
       "value": true
     }

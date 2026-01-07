@@ -1,0 +1,206 @@
+{
+  "countries": [
+    {"code": "US", "name": "United States"},
+    {"code": "CA", "name": "Canada"},
+    {"code": "GB", "name": "United Kingdom"},
+    {"code": "AU", "name": "Australia"},
+    {"code": "DE", "name": "Germany"},
+    {"code": "FR", "name": "France"},
+    {"code": "JP", "name": "Japan"},
+    {"code": "BR", "name": "Brazil"},
+    {"code": "IN", "name": "India"},
+    {"code": "MX", "name": "Mexico"},
+    {"code": "IT", "name": "Italy"},
+    {"code": "ES", "name": "Spain"},
+    {"code": "NL", "name": "Netherlands"},
+    {"code": "SE", "name": "Sweden"},
+    {"code": "NO", "name": "Norway"},
+    {"code": "DK", "name": "Denmark"},
+    {"code": "FI", "name": "Finland"},
+    {"code": "CH", "name": "Switzerland"},
+    {"code": "AT", "name": "Austria"},
+    {"code": "BE", "name": "Belgium"},
+    {"code": "IE", "name": "Ireland"},
+    {"code": "NZ", "name": "New Zealand"},
+    {"code": "SG", "name": "Singapore"},
+    {"code": "KR", "name": "South Korea"},
+    {"code": "PL", "name": "Poland"}
+  ],
+  "states": {
+    "US": [
+      {"id": 1, "code": "AL", "name": "Alabama"},
+      {"id": 2, "code": "AK", "name": "Alaska"},
+      {"id": 3, "code": "AZ", "name": "Arizona"},
+      {"id": 4, "code": "AR", "name": "Arkansas"},
+      {"id": 5, "code": "CA", "name": "California"},
+      {"id": 6, "code": "CO", "name": "Colorado"},
+      {"id": 7, "code": "CT", "name": "Connecticut"},
+      {"id": 8, "code": "DE", "name": "Delaware"},
+      {"id": 9, "code": "FL", "name": "Florida"},
+      {"id": 10, "code": "GA", "name": "Georgia"},
+      {"id": 11, "code": "HI", "name": "Hawaii"},
+      {"id": 12, "code": "ID", "name": "Idaho"},
+      {"id": 13, "code": "IL", "name": "Illinois"},
+      {"id": 14, "code": "IN", "name": "Indiana"},
+      {"id": 15, "code": "IA", "name": "Iowa"},
+      {"id": 16, "code": "KS", "name": "Kansas"},
+      {"id": 17, "code": "KY", "name": "Kentucky"},
+      {"id": 18, "code": "LA", "name": "Louisiana"},
+      {"id": 19, "code": "ME", "name": "Maine"},
+      {"id": 20, "code": "MD", "name": "Maryland"},
+      {"id": 21, "code": "MA", "name": "Massachusetts"},
+      {"id": 22, "code": "MI", "name": "Michigan"},
+      {"id": 23, "code": "MN", "name": "Minnesota"},
+      {"id": 24, "code": "MS", "name": "Mississippi"},
+      {"id": 25, "code": "MO", "name": "Missouri"},
+      {"id": 26, "code": "MT", "name": "Montana"},
+      {"id": 27, "code": "NE", "name": "Nebraska"},
+      {"id": 28, "code": "NV", "name": "Nevada"},
+      {"id": 29, "code": "NH", "name": "New Hampshire"},
+      {"id": 30, "code": "NJ", "name": "New Jersey"},
+      {"id": 31, "code": "NM", "name": "New Mexico"},
+      {"id": 32, "code": "NY", "name": "New York"},
+      {"id": 33, "code": "NC", "name": "North Carolina"},
+      {"id": 34, "code": "ND", "name": "North Dakota"},
+      {"id": 35, "code": "OH", "name": "Ohio"},
+      {"id": 36, "code": "OK", "name": "Oklahoma"},
+      {"id": 37, "code": "OR", "name": "Oregon"},
+      {"id": 38, "code": "PA", "name": "Pennsylvania"},
+      {"id": 39, "code": "RI", "name": "Rhode Island"},
+      {"id": 40, "code": "SC", "name": "South Carolina"},
+      {"id": 41, "code": "SD", "name": "South Dakota"},
+      {"id": 42, "code": "TN", "name": "Tennessee"},
+      {"id": 43, "code": "TX", "name": "Texas"},
+      {"id": 44, "code": "UT", "name": "Utah"},
+      {"id": 45, "code": "VT", "name": "Vermont"},
+      {"id": 46, "code": "VA", "name": "Virginia"},
+      {"id": 47, "code": "WA", "name": "Washington"},
+      {"id": 48, "code": "WV", "name": "West Virginia"},
+      {"id": 49, "code": "WI", "name": "Wisconsin"},
+      {"id": 50, "code": "WY", "name": "Wyoming"},
+      {"id": 51, "code": "DC", "name": "District of Columbia"}
+    ],
+    "CA": [
+      {"id": 100, "code": "AB", "name": "Alberta"},
+      {"id": 101, "code": "BC", "name": "British Columbia"},
+      {"id": 102, "code": "MB", "name": "Manitoba"},
+      {"id": 103, "code": "NB", "name": "New Brunswick"},
+      {"id": 104, "code": "NL", "name": "Newfoundland and Labrador"},
+      {"id": 105, "code": "NS", "name": "Nova Scotia"},
+      {"id": 106, "code": "NT", "name": "Northwest Territories"},
+      {"id": 107, "code": "NU", "name": "Nunavut"},
+      {"id": 108, "code": "ON", "name": "Ontario"},
+      {"id": 109, "code": "PE", "name": "Prince Edward Island"},
+      {"id": 110, "code": "QC", "name": "Quebec"},
+      {"id": 111, "code": "SK", "name": "Saskatchewan"},
+      {"id": 112, "code": "YT", "name": "Yukon"}
+    ],
+    "GB": [
+      {"id": 200, "code": "ENG", "name": "England"},
+      {"id": 201, "code": "SCT", "name": "Scotland"},
+      {"id": 202, "code": "WLS", "name": "Wales"},
+      {"id": 203, "code": "NIR", "name": "Northern Ireland"}
+    ],
+    "AU": [
+      {"id": 300, "code": "NSW", "name": "New South Wales"},
+      {"id": 301, "code": "VIC", "name": "Victoria"},
+      {"id": 302, "code": "QLD", "name": "Queensland"},
+      {"id": 303, "code": "WA", "name": "Western Australia"},
+      {"id": 304, "code": "SA", "name": "South Australia"},
+      {"id": 305, "code": "TAS", "name": "Tasmania"},
+      {"id": 306, "code": "ACT", "name": "Australian Capital Territory"},
+      {"id": 307, "code": "NT", "name": "Northern Territory"}
+    ],
+    "DE": [
+      {"id": 400, "code": "BW", "name": "Baden-Württemberg"},
+      {"id": 401, "code": "BY", "name": "Bavaria"},
+      {"id": 402, "code": "BE", "name": "Berlin"},
+      {"id": 403, "code": "BB", "name": "Brandenburg"},
+      {"id": 404, "code": "HB", "name": "Bremen"},
+      {"id": 405, "code": "HH", "name": "Hamburg"},
+      {"id": 406, "code": "HE", "name": "Hesse"},
+      {"id": 407, "code": "NI", "name": "Lower Saxony"},
+      {"id": 408, "code": "MV", "name": "Mecklenburg-Vorpommern"},
+      {"id": 409, "code": "NW", "name": "North Rhine-Westphalia"},
+      {"id": 410, "code": "RP", "name": "Rhineland-Palatinate"},
+      {"id": 411, "code": "SL", "name": "Saarland"},
+      {"id": 412, "code": "SN", "name": "Saxony"},
+      {"id": 413, "code": "ST", "name": "Saxony-Anhalt"},
+      {"id": 414, "code": "SH", "name": "Schleswig-Holstein"},
+      {"id": 415, "code": "TH", "name": "Thuringia"}
+    ]
+  },
+  "cities": {
+    "5": [
+      {"id": 1001, "name": "Los Angeles"},
+      {"id": 1002, "name": "San Francisco"},
+      {"id": 1003, "name": "San Diego"},
+      {"id": 1004, "name": "San Jose"},
+      {"id": 1005, "name": "Sacramento"},
+      {"id": 1006, "name": "Oakland"},
+      {"id": 1007, "name": "Fresno"},
+      {"id": 1008, "name": "Long Beach"}
+    ],
+    "32": [
+      {"id": 2001, "name": "New York City"},
+      {"id": 2002, "name": "Buffalo"},
+      {"id": 2003, "name": "Rochester"},
+      {"id": 2004, "name": "Albany"},
+      {"id": 2005, "name": "Syracuse"}
+    ],
+    "43": [
+      {"id": 3001, "name": "Houston"},
+      {"id": 3002, "name": "Dallas"},
+      {"id": 3003, "name": "Austin"},
+      {"id": 3004, "name": "San Antonio"},
+      {"id": 3005, "name": "Fort Worth"},
+      {"id": 3006, "name": "El Paso"}
+    ],
+    "9": [
+      {"id": 4001, "name": "Miami"},
+      {"id": 4002, "name": "Orlando"},
+      {"id": 4003, "name": "Tampa"},
+      {"id": 4004, "name": "Jacksonville"},
+      {"id": 4005, "name": "Fort Lauderdale"}
+    ],
+    "13": [
+      {"id": 5001, "name": "Chicago"},
+      {"id": 5002, "name": "Springfield"},
+      {"id": 5003, "name": "Naperville"},
+      {"id": 5004, "name": "Rockford"}
+    ],
+    "47": [
+      {"id": 6001, "name": "Seattle"},
+      {"id": 6002, "name": "Tacoma"},
+      {"id": 6003, "name": "Spokane"},
+      {"id": 6004, "name": "Bellevue"}
+    ],
+    "108": [
+      {"id": 7001, "name": "Toronto"},
+      {"id": 7002, "name": "Ottawa"},
+      {"id": 7003, "name": "Mississauga"},
+      {"id": 7004, "name": "Hamilton"}
+    ],
+    "101": [
+      {"id": 7101, "name": "Vancouver"},
+      {"id": 7102, "name": "Victoria"},
+      {"id": 7103, "name": "Surrey"}
+    ],
+    "200": [
+      {"id": 8001, "name": "London"},
+      {"id": 8002, "name": "Manchester"},
+      {"id": 8003, "name": "Birmingham"},
+      {"id": 8004, "name": "Liverpool"},
+      {"id": 8005, "name": "Leeds"}
+    ],
+    "300": [
+      {"id": 9001, "name": "Sydney"},
+      {"id": 9002, "name": "Newcastle"},
+      {"id": 9003, "name": "Wollongong"}
+    ],
+    "301": [
+      {"id": 9101, "name": "Melbourne"},
+      {"id": 9102, "name": "Geelong"}
+    ]
+  }
+}

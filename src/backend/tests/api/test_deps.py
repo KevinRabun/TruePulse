@@ -5,42 +5,44 @@ Tests the UserInDB construction and dependency functions.
 """
 
 from datetime import datetime, timezone
-from unittest.mock import MagicMock
 from uuid import uuid4
 
 import pytest
 
-from api.deps import _user_model_to_schema
+from api.deps import _user_doc_to_schema
+from models.cosmos_documents import UserDocument
 from schemas.user import UserInDB
 
 
 @pytest.mark.unit
-class TestUserModelToSchemaHelper:
-    """Test the _user_model_to_schema helper function for DRY conversion."""
+class TestUserDocToSchemaHelper:
+    """Test the _user_doc_to_schema helper function for DRY conversion."""
 
-    def test_helper_converts_user_model_with_display_name(self) -> None:
-        """Test that the helper correctly converts a User model to UserInDB."""
-        # Create a mock User model
-        mock_user = MagicMock()
-        mock_user.id = uuid4()
-        mock_user.email = "helper@example.com"
-        mock_user.username = "helperuser"
-        mock_user.display_name = "Helper Display"
-        mock_user.is_active = True
-        mock_user.is_verified = True
-        mock_user.is_admin = False
-        mock_user.email_verified = True
-        mock_user.total_points = 250
-        mock_user.level = 3
-        mock_user.votes_cast = 15
-        mock_user.current_streak = 3
-        mock_user.longest_streak = 8
-        mock_user.created_at = datetime.now(timezone.utc)
+    def test_helper_converts_user_document_with_display_name(self) -> None:
+        """Test that the helper correctly converts a UserDocument to UserInDB."""
+        # Create a UserDocument (Cosmos DB document)
+        user_id = str(uuid4())
+        user_doc = UserDocument(
+            id=user_id,
+            email="helper@example.com",
+            username="helperuser",
+            display_name="Helper Display",
+            is_active=True,
+            is_verified=True,
+            is_admin=False,
+            email_verified=True,
+            total_points=250,
+            level=3,
+            votes_cast=15,
+            current_streak=3,
+            longest_streak=8,
+            created_at=datetime.now(timezone.utc),
+        )
 
-        result = _user_model_to_schema(mock_user)
+        result = _user_doc_to_schema(user_doc)
 
         assert isinstance(result, UserInDB)
-        assert result.id == str(mock_user.id)
+        assert result.id == user_id
         assert result.email == "helper@example.com"
         assert result.username == "helperuser"
         assert result.display_name == "Helper Display"
@@ -56,49 +58,53 @@ class TestUserModelToSchemaHelper:
 
     def test_helper_preserves_none_display_name(self) -> None:
         """Test that helper preserves None display_name (doesn't fall back to username)."""
-        mock_user = MagicMock()
-        mock_user.id = uuid4()
-        mock_user.email = "noname@example.com"
-        mock_user.username = "username_here"
-        mock_user.display_name = None  # No display name set
-        mock_user.is_active = True
-        mock_user.is_verified = True
-        mock_user.is_admin = False
-        mock_user.email_verified = True
-        mock_user.total_points = 0
-        mock_user.level = 1
-        mock_user.votes_cast = 0
-        mock_user.current_streak = 0
-        mock_user.longest_streak = 0
-        mock_user.created_at = datetime.now(timezone.utc)
+        user_id = str(uuid4())
+        user_doc = UserDocument(
+            id=user_id,
+            email="noname@example.com",
+            username="username_here",
+            display_name=None,  # No display name set
+            is_active=True,
+            is_verified=True,
+            is_admin=False,
+            email_verified=True,
+            total_points=0,
+            level=1,
+            votes_cast=0,
+            current_streak=0,
+            longest_streak=0,
+            created_at=datetime.now(timezone.utc),
+        )
 
-        result = _user_model_to_schema(mock_user)
+        result = _user_doc_to_schema(user_doc)
 
         # display_name should be None, not username
         assert result.display_name is None
         assert result.username == "username_here"
 
     def test_helper_maps_total_points_to_points(self) -> None:
-        """Test that helper correctly maps model.total_points to schema.points."""
-        mock_user = MagicMock()
-        mock_user.id = uuid4()
-        mock_user.email = "test@example.com"
-        mock_user.username = "testuser"
-        mock_user.display_name = "Test"
-        mock_user.is_active = True
-        mock_user.is_verified = True
-        mock_user.is_admin = False
-        mock_user.email_verified = True
-        mock_user.total_points = 1500  # Model uses total_points
-        mock_user.level = 5
-        mock_user.votes_cast = 100
-        mock_user.current_streak = 10
-        mock_user.longest_streak = 20
-        mock_user.created_at = datetime.now(timezone.utc)
+        """Test that helper correctly maps document.total_points to schema.points."""
+        user_id = str(uuid4())
+        user_doc = UserDocument(
+            id=user_id,
+            email="test@example.com",
+            username="testuser",
+            display_name="Test",
+            is_active=True,
+            is_verified=True,
+            is_admin=False,
+            email_verified=True,
+            total_points=1500,  # Document uses total_points
+            level=5,
+            votes_cast=100,
+            current_streak=10,
+            longest_streak=20,
+            created_at=datetime.now(timezone.utc),
+        )
 
-        result = _user_model_to_schema(mock_user)
+        result = _user_doc_to_schema(user_doc)
 
-        # Schema uses 'points', model uses 'total_points'
+        # Schema uses 'points', document uses 'total_points'
         assert result.points == 1500
 
 

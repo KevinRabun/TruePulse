@@ -40,14 +40,7 @@ class Settings(BaseSettings):
     AZURE_CLIENT_ID: str | None = None
     AZURE_KEY_VAULT_URL: str | None = None
 
-    # Database - PostgreSQL
-    POSTGRES_HOST: str = "localhost"
-    POSTGRES_PORT: int = 5432
-    POSTGRES_USER: str = "truepulse"
-    POSTGRES_PASSWORD: str = ""  # Required - loaded from environment
-    POSTGRES_DB: str = "truepulse"
-
-    @field_validator("SECRET_KEY", "POSTGRES_PASSWORD")
+    @field_validator("SECRET_KEY")
     @classmethod
     def validate_required_secrets(cls, v: str, info: Any) -> str:
         """Validate that required secrets are set."""
@@ -65,14 +58,6 @@ class Settings(BaseSettings):
                 raise ValueError("FRONTEND_API_SECRET must be at least 32 characters")
         return self
 
-    @property
-    def POSTGRES_URL(self) -> str:
-        """Construct PostgreSQL connection URL with SSL required."""
-        return (
-            f"postgresql+asyncpg://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}"
-            f"@{self.POSTGRES_HOST}:{self.POSTGRES_PORT}/{self.POSTGRES_DB}?ssl=require"
-        )
-
     # Azure Storage (Tables for votes, token blacklist, reset tokens)
     AZURE_STORAGE_ACCOUNT_NAME: str | None = None
     AZURE_STORAGE_TABLE_ENDPOINT: str | None = None
@@ -83,6 +68,17 @@ class Settings(BaseSettings):
     AZURE_OPENAI_ENDPOINT: str | None = None
     AZURE_OPENAI_DEPLOYMENT: str = "gpt-4o-mini"
     AZURE_OPENAI_API_KEY: str | None = None
+
+    # Azure Cosmos DB (document database)
+    AZURE_COSMOS_ENDPOINT: str | None = None
+    AZURE_COSMOS_DATABASE: str = "truepulse"
+    # Connection string for local development with Cosmos DB Emulator
+    # When set, uses connection string auth instead of DefaultAzureCredential
+    # Emulator endpoint: https://localhost:8081
+    # Emulator key: C2y6yDjf5/R+ob0N8A7Cgv30VRDJIWEHLM+4QDU5DE2nQ9nDuVTqobD4b8mGGyPMbIZnqyMsEcaGQy67XIw/Jw==
+    AZURE_COSMOS_CONNECTION_STRING: str | None = None
+    # Disable SSL verification for local emulator (self-signed cert)
+    AZURE_COSMOS_DISABLE_SSL: bool = False
 
     # AI / Microsoft Foundry (legacy - deprecated)
     FOUNDRY_PROJECT_ENDPOINT: str | None = None

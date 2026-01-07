@@ -12,9 +12,6 @@ from httpx import ASGITransport, AsyncClient
 
 # Set test environment variables before importing app
 os.environ.setdefault("SECRET_KEY", "test-secret-key-for-testing")
-os.environ.setdefault("POSTGRES_PASSWORD", "test-password")
-os.environ.setdefault("POSTGRES_HOST", "localhost")
-os.environ.setdefault("POSTGRES_DB", "truepulse_test")
 os.environ.setdefault("FRONTEND_API_SECRET", "test-frontend-secret-for-testing")
 os.environ.setdefault("APP_ENV", "test")
 os.environ.setdefault("DEBUG", "false")

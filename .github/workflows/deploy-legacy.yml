@@ -75,11 +75,6 @@ jobs:
         env:
           APP_ENV: test
           SECRET_KEY: test-secret-key-for-ci
-          POSTGRES_HOST: localhost
-          POSTGRES_PORT: 5432
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: truepulse_test
           FRONTEND_API_SECRET: test-frontend-secret
           ENFORCE_FRONTEND_ONLY: 'false'
         run: |

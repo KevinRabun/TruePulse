@@ -25,16 +25,16 @@ resource openaiDnsZone 'Microsoft.Network/privateDnsZones@2020-06-01' existing =
   name: 'privatelink.openai.azure.com'
 }
 
-resource postgresDnsZone 'Microsoft.Network/privateDnsZones@2020-06-01' existing = {
-  name: 'privatelink.postgres.database.azure.com'
-}
-
 resource keyVaultDnsZone 'Microsoft.Network/privateDnsZones@2020-06-01' existing = {
   name: 'privatelink.vaultcore.azure.net'
 }
 
 resource acrDnsZone 'Microsoft.Network/privateDnsZones@2020-06-01' existing = {
   name: 'privatelink.azurecr.io'
+}
+
+resource cosmosDnsZone 'Microsoft.Network/privateDnsZones@2020-06-01' existing = {
+  name: 'privatelink.documents.azure.com'
 }
 
 // ============================================================================
@@ -77,18 +77,6 @@ resource openaiDnsZoneLink 'Microsoft.Network/privateDnsZones/virtualNetworkLink
   }
 }
 
-resource postgresDnsZoneLink 'Microsoft.Network/privateDnsZones/virtualNetworkLinks@2020-06-01' = {
-  parent: postgresDnsZone
-  name: 'link-${environmentName}'
-  location: 'global'
-  properties: {
-    registrationEnabled: false
-    virtualNetwork: {
-      id: vnetId
-    }
-  }
-}
-
 resource keyVaultDnsZoneLink 'Microsoft.Network/privateDnsZones/virtualNetworkLinks@2020-06-01' = {
   parent: keyVaultDnsZone
   name: 'link-${environmentName}'
@@ -103,6 +91,18 @@ resource keyVaultDnsZoneLink 'Microsoft.Network/privateDnsZones/virtualNetworkLi
 
 resource acrDnsZoneLink 'Microsoft.Network/privateDnsZones/virtualNetworkLinks@2020-06-01' = {
   parent: acrDnsZone
+  name: 'link-${environmentName}'
+  location: 'global'
+  properties: {
+    registrationEnabled: false
+    virtualNetwork: {
+      id: vnetId
+    }
+  }
+}
+
+resource cosmosDnsZoneLink 'Microsoft.Network/privateDnsZones/virtualNetworkLinks@2020-06-01' = {
+  parent: cosmosDnsZone
   name: 'link-${environmentName}'
   location: 'global'
   properties: {

@@ -13,8 +13,8 @@ param logAnalyticsWorkspaceId string
 @description('Container App resource ID')
 param containerAppId string
 
-@description('PostgreSQL server resource ID')
-param postgresServerId string
+@description('Cosmos DB account resource ID')
+param cosmosDbAccountId string
 
 @description('Email addresses for alert notifications')
 param alertEmailAddresses array = []
@@ -160,27 +160,27 @@ resource containerMemoryAlert 'Microsoft.Insights/metricAlerts@2018-03-01' = {
   }
 }
 
-// Database Connection Alert
-resource dbConnectionAlert 'Microsoft.Insights/metricAlerts@2018-03-01' = {
-  name: 'alert-db-connections-${environmentName}'
+// Cosmos DB Normalized RU Consumption Alert
+resource cosmosDbRuAlert 'Microsoft.Insights/metricAlerts@2018-03-01' = {
+  name: 'alert-cosmosdb-ru-${environmentName}'
   location: 'global'
   tags: tags
   properties: {
-    description: 'Alert when database connections exceed 80% of max'
+    description: 'Alert when Cosmos DB normalized RU consumption is high'
     severity: 2
     enabled: enableAlerts
-    scopes: [postgresServerId]
+    scopes: [cosmosDbAccountId]
     evaluationFrequency: 'PT5M'
     windowSize: 'PT15M'
     criteria: {
       'odata.type': 'Microsoft.Azure.Monitor.SingleResourceMultipleMetricCriteria'
       allOf: [
         {
-          name: 'ConnectionCheck'
-          metricName: 'active_connections'
+          name: 'RuConsumptionCheck'
+          metricName: 'NormalizedRUConsumption'
           operator: 'GreaterThan'
-          threshold: 80 // Adjust based on max_connections setting
-          timeAggregation: 'Average'
+          threshold: 80 // Alert when RU consumption exceeds 80%
+          timeAggregation: 'Maximum'
           criterionType: 'StaticThresholdCriterion'
         }
       ]
@@ -193,28 +193,35 @@ resource dbConnectionAlert 'Microsoft.Insights/metricAlerts@2018-03-01' = {
   }
 }
 
-// Database Storage Alert - Warning at 80%
-resource dbStorageAlert 'Microsoft.Insights/metricAlerts@2018-03-01' = {
-  name: 'alert-db-storage-${environmentName}'
+// Cosmos DB Throttled Requests Alert
+resource cosmosDbThrottleAlert 'Microsoft.Insights/metricAlerts@2018-03-01' = {
+  name: 'alert-cosmosdb-throttle-${environmentName}'
   location: 'global'
   tags: tags
   properties: {
-    description: 'Alert when database storage exceeds 80% capacity'
+    description: 'Alert when Cosmos DB requests are being throttled (429s)'
     severity: 2
     enabled: enableAlerts
-    scopes: [postgresServerId]
-    evaluationFrequency: 'PT1H'
-    windowSize: 'PT1H'
+    scopes: [cosmosDbAccountId]
+    evaluationFrequency: 'PT5M'
+    windowSize: 'PT15M'
     criteria: {
       'odata.type': 'Microsoft.Azure.Monitor.SingleResourceMultipleMetricCriteria'
       allOf: [
         {
-          name: 'StorageCheck'
-          metricName: 'storage_percent'
+          name: 'ThrottleCheck'
+          metricName: 'TotalRequestUnits'
           operator: 'GreaterThan'
-          threshold: 80
-          timeAggregation: 'Average'
+          threshold: 1000 // Alert when throttled RUs exceed threshold
+          timeAggregation: 'Total'
           criterionType: 'StaticThresholdCriterion'
+          dimensions: [
+            {
+              name: 'StatusCode'
+              operator: 'Include'
+              values: ['429']
+            }
+          ]
         }
       ]
     }

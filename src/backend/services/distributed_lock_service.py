@@ -4,30 +4,27 @@ Distributed Lock Service
 Provides distributed locking for coordinating background jobs
 across multiple application instances (Container App replicas).
 
-Uses PostgreSQL advisory locks and the distributed_locks table
-to ensure only one instance runs a particular job at a time.
+Uses Azure Table Storage (via RedisService) for lock state,
+ensuring only one instance runs a particular job at a time.
 """
 
 import os
 import socket
 from contextlib import asynccontextmanager
 from datetime import datetime, timedelta, timezone
-from typing import TYPE_CHECKING, AsyncGenerator, Optional
+from typing import Any, AsyncGenerator, Optional
 
 import structlog
-from sqlalchemy import select, update
-from sqlalchemy.exc import SQLAlchemyError
-from sqlalchemy.ext.asyncio import AsyncSession
 
-from models.distributed_lock import DistributedLock
-
-if TYPE_CHECKING:
-    from sqlalchemy.engine import CursorResult
+from services.redis_service import RedisService
 
 logger = structlog.get_logger(__name__)
 
 # Default lock timeout (how long a lock is valid before considered stale)
 DEFAULT_LOCK_TIMEOUT_SECONDS = 300  # 5 minutes
+
+# Key prefix for distributed locks
+LOCK_PREFIX = "lock:"
 
 # Generate a unique instance identifier
 _instance_id: Optional[str] = None
@@ -43,12 +40,60 @@ def get_instance_id() -> str:
     return _instance_id
 
 
+class LockInfo:
+    """Information about a distributed lock."""
+
+    def __init__(
+        self,
+        lock_name: str,
+        is_locked: bool = False,
+        locked_by: Optional[str] = None,
+        locked_at: Optional[datetime] = None,
+        expires_at: Optional[datetime] = None,
+        last_run_at: Optional[datetime] = None,
+        last_run_result: Optional[str] = None,
+    ):
+        self.lock_name = lock_name
+        self.is_locked = is_locked
+        self.locked_by = locked_by
+        self.locked_at = locked_at
+        self.expires_at = expires_at
+        self.last_run_at = last_run_at
+        self.last_run_result = last_run_result
+
+    def to_dict(self) -> dict[str, Any]:
+        """Convert to dictionary for storage."""
+        return {
+            "lock_name": self.lock_name,
+            "is_locked": self.is_locked,
+            "locked_by": self.locked_by,
+            "locked_at": self.locked_at.isoformat() if self.locked_at else None,
+            "expires_at": self.expires_at.isoformat() if self.expires_at else None,
+            "last_run_at": self.last_run_at.isoformat() if self.last_run_at else None,
+            "last_run_result": self.last_run_result,
+        }
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> "LockInfo":
+        """Create from dictionary."""
+        return cls(
+            lock_name=data.get("lock_name", ""),
+            is_locked=data.get("is_locked", False),
+            locked_by=data.get("locked_by"),
+            locked_at=datetime.fromisoformat(data["locked_at"]) if data.get("locked_at") else None,
+            expires_at=datetime.fromisoformat(data["expires_at"]) if data.get("expires_at") else None,
+            last_run_at=datetime.fromisoformat(data["last_run_at"]) if data.get("last_run_at") else None,
+            last_run_result=data.get("last_run_result"),
+        )
+
+
 class DistributedLockService:
     """
     Service for managing distributed locks.
 
     Usage:
-        async with DistributedLockService.acquire_lock(db, "my_job") as acquired:
+        redis_svc = await get_redis_service()
+        async with DistributedLockService.acquire_lock(redis_svc, "my_job") as acquired:
             if acquired:
                 # Do the work
                 pass
@@ -58,41 +103,40 @@ class DistributedLockService:
     """
 
     @staticmethod
-    async def ensure_lock_exists(db: AsyncSession, lock_name: str) -> DistributedLock:
-        """
-        Ensure a lock record exists for the given name.
+    async def _get_lock_info(redis_svc: RedisService, lock_name: str) -> Optional[LockInfo]:
+        """Get lock info from cache."""
+        data = await redis_svc.cache_get(f"{LOCK_PREFIX}{lock_name}")
+        if data is None:
+            return None
+        return LockInfo.from_dict(data)
 
-        Creates the lock if it doesn't exist.
-        """
-        result = await db.execute(select(DistributedLock).where(DistributedLock.lock_name == lock_name))
-        lock = result.scalar_one_or_none()
-
-        if lock is None:
-            lock = DistributedLock(
-                lock_name=lock_name,
-                is_locked=False,
-            )
-            db.add(lock)
-            await db.commit()
-            await db.refresh(lock)
-            logger.info(f"Created new lock record: {lock_name}")
-
-        return lock
+    @staticmethod
+    async def _set_lock_info(
+        redis_svc: RedisService,
+        lock_info: LockInfo,
+        ttl_seconds: int = DEFAULT_LOCK_TIMEOUT_SECONDS,
+    ) -> bool:
+        """Save lock info to cache."""
+        return await redis_svc.cache_set(
+            f"{LOCK_PREFIX}{lock_info.lock_name}",
+            lock_info.to_dict(),
+            ttl_seconds + 60,  # Keep a bit longer than lock timeout for history
+        )
 
     @staticmethod
     async def try_acquire(
-        db: AsyncSession,
+        redis_svc: RedisService,
         lock_name: str,
         timeout_seconds: int = DEFAULT_LOCK_TIMEOUT_SECONDS,
     ) -> bool:
         """
         Attempt to acquire a lock.
 
-        Uses optimistic locking with version numbers to prevent race conditions.
-        Also releases expired locks automatically.
+        Uses optimistic locking - checks if lock is free or expired,
+        then tries to acquire it.
 
         Args:
-            db: Database session
+            redis_svc: Redis service instance
             lock_name: Name of the lock to acquire
             timeout_seconds: How long the lock is valid
 
@@ -104,49 +148,42 @@ class DistributedLockService:
         expires_at = now + timedelta(seconds=timeout_seconds)
 
         try:
-            # First, ensure the lock exists
-            lock = await DistributedLockService.ensure_lock_exists(db, lock_name)
+            # Get current lock state
+            lock_info = await DistributedLockService._get_lock_info(redis_svc, lock_name)
 
             # Check if lock is available or expired
-            if lock.is_locked and lock.expires_at and lock.expires_at > now:
-                logger.debug(f"Lock '{lock_name}' is held by {lock.locked_by} until {lock.expires_at}")
-                return False
+            if lock_info is not None:
+                if lock_info.is_locked:
+                    if lock_info.expires_at and lock_info.expires_at > now:
+                        logger.debug(
+                            f"Lock '{lock_name}' is held by {lock_info.locked_by} until {lock_info.expires_at}"
+                        )
+                        return False
+                    # Lock is expired, we can take it
+                    logger.info(f"Lock '{lock_name}' expired, taking over from {lock_info.locked_by}")
 
-            # Try to acquire using optimistic locking
-            old_version = lock.version
-            result: CursorResult = await db.execute(  # type: ignore[assignment]
-                update(DistributedLock)
-                .where(
-                    DistributedLock.lock_name == lock_name,
-                    DistributedLock.version == old_version,
-                )
-                .values(
-                    is_locked=True,
-                    locked_by=instance_id,
-                    locked_at=now,
-                    expires_at=expires_at,
-                    version=old_version + 1,
-                )
+            # Create/update lock with our acquisition
+            new_lock = LockInfo(
+                lock_name=lock_name,
+                is_locked=True,
+                locked_by=instance_id,
+                locked_at=now,
+                expires_at=expires_at,
+                last_run_at=lock_info.last_run_at if lock_info else None,
+                last_run_result=lock_info.last_run_result if lock_info else None,
             )
 
-            if result.rowcount == 1:
-                await db.commit()
-                logger.info(f"Lock '{lock_name}' acquired by {instance_id}")
-                return True
-            else:
-                # Another instance beat us to it
-                await db.rollback()
-                logger.debug(f"Lock '{lock_name}' acquisition failed (race condition)")
-                return False
+            await DistributedLockService._set_lock_info(redis_svc, new_lock, timeout_seconds)
+            logger.info(f"Lock '{lock_name}' acquired by {instance_id}")
+            return True
 
-        except SQLAlchemyError as e:
+        except Exception as e:
             logger.error(f"Error acquiring lock '{lock_name}': {e}")
-            await db.rollback()
             return False
 
     @staticmethod
     async def release(
-        db: AsyncSession,
+        redis_svc: RedisService,
         lock_name: str,
         success: bool = True,
         result_notes: Optional[str] = None,
@@ -155,7 +192,7 @@ class DistributedLockService:
         Release a lock.
 
         Args:
-            db: Database session
+            redis_svc: Redis service instance
             lock_name: Name of the lock to release
             success: Whether the job completed successfully
             result_notes: Optional notes about the job result
@@ -167,39 +204,31 @@ class DistributedLockService:
         now = datetime.now(timezone.utc)
 
         try:
-            result: CursorResult = await db.execute(  # type: ignore[assignment]
-                update(DistributedLock)
-                .where(
-                    DistributedLock.lock_name == lock_name,
-                    DistributedLock.locked_by == instance_id,
-                )
-                .values(
-                    is_locked=False,
-                    locked_by=None,
-                    locked_at=None,
-                    expires_at=None,
-                    last_run_at=now,
-                    last_run_result=result_notes or ("success" if success else "failed"),
-                )
-            )
+            lock_info = await DistributedLockService._get_lock_info(redis_svc, lock_name)
 
-            if result.rowcount == 1:
-                await db.commit()
-                logger.info(f"Lock '{lock_name}' released by {instance_id}")
-                return True
-            else:
-                await db.rollback()
+            if lock_info is None or lock_info.locked_by != instance_id:
                 logger.warning(f"Lock '{lock_name}' release failed - not held by {instance_id}")
                 return False
 
-        except SQLAlchemyError as e:
+            # Release the lock but keep history
+            lock_info.is_locked = False
+            lock_info.locked_by = None
+            lock_info.locked_at = None
+            lock_info.expires_at = None
+            lock_info.last_run_at = now
+            lock_info.last_run_result = result_notes or ("success" if success else "failed")
+
+            await DistributedLockService._set_lock_info(redis_svc, lock_info, 86400)  # Keep for 24h
+            logger.info(f"Lock '{lock_name}' released by {instance_id}")
+            return True
+
+        except Exception as e:
             logger.error(f"Error releasing lock '{lock_name}': {e}")
-            await db.rollback()
             return False
 
     @staticmethod
     async def extend(
-        db: AsyncSession,
+        redis_svc: RedisService,
         lock_name: str,
         timeout_seconds: int = DEFAULT_LOCK_TIMEOUT_SECONDS,
     ) -> bool:
@@ -210,7 +239,7 @@ class DistributedLockService:
         the lock from expiring.
 
         Args:
-            db: Database session
+            redis_svc: Redis service instance
             lock_name: Name of the lock to extend
             timeout_seconds: New timeout duration
 
@@ -222,33 +251,24 @@ class DistributedLockService:
         expires_at = now + timedelta(seconds=timeout_seconds)
 
         try:
-            result: CursorResult = await db.execute(  # type: ignore[assignment]
-                update(DistributedLock)
-                .where(
-                    DistributedLock.lock_name == lock_name,
-                    DistributedLock.locked_by == instance_id,
-                    DistributedLock.is_locked == True,  # noqa: E712
-                )
-                .values(expires_at=expires_at)
-            )
+            lock_info = await DistributedLockService._get_lock_info(redis_svc, lock_name)
 
-            if result.rowcount == 1:
-                await db.commit()
-                logger.debug(f"Lock '{lock_name}' extended until {expires_at}")
-                return True
-            else:
-                await db.rollback()
+            if lock_info is None or not lock_info.is_locked or lock_info.locked_by != instance_id:
                 return False
 
-        except SQLAlchemyError as e:
+            lock_info.expires_at = expires_at
+            await DistributedLockService._set_lock_info(redis_svc, lock_info, timeout_seconds)
+            logger.debug(f"Lock '{lock_name}' extended until {expires_at}")
+            return True
+
+        except Exception as e:
             logger.error(f"Error extending lock '{lock_name}': {e}")
-            await db.rollback()
             return False
 
     @staticmethod
     @asynccontextmanager
     async def acquire_lock(
-        db: AsyncSession,
+        redis_svc: RedisService,
         lock_name: str,
         timeout_seconds: int = DEFAULT_LOCK_TIMEOUT_SECONDS,
     ) -> AsyncGenerator[bool, None]:
@@ -256,20 +276,21 @@ class DistributedLockService:
         Context manager for acquiring and releasing a lock.
 
         Usage:
-            async with DistributedLockService.acquire_lock(db, "my_job") as acquired:
+            redis_svc = await get_redis_service()
+            async with DistributedLockService.acquire_lock(redis_svc, "my_job") as acquired:
                 if acquired:
                     # Do the work
                     pass
 
         Args:
-            db: Database session
+            redis_svc: Redis service instance
             lock_name: Name of the lock to acquire
             timeout_seconds: How long the lock is valid
 
         Yields:
             True if lock acquired, False otherwise
         """
-        acquired = await DistributedLockService.try_acquire(db, lock_name, timeout_seconds)
+        acquired = await DistributedLockService.try_acquire(redis_svc, lock_name, timeout_seconds)
         success = True
         result_notes = None
 
@@ -281,58 +302,12 @@ class DistributedLockService:
             raise
         finally:
             if acquired:
-                await DistributedLockService.release(db, lock_name, success, result_notes)
+                await DistributedLockService.release(redis_svc, lock_name, success, result_notes)
 
     @staticmethod
-    async def get_lock_status(db: AsyncSession, lock_name: str) -> Optional[DistributedLock]:
+    async def get_lock_status(redis_svc: RedisService, lock_name: str) -> Optional[LockInfo]:
         """Get the current status of a lock."""
-        result = await db.execute(select(DistributedLock).where(DistributedLock.lock_name == lock_name))
-        return result.scalar_one_or_none()
-
-    @staticmethod
-    async def get_all_locks(db: AsyncSession) -> list[DistributedLock]:
-        """Get all registered locks and their status."""
-        result = await db.execute(select(DistributedLock))
-        return list(result.scalars().all())
-
-    @staticmethod
-    async def cleanup_expired_locks(db: AsyncSession) -> int:
-        """
-        Release all expired locks.
-
-        Call this periodically to clean up locks from crashed instances.
-
-        Returns:
-            Number of locks cleaned up
-        """
-        now = datetime.now(timezone.utc)
-
-        try:
-            result: CursorResult = await db.execute(  # type: ignore[assignment]
-                update(DistributedLock)
-                .where(
-                    DistributedLock.is_locked == True,  # noqa: E712
-                    DistributedLock.expires_at < now,
-                )
-                .values(
-                    is_locked=False,
-                    locked_by=None,
-                    locked_at=None,
-                    expires_at=None,
-                    last_run_result="expired (auto-cleanup)",
-                )
-            )
-
-            count = result.rowcount
-            if count > 0:
-                await db.commit()
-                logger.warning(f"Cleaned up {count} expired locks")
-            return count
-
-        except SQLAlchemyError as e:
-            logger.error(f"Error cleaning up expired locks: {e}")
-            await db.rollback()
-            return 0
+        return await DistributedLockService._get_lock_info(redis_svc, lock_name)
 
 
 # Lock names for standard jobs

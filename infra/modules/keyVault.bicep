@@ -140,49 +140,6 @@ resource storageEncryptionKey 'Microsoft.KeyVault/vaults/keys@2023-07-01' = if (
   dependsOn: [keyVault]
 }
 
-// CMK for PostgreSQL encryption (user data, polls, achievements)
-resource postgresEncryptionKey 'Microsoft.KeyVault/vaults/keys@2023-07-01' = if (createEncryptionKeys) {
-  name: '${name}/cmk-postgres'
-  properties: {
-    kty: 'RSA'
-    keySize: 4096
-    keyOps: [
-      'encrypt'
-      'decrypt'
-      'wrapKey'
-      'unwrapKey'
-    ]
-    attributes: {
-      enabled: true
-      exportable: false
-    }
-    rotationPolicy: {
-      lifetimeActions: [
-        {
-          action: {
-            type: 'rotate'
-          }
-          trigger: {
-            timeAfterCreate: 'P90D'
-          }
-        }
-        {
-          action: {
-            type: 'notify'
-          }
-          trigger: {
-            timeBeforeExpiry: 'P30D'
-          }
-        }
-      ]
-      attributes: {
-        expiryTime: 'P2Y'
-      }
-    }
-  }
-  dependsOn: [keyVault]
-}
-
 // ============================================================================
 // Secrets
 // ============================================================================
@@ -213,5 +170,3 @@ output uri string = keyVault.outputs.uri
 // Note: storageEncryptionKey.name returns 'vaultName/keyName', so we extract just the key name
 output storageEncryptionKeyName string = createEncryptionKeys ? 'cmk-storage' : ''
 output storageEncryptionKeyUri string = createEncryptionKeys ? storageEncryptionKey!.properties.keyUriWithVersion : ''
-output postgresEncryptionKeyName string = createEncryptionKeys ? 'cmk-postgres' : ''
-output postgresEncryptionKeyUri string = createEncryptionKeys ? postgresEncryptionKey!.properties.keyUriWithVersion : ''

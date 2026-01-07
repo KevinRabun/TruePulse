@@ -1,13 +1,23 @@
-"""Repository modules for database access."""
+"""Repository modules for Cosmos DB database access."""
 
-from repositories.feedback_repository import FeedbackRepository
-from repositories.poll_repository import PollRepository
-from repositories.user_repository import UserRepository
-from repositories.vote_repository import VoteRepository
+from repositories.cosmos_achievement_repository import CosmosAchievementRepository
+from repositories.cosmos_poll_repository import CosmosPollRepository
+from repositories.cosmos_user_repository import CosmosUserRepository
+from repositories.cosmos_vote_repository import CosmosVoteRepository
+from repositories.provider import (
+    get_achievement_repository,
+    get_poll_repository,
+    get_user_repository,
+    get_vote_repository,
+)
 
 __all__ = [
-    "PollRepository",
-    "VoteRepository",
-    "UserRepository",
-    "FeedbackRepository",
+    "CosmosAchievementRepository",
+    "CosmosPollRepository",
+    "CosmosUserRepository",
+    "CosmosVoteRepository",
+    "get_achievement_repository",
+    "get_poll_repository",
+    "get_user_repository",
+    "get_vote_repository",
 ]

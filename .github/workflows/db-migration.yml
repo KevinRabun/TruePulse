@@ -1,5 +1,11 @@
-# TruePulse Database Migration Pipeline
-# Runs database migrations against Azure PostgreSQL via Container App revision deployment
+# TruePulse Database Migration Pipeline (DEPRECATED)
+# 
+# NOTE: This workflow is deprecated since migration to Cosmos DB Serverless.
+# Cosmos DB is schemaless and doesn't require traditional database migrations.
+# This file is kept for reference only.
+#
+# For Cosmos DB container/index changes, update infra/modules/cosmosdb.bicep
+# and redeploy through the deploy-infrastructure workflow.
 #
 # How it works:
 # 1. Triggers a new revision with RUN_MIGRATION env var set to the script name

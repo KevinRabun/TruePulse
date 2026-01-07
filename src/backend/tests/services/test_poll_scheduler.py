@@ -146,105 +146,63 @@ class TestPollSchedulerDatabase:
     """Tests for PollScheduler database operations."""
 
     @pytest.fixture
-    def mock_db_session(self):
-        """Create mock database session."""
-        session = AsyncMock()
-        session.execute = AsyncMock()
-        session.scalar = AsyncMock()
-        session.scalars = AsyncMock()
-        session.commit = AsyncMock()
-        session.add = MagicMock()
-        return session
-
-    @pytest.fixture
-    def scheduler(self, mock_db_session):
-        """Create PollScheduler with mock session."""
+    def scheduler(self):
+        """Create PollScheduler instance."""
         from services.poll_scheduler import PollScheduler
 
-        return PollScheduler(mock_db_session)
+        return PollScheduler()
 
     @pytest.mark.asyncio
-    async def test_get_current_poll_returns_active(self, scheduler, mock_db_session):
+    async def test_get_current_poll_returns_active(self, scheduler):
         """Test that get_current_poll returns active poll."""
-        from models.poll import Poll, PollStatus
+        from models.cosmos_documents import PollDocument, PollStatus
 
-        mock_poll = MagicMock(spec=Poll)
+        mock_poll = MagicMock(spec=PollDocument)
         mock_poll.id = "poll-123"
         mock_poll.status = PollStatus.ACTIVE
 
-        mock_result = MagicMock()
-        mock_result.scalar_one_or_none.return_value = mock_poll
-        mock_db_session.execute.return_value = mock_result
+        with patch.object(scheduler.repo, "get_current_poll", new_callable=AsyncMock) as mock_get:
+            mock_get.return_value = mock_poll
 
-        result = await scheduler.get_current_poll()
+            result = await scheduler.get_current_poll()
 
-        assert result is not None
-        assert result.id == "poll-123"
+            assert result is not None
+            assert result.id == "poll-123"
 
     @pytest.mark.asyncio
-    async def test_get_current_poll_returns_none_when_no_active(self, scheduler, mock_db_session):
+    async def test_get_current_poll_returns_none_when_no_active(self, scheduler):
         """Test that get_current_poll returns None when no active poll."""
-        mock_result = MagicMock()
-        mock_result.scalar_one_or_none.return_value = None
-        mock_db_session.execute.return_value = mock_result
+        with patch.object(scheduler.repo, "get_current_poll", new_callable=AsyncMock) as mock_get:
+            mock_get.return_value = None
 
-        result = await scheduler.get_current_poll()
+            result = await scheduler.get_current_poll()
 
-        assert result is None
+            assert result is None
 
 
 class TestPollSchedulerPollManagement:
     """Tests for poll activation and closing."""
 
     @pytest.fixture
-    def mock_db_session(self):
-        """Create mock database session."""
-        session = AsyncMock()
-        session.execute = AsyncMock()
-        session.scalar = AsyncMock()
-        session.scalars = AsyncMock()
-        session.commit = AsyncMock()
-        session.add = MagicMock()
-        return session
-
-    @pytest.fixture
-    def scheduler(self, mock_db_session):
-        """Create PollScheduler with mock session."""
+    def scheduler(self):
+        """Create PollScheduler instance."""
         from services.poll_scheduler import PollScheduler
 
-        return PollScheduler(mock_db_session)
+        return PollScheduler()
 
     @pytest.mark.asyncio
-    async def test_close_expired_polls(self, scheduler, mock_db_session):
+    async def test_close_expired_polls(self, scheduler):
         """Test that expired polls are closed."""
-        from models.poll import Poll, PollStatus
+        # Mock the repository close_expired_polls method which returns count of closed polls
+        with patch.object(scheduler.repo, "close_expired_polls", new_callable=AsyncMock) as mock_close:
+            mock_close.return_value = 1  # 1 poll was closed
 
-        # Create an expired poll
-        mock_poll = MagicMock(spec=Poll)
-        mock_poll.id = "expired-poll"
-        mock_poll.status = PollStatus.ACTIVE.value
-        mock_poll.ends_at = datetime.now(timezone.utc) - timedelta(hours=1)
-        mock_poll.question = "Test question for expired poll"
-        mock_poll.total_votes = 100
+            result = await scheduler.close_expired_polls()
 
-        # Mock the execute result chain: result.scalars().all()
-        mock_scalars_result = MagicMock()
-        mock_scalars_result.all.return_value = [mock_poll]
-
-        mock_execute_result = MagicMock()
-        mock_execute_result.scalars.return_value = mock_scalars_result
-
-        # Make execute return an awaitable that resolves to our mock
-        async def mock_execute(*args, **kwargs):
-            return mock_execute_result
-
-        mock_db_session.execute = mock_execute
-
-        await scheduler.close_expired_polls()
-
-        # Verify status was updated
-        assert mock_poll.status == PollStatus.CLOSED.value
-        mock_db_session.commit.assert_called()
+            # Verify repository method was called
+            mock_close.assert_called_once()
+            # Service returns empty list (repo handles updates internally)
+            assert result == []
 
 
 class TestPollSchedulerIntegration:

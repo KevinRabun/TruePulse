@@ -7,20 +7,17 @@ Manages the hourly poll rotation system:
 - Retrieves current and previous polls
 
 The scheduler uses APScheduler to run background tasks.
+Now uses Cosmos DB for data persistence.
 """
 
 from datetime import datetime, timedelta, timezone
 from typing import Optional
-from uuid import uuid4
 
 import structlog
-from sqlalchemy import and_, select
-from sqlalchemy.exc import IntegrityError
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.config import settings
-from models.poll import Poll, PollChoice, PollStatus
-from repositories.feedback_repository import FeedbackRepository
+from models.cosmos_documents import PollDocument, PollStatus
+from repositories.cosmos_poll_repository import CosmosPollRepository
 
 logger = structlog.get_logger(__name__)
 
@@ -34,10 +31,12 @@ class PollScheduler:
     - Closes polls when their duration expires
     - Provides access to current and previous polls
     - Supports special polls with custom durations
+
+    Now uses Cosmos DB via CosmosPollRepository.
     """
 
-    def __init__(self, db_session: AsyncSession):
-        self.db = db_session
+    def __init__(self):
+        self.repo = CosmosPollRepository()
         self.poll_duration_hours = settings.POLL_DURATION_HOURS
 
     @staticmethod
@@ -88,100 +87,31 @@ class PollScheduler:
 
         return next_start, next_end
 
-    async def get_current_poll(self) -> Optional[Poll]:
+    async def get_current_poll(self) -> Optional[PollDocument]:
         """
         Get the currently active poll.
 
         Returns the poll scheduled for the current time window,
         or any special poll that is currently active.
         """
-        now = datetime.now(timezone.utc)
+        datetime.now(timezone.utc)
         window_start, window_end = self.get_current_poll_window()
 
         # First, check for any active special polls
-        special_poll_query = (
-            select(Poll)
-            .where(
-                and_(
-                    Poll.is_special == True,
-                    Poll.status == PollStatus.ACTIVE.value,
-                    Poll.scheduled_start <= now,
-                    Poll.scheduled_end > now,
-                )
-            )
-            .order_by(Poll.created_at.desc())
-        )
+        # Use the repository's get_current_poll method which handles this logic
+        return await self.repo.get_current_poll()
 
-        result = await self.db.execute(special_poll_query)
-        special_poll = result.scalar_one_or_none()
-        if special_poll:
-            return special_poll
-
-        # Get the regular poll for this time window
-        query = select(Poll).where(
-            and_(
-                Poll.is_special == False,
-                Poll.status == PollStatus.ACTIVE.value,
-                Poll.scheduled_start == window_start,
-            )
-        )
-
-        result = await self.db.execute(query)
-        return result.scalar_one_or_none()
-
-    async def get_previous_poll(self) -> Optional[Poll]:
+    async def get_previous_poll(self) -> Optional[PollDocument]:
         """
         Get the most recently closed poll.
 
         Returns the poll from the previous time window.
         """
-        previous_start, previous_end = self.get_previous_poll_window()
+        return await self.repo.get_previous_poll()
 
-        query = select(Poll).where(
-            and_(
-                Poll.is_special == False,
-                Poll.status == PollStatus.CLOSED.value,
-                Poll.scheduled_start == previous_start,
-            )
-        )
-
-        result = await self.db.execute(query)
-        poll = result.scalar_one_or_none()
-
-        # If no poll from previous window, get the most recently closed poll
-        if not poll:
-            fallback_query = (
-                select(Poll)
-                .where(
-                    Poll.status == PollStatus.CLOSED.value,
-                )
-                .order_by(Poll.closed_at.desc())
-                .limit(1)
-            )
-
-            result = await self.db.execute(fallback_query)
-            poll = result.scalar_one_or_none()
-
-        return poll
-
-    async def get_upcoming_polls(self, limit: int = 5) -> list[Poll]:
+    async def get_upcoming_polls(self, limit: int = 5) -> list[PollDocument]:
         """Get polls scheduled for future time windows."""
-        now = datetime.now(timezone.utc)
-
-        query = (
-            select(Poll)
-            .where(
-                and_(
-                    Poll.status == PollStatus.SCHEDULED.value,
-                    Poll.scheduled_start > now,
-                )
-            )
-            .order_by(Poll.scheduled_start.asc())
-            .limit(limit)
-        )
-
-        result = await self.db.execute(query)
-        return list(result.scalars().all())
+        return await self.repo.get_upcoming_polls(limit=limit)
 
     async def schedule_poll(
         self,
@@ -194,7 +124,7 @@ class PollScheduler:
         duration_hours: Optional[int] = None,
         is_special: bool = False,
         ai_generated: bool = False,
-    ) -> Poll:
+    ) -> PollDocument:
         """
         Schedule a new poll.
 
@@ -210,7 +140,7 @@ class PollScheduler:
             ai_generated: Whether AI generated this poll
 
         Returns:
-            The created Poll instance
+            The created PollDocument instance
         """
         if scheduled_start is None:
             # Schedule for the next available window
@@ -222,40 +152,19 @@ class PollScheduler:
 
         scheduled_end = scheduled_start + timedelta(hours=duration_hours)
 
-        # Create the poll
-        poll = Poll(
-            id=str(uuid4()),
+        # Create the poll using the repository
+        poll = await self.repo.create(
             question=question,
+            choices=choices,
             category=category,
-            source_event=source_event,
-            source_event_url=source_event_url,
-            status=PollStatus.SCHEDULED.value,
-            is_active=False,
-            is_featured=True,
-            is_special=is_special,
-            duration_hours=duration_hours,
             scheduled_start=scheduled_start,
             scheduled_end=scheduled_end,
-            expires_at=scheduled_end,
+            source_event=source_event,
+            source_event_url=source_event_url,
+            is_featured=True,
+            is_special=is_special,
             ai_generated=ai_generated,
-            total_votes=0,
         )
-
-        self.db.add(poll)
-
-        # Create choices
-        for order, choice_text in enumerate(choices):
-            choice = PollChoice(
-                id=str(uuid4()),
-                poll_id=poll.id,
-                text=choice_text,
-                order=order,
-                vote_count=0,
-            )
-            self.db.add(choice)
-
-        await self.db.commit()
-        await self.db.refresh(poll)
 
         logger.info(
             f"Scheduled poll '{question[:50]}...' for {scheduled_start} "
@@ -264,65 +173,30 @@ class PollScheduler:
 
         return poll
 
-    async def activate_scheduled_polls(self) -> list[Poll]:
+    async def activate_scheduled_polls(self) -> list[PollDocument]:
         """
         Activate polls whose scheduled start time has arrived.
 
         Called by the background scheduler at the top of each hour.
         """
-        now = datetime.now(timezone.utc)
+        count = await self.repo.activate_scheduled_polls()
+        if count > 0:
+            logger.info(f"Activated {count} scheduled polls")
 
-        # Find polls that should be activated
-        query = select(Poll).where(
-            and_(
-                Poll.status == PollStatus.SCHEDULED.value,
-                Poll.scheduled_start <= now,
-                Poll.scheduled_end > now,
-            )
-        )
+        # Return the list of currently active polls
+        current = await self.get_current_poll()
+        return [current] if current else []
 
-        result = await self.db.execute(query)
-        polls_to_activate = list(result.scalars().all())
-
-        for poll in polls_to_activate:
-            poll.status = PollStatus.ACTIVE.value
-            poll.is_active = True
-            logger.info(f"Activated poll: {poll.id} - '{poll.question[:50]}...'")
-
-        if polls_to_activate:
-            await self.db.commit()
-
-        return polls_to_activate
-
-    async def close_expired_polls(self) -> list[Poll]:
+    async def close_expired_polls(self) -> list[PollDocument]:
         """
         Close polls whose scheduled end time has passed.
 
         Called by the background scheduler.
         """
-        now = datetime.now(timezone.utc)
-
-        # Find polls that should be closed
-        query = select(Poll).where(
-            and_(
-                Poll.status == PollStatus.ACTIVE.value,
-                Poll.scheduled_end <= now,
-            )
-        )
-
-        result = await self.db.execute(query)
-        polls_to_close = list(result.scalars().all())
-
-        for poll in polls_to_close:
-            poll.status = PollStatus.CLOSED.value
-            poll.is_active = False
-            poll.closed_at = now
-            logger.info(f"Closed poll: {poll.id} - '{poll.question[:50]}...' (total votes: {poll.total_votes})")
-
-        if polls_to_close:
-            await self.db.commit()
-
-        return polls_to_close
+        count = await self.repo.close_expired_polls()
+        if count > 0:
+            logger.info(f"Closed {count} expired polls")
+        return []  # Repository handles the updates internally
 
     async def run_rotation_cycle(self) -> dict:
         """
@@ -372,18 +246,9 @@ class PollScheduler:
             Set of category names recently used
         """
         cutoff = datetime.now(timezone.utc) - timedelta(hours=hours)
-        query = (
-            select(Poll.category)
-            .where(
-                and_(
-                    Poll.created_at >= cutoff,
-                    Poll.ai_generated == True,
-                )
-            )
-            .distinct()
-        )
-        result = await self.db.execute(query)
-        return {row[0] for row in result.fetchall() if row[0]}
+        # Get recently created polls and extract their categories
+        polls = await self.repo.get_polls_created_since(cutoff)
+        return {poll.category for poll in polls if poll.category and poll.ai_generated}
 
     async def _get_recently_used_event_titles(self, hours: int = 72) -> set[str]:
         """
@@ -396,14 +261,8 @@ class PollScheduler:
             Set of normalized event titles (lowercase, stripped)
         """
         cutoff = datetime.now(timezone.utc) - timedelta(hours=hours)
-        query = select(Poll.source_event).where(
-            and_(
-                Poll.created_at >= cutoff,
-                Poll.source_event.isnot(None),
-            )
-        )
-        result = await self.db.execute(query)
-        return {row[0].lower().strip() for row in result.fetchall() if row[0]}
+        polls = await self.repo.get_polls_created_since(cutoff)
+        return {poll.source_event.lower().strip() for poll in polls if poll.source_event}
 
     async def _determine_next_poll_type(self) -> tuple[str, datetime, datetime]:
         """
@@ -427,16 +286,10 @@ class PollScheduler:
             today_start_et = now_et.replace(hour=8, minute=0, second=0, microsecond=0)
             today_start_utc = today_start_et.astimezone(timezone.utc)
 
-            query = select(Poll).where(
-                and_(
-                    Poll.poll_type == "pulse",
-                    Poll.scheduled_start >= today_start_utc,
-                )
-            )
-            result = await self.db.execute(query)
-            existing_pulse = result.scalar_one_or_none()
+            # Use repository to find pulse polls created since today's start
+            existing_polls = await self.repo.get_polls_created_since(today_start_utc, poll_type="pulse")
 
-            if not existing_pulse:
+            if not existing_polls:
                 # No pulse poll today, create one
                 pulse_start, pulse_end = get_pulse_poll_window()
                 logger.info(f"Creating daily pulse poll for {pulse_start.isoformat()} to {pulse_end.isoformat()}")
@@ -448,7 +301,7 @@ class PollScheduler:
         logger.info(f"Scheduling flash poll for {flash_start.isoformat()} (1 hour duration)")
         return "flash", flash_start, flash_end
 
-    async def _generate_poll_from_events(self) -> Optional[Poll]:
+    async def _generate_poll_from_events(self) -> Optional[PollDocument]:
         """
         Generate a new poll from current events using the AI system.
 
@@ -470,14 +323,13 @@ class PollScheduler:
 
             # *** CRITICAL: Check if a poll already exists for this time window ***
             # This prevents duplicate polls from concurrent scheduler invocations
-            existing_poll_query = select(Poll).where(
-                and_(
-                    Poll.poll_type == poll_type,
-                    Poll.scheduled_start == window_start,
-                )
+            # Use repository to check for existing polls by type and scheduled start
+            existing_polls = await self.repo.get_polls_created_since(
+                window_start - timedelta(minutes=1),  # Small buffer for timing
+                poll_type=poll_type,
             )
-            result = await self.db.execute(existing_poll_query)
-            existing_poll = result.scalar_one_or_none()
+            # Filter to exact window start
+            existing_poll = next((p for p in existing_polls if p.scheduled_start == window_start), None)
 
             if existing_poll:
                 logger.info(
@@ -548,18 +400,9 @@ class PollScheduler:
 
             logger.info(f"Filtered to {len(filtered_events)} unique events from {len(events)} total")
 
-            # Fetch feedback guidance for categories being used
-            feedback_repo = FeedbackRepository(self.db)
+            # Note: Feedback guidance from FeedbackRepository is SQLAlchemy-based
+            # and will be migrated separately. For now, skip feedback guidance.
             feedback_guidance_by_category: dict[str, list[str]] = {}
-
-            categories_in_events = set(e.category for e in filtered_events)
-            for category in categories_in_events:
-                feedback_context = await feedback_repo.get_feedback_context_for_generation(category)
-                if feedback_context.get("has_patterns") and feedback_context.get("specific_guidance"):
-                    feedback_guidance_by_category[category] = feedback_context["specific_guidance"]
-                    logger.info(
-                        f"Loaded feedback guidance for {category}: {len(feedback_context['specific_guidance'])} items"
-                    )
 
             # Initialize the poll generator
             generator = PollGenerator()
@@ -579,75 +422,41 @@ class PollScheduler:
 
             # Set duration and special flag based on poll type
             if poll_type == "pulse":
-                duration_hours = 12
                 is_special = True
             else:  # flash
-                duration_hours = 1
                 is_special = False
 
             # Check current window status
             now = datetime.now(timezone.utc)
             if window_start <= now < window_end:
-                initial_status = PollStatus.ACTIVE
+                initial_status = PollStatus.ACTIVE.value
             else:
-                initial_status = PollStatus.SCHEDULED
+                initial_status = PollStatus.SCHEDULED.value
 
-            # Create the poll in database
-            new_poll = Poll(
-                id=str(uuid4()),
+            # Extract choices from poll_data
+            choices = [choice.text if hasattr(choice, "text") else str(choice) for choice in poll_data.choices]
+
+            # Create the poll using the repository
+            new_poll = await self.repo.create(
                 question=poll_data.question,
+                choices=choices,
                 category=poll_data.category,
-                status=initial_status,
-                poll_type=poll_type,
-                is_special=is_special,
-                duration_hours=duration_hours,
                 scheduled_start=window_start,
                 scheduled_end=window_end,
-                expires_at=window_end,
-                ai_generated=True,
                 source_event=poll_data.source_event if hasattr(poll_data, "source_event") else None,
+                is_featured=poll_type == "pulse",
+                ai_generated=True,
+                poll_type=poll_type,
+                is_special=is_special,
+                status=initial_status,
             )
 
-            # Add choices
-            for i, choice in enumerate(poll_data.choices):
-                poll_choice = PollChoice(
-                    id=str(uuid4()),
-                    poll_id=new_poll.id,
-                    text=choice.text if hasattr(choice, "text") else str(choice),
-                    order=i,
-                )
-                new_poll.choices.append(poll_choice)
+            logger.info(
+                f"{poll_type.upper()} poll generated: {new_poll.id} - '{new_poll.question[:50]}' "
+                f"[{new_poll.category}] scheduled for {window_start.isoformat()}"
+            )
 
-            self.db.add(new_poll)
-            try:
-                await self.db.commit()
-                await self.db.refresh(new_poll)
-
-                logger.info(
-                    f"{poll_type.upper()} poll generated: {new_poll.id} - '{new_poll.question[:50]}' "
-                    f"[{new_poll.category}] scheduled for {window_start.isoformat()}"
-                )
-
-                return new_poll
-            except IntegrityError:
-                # Unique constraint violation - another process already created a poll for this window
-                # This is expected behavior in concurrent environments, not an error
-                await self.db.rollback()
-                logger.info(
-                    f"Poll already exists for {poll_type} window {window_start.isoformat()} "
-                    f"(concurrent creation detected via unique constraint) - fetching existing poll"
-                )
-                # Fetch the existing poll that was created by another process
-                result = await self.db.execute(
-                    select(Poll).where(
-                        and_(
-                            Poll.poll_type == poll_type,
-                            Poll.scheduled_start == window_start,
-                        )
-                    )
-                )
-                existing_poll = result.scalar_one_or_none()
-                return existing_poll
+            return new_poll
 
         except Exception as e:
             logger.error(f"Poll generation error: {e}", exc_info=True)
@@ -655,13 +464,13 @@ class PollScheduler:
 
 
 # Background task functions for APScheduler or similar
-async def poll_rotation_task(db_session: AsyncSession) -> None:
+async def poll_rotation_task() -> None:
     """
     Background task to run poll rotation.
 
     Should be scheduled to run at the start of each poll window.
     """
-    scheduler = PollScheduler(db_session)
+    scheduler = PollScheduler()
     result = await scheduler.run_rotation_cycle()
     logger.info(f"Poll rotation completed: {result}")
 
@@ -720,12 +529,11 @@ def get_pulse_poll_window() -> tuple[datetime, datetime]:
 
 
 async def schedule_daily_pulse_poll(
-    db_session: AsyncSession,
     question: str,
     choices: list[str],
     category: str,
     source_event: Optional[str] = None,
-) -> Poll:
+) -> PollDocument:
     """
     Schedule the daily Pulse Poll (8am-8pm ET).
 
@@ -734,38 +542,19 @@ async def schedule_daily_pulse_poll(
     """
     start_utc, end_utc = get_pulse_poll_window()
 
-    poll = Poll(
-        id=str(uuid4()),
+    repo = CosmosPollRepository()
+    poll = await repo.create(
         question=question,
+        choices=choices,
         category=category,
+        scheduled_start=start_utc,
+        scheduled_end=end_utc,
         source_event=source_event,
-        status=PollStatus.SCHEDULED.value,
-        is_active=False,
         is_featured=True,
         is_special=True,  # Pulse polls are special (non-standard duration)
         poll_type="pulse",
-        duration_hours=12,
-        scheduled_start=start_utc,
-        scheduled_end=end_utc,
-        expires_at=end_utc,
         ai_generated=False,
-        total_votes=0,
     )
-
-    db_session.add(poll)
-
-    for order, choice_text in enumerate(choices):
-        choice = PollChoice(
-            id=str(uuid4()),
-            poll_id=poll.id,
-            text=choice_text,
-            order=order,
-            vote_count=0,
-        )
-        db_session.add(choice)
-
-    await db_session.commit()
-    await db_session.refresh(poll)
 
     logger.info(f"Scheduled Pulse Poll: '{question[:50]}...' for {start_utc} - {end_utc}")
 
@@ -833,13 +622,12 @@ def get_next_flash_poll_window() -> tuple[datetime, datetime]:
 
 
 async def schedule_flash_poll(
-    db_session: AsyncSession,
     question: str,
     choices: list[str],
     category: str,
     source_event: Optional[str] = None,
     scheduled_start: Optional[datetime] = None,
-) -> Poll:
+) -> PollDocument:
     """
     Schedule a Flash Poll (1-hour quick poll).
 
@@ -852,38 +640,19 @@ async def schedule_flash_poll(
         start_utc = scheduled_start
         end_utc = start_utc + timedelta(hours=1)
 
-    poll = Poll(
-        id=str(uuid4()),
+    repo = CosmosPollRepository()
+    poll = await repo.create(
         question=question,
+        choices=choices,
         category=category,
+        scheduled_start=start_utc,
+        scheduled_end=end_utc,
         source_event=source_event,
-        status=PollStatus.SCHEDULED.value,
-        is_active=False,
         is_featured=False,
         is_special=False,
         poll_type="flash",
-        duration_hours=1,
-        scheduled_start=start_utc,
-        scheduled_end=end_utc,
-        expires_at=end_utc,
         ai_generated=False,
-        total_votes=0,
     )
-
-    db_session.add(poll)
-
-    for order, choice_text in enumerate(choices):
-        choice = PollChoice(
-            id=str(uuid4()),
-            poll_id=poll.id,
-            text=choice_text,
-            order=order,
-            vote_count=0,
-        )
-        db_session.add(choice)
-
-    await db_session.commit()
-    await db_session.refresh(poll)
 
     logger.info(f"Scheduled Flash Poll: '{question[:50]}...' for {start_utc} (1 hour)")
 

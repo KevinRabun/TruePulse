@@ -27,4 +27,4 @@
 /src/backend/services/fraud_detection.py @KevinRabun
 /src/backend/api/v1/secure_votes.py @KevinRabun
 /infra/modules/keyVault.bicep @KevinRabun
-/infra/modules/postgres.bicep @KevinRabun
+/infra/modules/cosmosdb.bicep @KevinRabun

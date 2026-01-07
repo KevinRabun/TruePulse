@@ -1,7 +1,7 @@
 """
 Application lifecycle event handlers.
 
-Manages startup and shutdown tasks for database connections,
+Manages startup and shutdown tasks for Cosmos DB connections,
 Azure Table Storage initialization, background scheduler, and AI service setup.
 """
 
@@ -11,7 +11,7 @@ import structlog
 from fastapi import FastAPI
 
 from core.config import settings
-from db.session import close_db, init_db
+from db.cosmos_session import close_cosmos, get_database
 
 logger = structlog.get_logger(__name__)
 
@@ -22,9 +22,13 @@ def create_start_app_handler(app: FastAPI) -> Callable:
     async def start_app() -> None:
         logger.info("Starting TruePulse API...")
 
-        # Initialize database connections
-        await init_db()
-        logger.info("Database initialized")
+        # Initialize Cosmos DB connection
+        try:
+            await get_database()
+            logger.info("Cosmos DB initialized")
+        except Exception as e:
+            logger.error(f"Cosmos DB initialization failed: {e}")
+            raise
 
         # Seed required data (achievements, etc.) - safe to run multiple times
         try:
@@ -76,8 +80,9 @@ def create_stop_app_handler(app: FastAPI) -> Callable:
         except Exception as e:
             logger.warning(f"Background scheduler cleanup failed: {e}")
 
-        # Close database connections
-        await close_db()
+        # Close Cosmos DB connections
+        await close_cosmos()
+        logger.info("Cosmos DB connections closed")
 
         # Close Azure Table Storage connections
         try:

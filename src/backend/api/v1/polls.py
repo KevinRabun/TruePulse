@@ -11,11 +11,10 @@ from datetime import datetime, timedelta, timezone
 from typing import Annotated, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.deps import get_current_verified_user
-from db.session import get_db
-from repositories.poll_repository import PollRepository
+from repositories.cosmos_poll_repository import CosmosPollRepository
+from repositories.cosmos_vote_repository import CosmosVoteRepository
 from schemas.converters import poll_model_to_results_schema, poll_model_to_schema
 from schemas.poll import (
     Poll,
@@ -28,6 +27,21 @@ from schemas.user import UserInDB
 router = APIRouter()
 
 
+# =============================================================================
+# Repository Dependencies
+# =============================================================================
+
+
+def get_poll_repository() -> CosmosPollRepository:
+    """Get the Cosmos DB poll repository instance."""
+    return CosmosPollRepository()
+
+
+def get_vote_repository() -> CosmosVoteRepository:
+    """Get the Cosmos DB vote repository instance."""
+    return CosmosVoteRepository()
+
+
 # ============================================================================
 # Current/Previous Poll Endpoints (Main Page)
 # ============================================================================
@@ -35,7 +49,7 @@ router = APIRouter()
 
 @router.get("/current", response_model=Optional[Poll])
 async def get_current_poll(
-    db: AsyncSession = Depends(get_db),
+    poll_repo: CosmosPollRepository = Depends(get_poll_repository),
 ) -> Optional[Poll]:
     """
     Get the currently active poll.
@@ -46,13 +60,11 @@ async def get_current_poll(
     Returns:
         The current active poll, or None if no poll is active
     """
-    repo = PollRepository(db)
-
     # Update poll statuses (close expired, activate scheduled)
-    await repo.close_expired_polls()
-    await repo.activate_scheduled_polls()
+    await poll_repo.close_expired_polls()
+    await poll_repo.activate_scheduled_polls()
 
-    poll = await repo.get_current_poll()
+    poll = await poll_repo.get_current_poll()
     if not poll:
         return None
 
@@ -61,7 +73,7 @@ async def get_current_poll(
 
 @router.get("/previous", response_model=Optional[PollWithResults])
 async def get_previous_poll(
-    db: AsyncSession = Depends(get_db),
+    poll_repo: CosmosPollRepository = Depends(get_poll_repository),
 ) -> Optional[PollWithResults]:
     """
     Get the most recently closed poll with its results.
@@ -71,8 +83,7 @@ async def get_previous_poll(
     Returns:
         The previous poll with aggregated results, or None
     """
-    repo = PollRepository(db)
-    poll = await repo.get_previous_poll()
+    poll = await poll_repo.get_previous_poll()
 
     if not poll:
         return None
@@ -83,15 +94,14 @@ async def get_previous_poll(
 @router.get("/upcoming", response_model=list[Poll])
 async def get_upcoming_polls(
     limit: int = Query(5, ge=1, le=20),
-    db: AsyncSession = Depends(get_db),
+    poll_repo: CosmosPollRepository = Depends(get_poll_repository),
 ) -> list[Poll]:
     """
     Get polls scheduled for future time windows.
 
     Shows users what polls are coming up next.
     """
-    repo = PollRepository(db)
-    polls = await repo.get_upcoming_polls(limit=limit)
+    polls = await poll_repo.get_upcoming_polls(limit=limit)
 
     return [poll_model_to_schema(p) for p in polls]
 
@@ -103,7 +113,7 @@ async def get_upcoming_polls(
 
 @router.get("/pulse/current", response_model=Optional[Poll])
 async def get_current_pulse_poll(
-    db: AsyncSession = Depends(get_db),
+    poll_repo: CosmosPollRepository = Depends(get_poll_repository),
 ) -> Optional[Poll]:
     """
     Get the current daily Pulse Poll if active.
@@ -114,13 +124,11 @@ async def get_current_pulse_poll(
     Returns:
         The current Pulse Poll, or None if outside the 8am-8pm ET window
     """
-    repo = PollRepository(db)
-
     # Update poll statuses
-    await repo.close_expired_polls()
-    await repo.activate_scheduled_polls()
+    await poll_repo.close_expired_polls()
+    await poll_repo.activate_scheduled_polls()
 
-    poll = await repo.get_current_poll_by_type("pulse")
+    poll = await poll_repo.get_current_poll_by_type("pulse")
     if not poll:
         return None
 
@@ -129,13 +137,12 @@ async def get_current_pulse_poll(
 
 @router.get("/pulse/previous", response_model=Optional[PollWithResults])
 async def get_previous_pulse_poll(
-    db: AsyncSession = Depends(get_db),
+    poll_repo: CosmosPollRepository = Depends(get_poll_repository),
 ) -> Optional[PollWithResults]:
     """
     Get the most recently closed Pulse Poll with results.
     """
-    repo = PollRepository(db)
-    poll = await repo.get_previous_poll_by_type("pulse")
+    poll = await poll_repo.get_previous_poll_by_type("pulse")
 
     if not poll:
         return None
@@ -147,17 +154,15 @@ async def get_previous_pulse_poll(
 async def get_pulse_poll_history(
     page: int = Query(1, ge=1),
     per_page: int = Query(10, ge=1, le=50),
-    db: AsyncSession = Depends(get_db),
+    poll_repo: CosmosPollRepository = Depends(get_poll_repository),
 ) -> PollListResponse:
     """
     Get historical Pulse Polls with results.
     """
-    repo = PollRepository(db)
-    polls, total = await repo.list_polls_by_type(
+    polls, total = await poll_repo.list_polls_by_type(
         poll_type="pulse",
         page=page,
         per_page=per_page,
-        active_only=False,
     )
 
     total_pages = (total + per_page - 1) // per_page if total > 0 else 0
@@ -178,7 +183,7 @@ async def get_pulse_poll_history(
 
 @router.get("/flash/current", response_model=Optional[Poll])
 async def get_current_flash_poll(
-    db: AsyncSession = Depends(get_db),
+    poll_repo: CosmosPollRepository = Depends(get_poll_repository),
 ) -> Optional[Poll]:
     """
     Get the current Flash Poll if active.
@@ -189,13 +194,11 @@ async def get_current_flash_poll(
     Returns:
         The current Flash Poll, or None if between flash polls
     """
-    repo = PollRepository(db)
-
     # Update poll statuses
-    await repo.close_expired_polls()
-    await repo.activate_scheduled_polls()
+    await poll_repo.close_expired_polls()
+    await poll_repo.activate_scheduled_polls()
 
-    poll = await repo.get_current_poll_by_type("flash")
+    poll = await poll_repo.get_current_poll_by_type("flash")
     if not poll:
         return None
 
@@ -204,13 +207,12 @@ async def get_current_flash_poll(
 
 @router.get("/flash/previous", response_model=Optional[PollWithResults])
 async def get_previous_flash_poll(
-    db: AsyncSession = Depends(get_db),
+    poll_repo: CosmosPollRepository = Depends(get_poll_repository),
 ) -> Optional[PollWithResults]:
     """
     Get the most recently closed Flash Poll with results.
     """
-    repo = PollRepository(db)
-    poll = await repo.get_previous_poll_by_type("flash")
+    poll = await poll_repo.get_previous_poll_by_type("flash")
 
     if not poll:
         return None
@@ -221,13 +223,12 @@ async def get_previous_flash_poll(
 @router.get("/flash/upcoming", response_model=list[Poll])
 async def get_upcoming_flash_polls(
     limit: int = Query(5, ge=1, le=10),
-    db: AsyncSession = Depends(get_db),
+    poll_repo: CosmosPollRepository = Depends(get_poll_repository),
 ) -> list[Poll]:
     """
     Get upcoming scheduled Flash Polls.
     """
-    repo = PollRepository(db)
-    polls = await repo.get_upcoming_polls_by_type("flash", limit=limit)
+    polls = await poll_repo.get_upcoming_polls_by_type("flash", limit=limit)
 
     return [poll_model_to_schema(p) for p in polls]
 
@@ -236,17 +237,15 @@ async def get_upcoming_flash_polls(
 async def get_flash_poll_history(
     page: int = Query(1, ge=1),
     per_page: int = Query(20, ge=1, le=50),
-    db: AsyncSession = Depends(get_db),
+    poll_repo: CosmosPollRepository = Depends(get_poll_repository),
 ) -> PollListResponse:
     """
     Get historical Flash Polls.
     """
-    repo = PollRepository(db)
-    polls, total = await repo.list_polls_by_type(
+    polls, total = await poll_repo.list_polls_by_type(
         poll_type="flash",
         page=page,
         per_page=per_page,
-        active_only=False,
     )
 
     total_pages = (total + per_page - 1) // per_page if total > 0 else 0
@@ -271,7 +270,7 @@ async def list_polls(
     per_page: int = Query(10, ge=1, le=50),
     active_only: bool = Query(True),
     category: str | None = Query(None),
-    db: AsyncSession = Depends(get_db),
+    poll_repo: CosmosPollRepository = Depends(get_poll_repository),
 ) -> PollListResponse:
     """
     List available polls.
@@ -279,8 +278,7 @@ async def list_polls(
     Public endpoint - no authentication required.
     Returns paginated list of polls with basic information.
     """
-    repo = PollRepository(db)
-    polls, total = await repo.list_polls(
+    polls, total = await poll_repo.list_polls(
         page=page,
         per_page=per_page,
         active_only=active_only,
@@ -300,21 +298,19 @@ async def list_polls(
 
 @router.get("/daily", response_model=list[Poll])
 async def get_daily_polls(
-    db: AsyncSession = Depends(get_db),
+    poll_repo: CosmosPollRepository = Depends(get_poll_repository),
 ) -> list[Poll]:
     """
     Get today's featured polls.
 
     Returns the curated set of daily polls generated from current events.
     """
-    repo = PollRepository(db)
-
     # Get polls scheduled/active for today
     now = datetime.now(timezone.utc)
     today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
     today_end = today_start + timedelta(days=1)
 
-    polls, _ = await repo.list_polls(page=1, per_page=24, active_only=False)
+    polls, _ = await poll_repo.list_polls(page=1, per_page=24, active_only=False)
 
     # Filter to today's polls
     daily = [p for p in polls if p.scheduled_start and today_start <= p.scheduled_start < today_end]
@@ -325,15 +321,14 @@ async def get_daily_polls(
 @router.get("/{poll_id}", response_model=Poll)
 async def get_poll(
     poll_id: str,
-    db: AsyncSession = Depends(get_db),
+    poll_repo: CosmosPollRepository = Depends(get_poll_repository),
 ) -> Poll:
     """
     Get a specific poll by ID.
 
     Public endpoint - returns poll details without revealing individual votes.
     """
-    repo = PollRepository(db)
-    poll = await repo.get_by_id(poll_id)
+    poll = await poll_repo.get_by_id(poll_id)
 
     if not poll:
         raise HTTPException(
@@ -347,7 +342,7 @@ async def get_poll(
 @router.get("/{poll_id}/results", response_model=PollWithResults)
 async def get_poll_results(
     poll_id: str,
-    db: AsyncSession = Depends(get_db),
+    poll_repo: CosmosPollRepository = Depends(get_poll_repository),
 ) -> PollWithResults:
     """
     Get aggregated results for a poll.
@@ -355,8 +350,7 @@ async def get_poll_results(
     Public endpoint - returns percentage breakdown and total votes.
     Individual votes are never exposed.
     """
-    repo = PollRepository(db)
-    poll = await repo.get_by_id(poll_id)
+    poll = await poll_repo.get_by_id(poll_id)
 
     if not poll:
         raise HTTPException(
@@ -370,7 +364,8 @@ async def get_poll_results(
 @router.get("/{poll_id}/demographics")
 async def get_poll_demographics(
     poll_id: str,
-    db: AsyncSession = Depends(get_db),
+    poll_repo: CosmosPollRepository = Depends(get_poll_repository),
+    vote_repo: CosmosVoteRepository = Depends(get_vote_repository),
 ) -> dict:
     """
     Get demographic breakdown of votes for a poll.
@@ -378,11 +373,6 @@ async def get_poll_demographics(
     Returns aggregated vote counts by demographic categories.
     Privacy-preserving: only returns counts, never individual votes.
     """
-    from repositories.vote_repository import VoteRepository
-
-    poll_repo = PollRepository(db)
-    vote_repo = VoteRepository(db)
-
     poll = await poll_repo.get_by_id(poll_id)
     if not poll:
         raise HTTPException(
@@ -503,7 +493,7 @@ async def get_poll_demographics(
 async def create_poll(
     poll_data: PollCreate,
     current_user: Annotated[UserInDB, Depends(get_current_verified_user)],
-    db: AsyncSession = Depends(get_db),
+    poll_repo: CosmosPollRepository = Depends(get_poll_repository),
 ) -> Poll:
     """
     Create a new poll (admin only).
@@ -518,14 +508,12 @@ async def create_poll(
             detail="Admin access required",
         )
 
-    repo = PollRepository(db)
-
     # Calculate scheduling
     now = datetime.now(timezone.utc)
     scheduled_start = poll_data.scheduled_start or now
     scheduled_end = scheduled_start + timedelta(hours=poll_data.duration_hours)
 
-    poll = await repo.create(
+    poll = await poll_repo.create(
         question=poll_data.question,
         choices=[c.text for c in poll_data.choices],
         category=poll_data.category,

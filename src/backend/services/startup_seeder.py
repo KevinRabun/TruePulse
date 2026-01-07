@@ -3,14 +3,14 @@ Startup seeder service.
 
 Safely ensures database has required seed data (achievements, etc.) on container startup.
 Uses upsert logic to add missing records and update existing ones.
+
+Now uses Cosmos DB for data persistence.
 """
 
 import structlog
-from sqlalchemy import select, text
-from sqlalchemy.ext.asyncio import AsyncSession
 
-from db.session import async_session_maker
-from models.achievement import Achievement, CommunityAchievement
+from models.cosmos_documents import AchievementDocument, AchievementTier
+from repositories.cosmos_achievement_repository import CosmosAchievementRepository
 
 logger = structlog.get_logger(__name__)
 
@@ -1329,91 +1329,54 @@ COMMUNITY_ACHIEVEMENTS: list[dict] = [
 
 
 # =============================================================================
-# SEEDING FUNCTIONS
+# SEEDING FUNCTIONS (Cosmos DB)
 # =============================================================================
 
 
-async def _table_exists(session: AsyncSession, table_name: str) -> bool:
-    """Check if a table exists in the database."""
-    result = await session.execute(
-        text(
-            """
-            SELECT EXISTS (
-                SELECT FROM information_schema.tables
-                WHERE table_name = :table_name
-            )
-            """
-        ),
-        {"table_name": table_name},
-    )
-    return result.scalar() or False
-
-
-async def _seed_achievements(session: AsyncSession) -> tuple[int, int]:
+async def _seed_achievements_cosmos() -> tuple[int, int]:
     """
-    Seed achievements using PostgreSQL upsert (INSERT ... ON CONFLICT).
+    Seed achievements using Cosmos DB upsert.
 
     Returns tuple of (inserted_count, updated_count).
     """
-    if not await _table_exists(session, "achievements"):
-        logger.warning("achievements table does not exist, skipping seed")
-        return (0, 0)
-
+    repo = CosmosAchievementRepository()
     inserted = 0
     updated = 0
 
     for achievement_data in ACHIEVEMENTS:
-        # Check if exists
-        result = await session.execute(select(Achievement).where(Achievement.id == achievement_data["id"]))
-        existing = result.scalar_one_or_none()
+        # Convert tier string to enum if needed
+        tier = achievement_data.get("tier", "bronze")
+        if isinstance(tier, str):
+            tier = AchievementTier(tier)
 
-        if existing:
-            # Update existing
-            for key, value in achievement_data.items():
-                setattr(existing, key, value)
-            updated += 1
-        else:
-            # Insert new
-            achievement = Achievement(**achievement_data)
-            session.add(achievement)
-            inserted += 1
-
-    await session.flush()
-    return (inserted, updated)
-
-
-async def _seed_community_achievements(session: AsyncSession) -> tuple[int, int]:
-    """
-    Seed community achievements using PostgreSQL upsert.
-
-    Returns tuple of (inserted_count, updated_count).
-    """
-    if not await _table_exists(session, "community_achievements"):
-        logger.warning("community_achievements table does not exist, skipping seed")
-        return (0, 0)
-
-    inserted = 0
-    updated = 0
-
-    for achievement_data in COMMUNITY_ACHIEVEMENTS:
-        # Check if exists
-        result = await session.execute(
-            select(CommunityAchievement).where(CommunityAchievement.id == achievement_data["id"])
+        # Create document
+        doc = AchievementDocument(
+            id=achievement_data["id"],
+            name=achievement_data["name"],
+            description=achievement_data["description"],
+            icon=achievement_data["icon"],
+            action_type=achievement_data["action_type"],
+            target_count=achievement_data.get("target_count", 1),
+            points_reward=achievement_data.get("points_reward", 0),
+            is_repeatable=achievement_data.get("is_repeatable", False),
+            is_secret=achievement_data.get("is_secret", False),
+            sort_order=achievement_data.get("sort_order", 0),
+            tier=tier,
+            category=achievement_data.get("category", "general"),
         )
-        existing = result.scalar_one_or_none()
+
+        # Check if exists
+        existing = await repo.get_achievement(achievement_data["id"])
 
         if existing:
             # Update existing
-            for key, value in achievement_data.items():
-                setattr(existing, key, value)
+            await repo.update_achievement(doc)
             updated += 1
         else:
             # Insert new
-            achievement = CommunityAchievement(**achievement_data)
-            session.add(achievement)
+            await repo.create_achievement(doc)
             inserted += 1
 
-    await session.flush()
     return (inserted, updated)
 
 
@@ -1423,29 +1386,17 @@ async def seed_all() -> None:
 
     This is safe to run multiple times - uses upsert logic.
     """
-    logger.info("Starting startup seeder...")
+    logger.info("Starting startup seeder (Cosmos DB)...")
 
     try:
-        async with async_session_maker() as session:
-            # Seed achievements
-            ach_inserted, ach_updated = await _seed_achievements(session)
-            logger.info(
-                "Achievements seeded",
-                inserted=ach_inserted,
-                updated=ach_updated,
-                total=len(ACHIEVEMENTS),
-            )
-
-            # Seed community achievements
-            comm_inserted, comm_updated = await _seed_community_achievements(session)
-            logger.info(
-                "Community achievements seeded",
-                inserted=comm_inserted,
-                updated=comm_updated,
-                total=len(COMMUNITY_ACHIEVEMENTS),
-            )
-
-            await session.commit()
+        # Seed achievements
+        ach_inserted, ach_updated = await _seed_achievements_cosmos()
+        logger.info(
+            "Achievements seeded",
+            inserted=ach_inserted,
+            updated=ach_updated,
+            total=len(ACHIEVEMENTS),
+        )
 
         logger.info("Startup seeder completed successfully")
 

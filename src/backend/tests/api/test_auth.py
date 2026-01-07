@@ -27,7 +27,7 @@ class TestAuthEndpoints:
     async def test_register_valid_user(self, client: AsyncClient) -> None:
         """Test registration with valid data.
 
-        Note: This test requires a running PostgreSQL database.
+        Note: This test requires a running Cosmos DB.
         Mark as integration test to skip in unit test runs.
         """
         import uuid

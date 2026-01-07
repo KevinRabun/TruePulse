@@ -4,7 +4,7 @@
 # This workflow handles slow, risky infrastructure changes that require careful review:
 # - Shared resources (ACR, Log Analytics, DNS zones)
 # - Network infrastructure (VNets, private endpoints)
-# - Database (PostgreSQL)
+# - Database (Cosmos DB Serverless)
 # - Storage accounts (with CMK encryption)
 # - Key Vault and secrets
 # - Azure OpenAI
@@ -100,9 +100,9 @@ jobs:
       blobDnsZoneName: ${{ steps.deploy-shared.outputs.blobDnsZoneName }}
       tableDnsZoneName: ${{ steps.deploy-shared.outputs.tableDnsZoneName }}
       openaiDnsZoneName: ${{ steps.deploy-shared.outputs.openaiDnsZoneName }}
-      postgresDnsZoneName: ${{ steps.deploy-shared.outputs.postgresDnsZoneName }}
       keyVaultDnsZoneName: ${{ steps.deploy-shared.outputs.keyVaultDnsZoneName }}
       acrDnsZoneName: ${{ steps.deploy-shared.outputs.acrDnsZoneName }}
+      cosmosDnsZoneName: ${{ steps.deploy-shared.outputs.cosmosDnsZoneName }}
     steps:
       - uses: actions/checkout@v6
 
@@ -139,17 +139,17 @@ jobs:
           BLOB_DNS_ID=$(jq -r '.blobDnsZoneId.value' /tmp/deployment-outputs.json)
           TABLE_DNS_ID=$(jq -r '.tableDnsZoneId.value' /tmp/deployment-outputs.json)
           OPENAI_DNS_ID=$(jq -r '.openaiDnsZoneId.value' /tmp/deployment-outputs.json)
-          POSTGRES_DNS_ID=$(jq -r '.postgresDnsZoneId.value' /tmp/deployment-outputs.json)
           KEYVAULT_DNS_ID=$(jq -r '.keyVaultDnsZoneId.value' /tmp/deployment-outputs.json)
           ACR_DNS_ID=$(jq -r '.acrDnsZoneId.value' /tmp/deployment-outputs.json)
+          COSMOS_DNS_ID=$(jq -r '.cosmosDnsZoneId.value' /tmp/deployment-outputs.json)
           
           # Extract zone names from IDs
           BLOB_DNS_NAME=$(basename "$BLOB_DNS_ID")
           TABLE_DNS_NAME=$(basename "$TABLE_DNS_ID")
           OPENAI_DNS_NAME=$(basename "$OPENAI_DNS_ID")
-          POSTGRES_DNS_NAME=$(basename "$POSTGRES_DNS_ID")
           KEYVAULT_DNS_NAME=$(basename "$KEYVAULT_DNS_ID")
           ACR_DNS_NAME=$(basename "$ACR_DNS_ID")
+          COSMOS_DNS_NAME=$(basename "$COSMOS_DNS_ID")
           
           # Write outputs
           echo "logAnalyticsWorkspaceName=$LOG_ANALYTICS_NAME" >> $GITHUB_OUTPUT
@@ -160,9 +160,9 @@ jobs:
           echo "blobDnsZoneName=$BLOB_DNS_NAME" >> $GITHUB_OUTPUT
           echo "tableDnsZoneName=$TABLE_DNS_NAME" >> $GITHUB_OUTPUT
           echo "openaiDnsZoneName=$OPENAI_DNS_NAME" >> $GITHUB_OUTPUT
-          echo "postgresDnsZoneName=$POSTGRES_DNS_NAME" >> $GITHUB_OUTPUT
           echo "keyVaultDnsZoneName=$KEYVAULT_DNS_NAME" >> $GITHUB_OUTPUT
           echo "acrDnsZoneName=$ACR_DNS_NAME" >> $GITHUB_OUTPUT
+          echo "cosmosDnsZoneName=$COSMOS_DNS_NAME" >> $GITHUB_OUTPUT
           
           # Get Communication Service connection string
           ACS_CONN=$(az communication list-key --name "$ACS_NAME" --resource-group rg-truepulse-shared --query 'primaryConnectionString' -o tsv)
@@ -206,9 +206,9 @@ jobs:
           BLOB_DNS_NAME="${{ needs.shared-infrastructure.outputs.blobDnsZoneName }}"
           TABLE_DNS_NAME="${{ needs.shared-infrastructure.outputs.tableDnsZoneName }}"
           OPENAI_DNS_NAME="${{ needs.shared-infrastructure.outputs.openaiDnsZoneName }}"
-          POSTGRES_DNS_NAME="${{ needs.shared-infrastructure.outputs.postgresDnsZoneName }}"
           KEYVAULT_DNS_NAME="${{ needs.shared-infrastructure.outputs.keyVaultDnsZoneName }}"
           ACR_DNS_NAME="${{ needs.shared-infrastructure.outputs.acrDnsZoneName }}"
+          COSMOS_DNS_NAME="${{ needs.shared-infrastructure.outputs.cosmosDnsZoneName }}"
           
           # Reconstruct full resource IDs
           LOG_ANALYTICS_ID="/subscriptions/${{ secrets.AZURE_SUBSCRIPTION_ID }}/resourceGroups/rg-truepulse-shared/providers/Microsoft.OperationalInsights/workspaces/${LOG_ANALYTICS_NAME}"
@@ -216,9 +216,9 @@ jobs:
           BLOB_DNS_ID="/subscriptions/${{ secrets.AZURE_SUBSCRIPTION_ID }}/resourceGroups/rg-truepulse-shared/providers/Microsoft.Network/privateDnsZones/${BLOB_DNS_NAME}"
           TABLE_DNS_ID="/subscriptions/${{ secrets.AZURE_SUBSCRIPTION_ID }}/resourceGroups/rg-truepulse-shared/providers/Microsoft.Network/privateDnsZones/${TABLE_DNS_NAME}"
           OPENAI_DNS_ID="/subscriptions/${{ secrets.AZURE_SUBSCRIPTION_ID }}/resourceGroups/rg-truepulse-shared/providers/Microsoft.Network/privateDnsZones/${OPENAI_DNS_NAME}"
-          POSTGRES_DNS_ID="/subscriptions/${{ secrets.AZURE_SUBSCRIPTION_ID }}/resourceGroups/rg-truepulse-shared/providers/Microsoft.Network/privateDnsZones/${POSTGRES_DNS_NAME}"
           KEYVAULT_DNS_ID="/subscriptions/${{ secrets.AZURE_SUBSCRIPTION_ID }}/resourceGroups/rg-truepulse-shared/providers/Microsoft.Network/privateDnsZones/${KEYVAULT_DNS_NAME}"
           ACR_DNS_ID="/subscriptions/${{ secrets.AZURE_SUBSCRIPTION_ID }}/resourceGroups/rg-truepulse-shared/providers/Microsoft.Network/privateDnsZones/${ACR_DNS_NAME}"
+          COSMOS_DNS_ID="/subscriptions/${{ secrets.AZURE_SUBSCRIPTION_ID }}/resourceGroups/rg-truepulse-shared/providers/Microsoft.Network/privateDnsZones/${COSMOS_DNS_NAME}"
           
           # Write step outputs
           echo "logAnalyticsWorkspaceId=$LOG_ANALYTICS_ID" >> $GITHUB_OUTPUT
@@ -230,9 +230,9 @@ jobs:
           echo "blobDnsZoneId=$BLOB_DNS_ID" >> $GITHUB_OUTPUT
           echo "tableDnsZoneId=$TABLE_DNS_ID" >> $GITHUB_OUTPUT
           echo "openaiDnsZoneId=$OPENAI_DNS_ID" >> $GITHUB_OUTPUT
-          echo "postgresDnsZoneId=$POSTGRES_DNS_ID" >> $GITHUB_OUTPUT
           echo "keyVaultDnsZoneId=$KEYVAULT_DNS_ID" >> $GITHUB_OUTPUT
           echo "acrDnsZoneId=$ACR_DNS_ID" >> $GITHUB_OUTPUT
+          echo "cosmosDnsZoneId=$COSMOS_DNS_ID" >> $GITHUB_OUTPUT
 
       - name: Deploy Infrastructure
         id: deploy
@@ -259,8 +259,6 @@ jobs:
             --location ${{ env.AZURE_LOCATION }} \
             --template-file infra/main.bicep \
             --parameters environmentName=$ENV \
-            --parameters postgresAdminUsername='truepulseadmin' \
-            --parameters postgresAdminPassword='${{ secrets.POSTGRES_ADMIN_PASSWORD }}' \
             --parameters jwtSecretKey='${{ secrets.JWT_SECRET_KEY }}' \
             --parameters voteHashSecret='${{ secrets.VOTE_HASH_SECRET }}' \
             --parameters newsDataApiKey='${{ secrets.NEWSDATA_API_KEY }}' \
@@ -277,9 +275,9 @@ jobs:
             --parameters sharedBlobDnsZoneId='${{ steps.shared.outputs.blobDnsZoneId }}' \
             --parameters sharedTableDnsZoneId='${{ steps.shared.outputs.tableDnsZoneId }}' \
             --parameters sharedOpenaiDnsZoneId='${{ steps.shared.outputs.openaiDnsZoneId }}' \
-            --parameters sharedPostgresDnsZoneId='${{ steps.shared.outputs.postgresDnsZoneId }}' \
             --parameters sharedKeyVaultDnsZoneId='${{ steps.shared.outputs.keyVaultDnsZoneId }}' \
             --parameters sharedAcrDnsZoneId='${{ steps.shared.outputs.acrDnsZoneId }}' \
+            --parameters sharedCosmosDnsZoneId='${{ steps.shared.outputs.cosmosDnsZoneId }}' \
             --parameters sharedContainerRegistryResourceId='${{ steps.shared.outputs.containerRegistryResourceId }}' \
             $OPENAI_KEY_PARAM \
             --query 'properties.outputs' \
@@ -460,13 +458,7 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Resources Deployed" >> $GITHUB_STEP_SUMMARY
           echo "- Shared: ACR, Log Analytics, DNS Zones, Communication Services" >> $GITHUB_STEP_SUMMARY
-          echo "- Environment: VNet, PostgreSQL, Storage, Key Vault, OpenAI, Container App, SWA" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          if [ "${{ needs.setup.outputs.run_migrations }}" == "true" ]; then
-            echo "### Database Migrations" >> $GITHUB_STEP_SUMMARY
-            echo "- Script: ${{ needs.setup.outputs.migration_script }}" >> $GITHUB_STEP_SUMMARY
-            echo "- Status: ${{ needs.run-migrations.result }}" >> $GITHUB_STEP_SUMMARY
-          fi
+          echo "- Environment: VNet, Cosmos DB, Storage, Key Vault, OpenAI, Container App, SWA" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Next Steps" >> $GITHUB_STEP_SUMMARY
           echo "Run the **Deploy Apps** workflow to deploy application code." >> $GITHUB_STEP_SUMMARY

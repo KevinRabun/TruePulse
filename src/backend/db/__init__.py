@@ -1,5 +1,19 @@
-"""Database module."""
+"""Database module - Cosmos DB client management."""
 
-from db.session import close_db, get_db, init_db
+from db.cosmos_session import (
+    close_cosmos,
+    cosmos_session,
+    get_container,
+    get_cosmos_client,
+    get_cosmos_db,
+    get_database,
+)
 
-__all__ = ["get_db", "init_db", "close_db"]
+__all__ = [
+    "get_database",
+    "get_cosmos_client",
+    "get_cosmos_db",
+    "get_container",
+    "cosmos_session",
+    "close_cosmos",
+]

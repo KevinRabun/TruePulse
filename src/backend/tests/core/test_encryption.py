@@ -199,39 +199,6 @@ class TestConvenienceFunctions:
         assert len(key_bytes) == 32
 
 
-class TestDbTypes:
-    """Tests for SQLAlchemy type decorators."""
-
-    def test_compute_email_hash(self):
-        """Test email hash computation."""
-        from db.types import compute_email_hash
-
-        # Case insensitive
-        hash1 = compute_email_hash("TEST@EXAMPLE.COM")
-        hash2 = compute_email_hash("test@example.com")
-        assert hash1 == hash2
-
-        # Different emails produce different hashes
-        hash3 = compute_email_hash("other@example.com")
-        assert hash1 != hash3
-
-    def test_compute_phone_hash(self):
-        """Test phone hash computation."""
-        from db.types import compute_phone_hash
-
-        # Strips non-digits
-        hash1 = compute_phone_hash("+1 (555) 123-4567")
-        hash2 = compute_phone_hash("15551234567")
-        assert hash1 == hash2
-
-        # Different phones produce different hashes
-        hash3 = compute_phone_hash("15559876543")
-        assert hash1 != hash3
-
-    def test_empty_inputs(self):
-        """Test empty input handling."""
-        from db.types import compute_email_hash, compute_phone_hash
-
-        assert compute_email_hash("") == ""
-        assert compute_phone_hash("") == ""
-        assert compute_phone_hash(None) == ""
+# Note: TestDbTypes class was removed as it tested SQLAlchemy-specific
+# type decorators (compute_email_hash, compute_phone_hash) that are
+# no longer needed after the migration to Cosmos DB.

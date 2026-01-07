@@ -1,5 +1,6 @@
 // TruePulse Infrastructure - Container Apps Environment
-// Managed Kubernetes environment for the API backend
+// Managed serverless environment for the API backend
+// COST OPTIMIZED: Uses consumption-only model with scale-to-zero capability
 
 // ============================================================================
 // Parameters
@@ -26,12 +27,19 @@ param platformReservedDnsIP string
 @description('Docker bridge CIDR')
 param dockerBridgeCidr string
 
+@description('Environment name (dev, staging, prod)')
+@allowed(['dev', 'staging', 'prod'])
+param environmentName string = 'dev'
+
 // ============================================================================
 // Resources
 // ============================================================================
 
 // Using Azure Verified Module: br/public:avm/res/app/managed-environment
-// Updated to AVM 0.11.0 with external access for Cloudflare integration
+// COST OPTIMIZATION: Consumption-only plan with no dedicated workload profiles
+// - Consumption plan: Pay only for actual execution time
+// - Scale to zero: Zero cost when idle (perfect for dev/staging)
+// - Auto-scaling: KEDA-based scaling up to 300 replicas (default), can request up to 1000
 module containerAppsEnv 'br/public:avm/res/app/managed-environment:0.11.0' = {
   name: 'container-apps-env'
   params: {
@@ -47,21 +55,19 @@ module containerAppsEnv 'br/public:avm/res/app/managed-environment:0.11.0' = {
     platformReservedCidr: platformReservedCidr
     platformReservedDnsIP: platformReservedDnsIP
     dockerBridgeCidr: dockerBridgeCidr
-    // Zone redundancy
-    zoneRedundant: true
+    // Zone redundancy - only enable for production to save costs
+    // Zone redundancy provides HA across availability zones but increases base cost
+    zoneRedundant: environmentName == 'prod'
     // Logging configuration - using azure-monitor destination (no shared key required)
     appLogsConfiguration: {
       destination: 'azure-monitor'
     }
-    // Workload profiles for production workloads
-    workloadProfiles: [
-      {
-        name: 'CAW01'
-        workloadProfileType: 'D4'
-        minimumCount: 0
-        maximumCount: 10
-      }
-    ]
+    // COST OPTIMIZATION: Consumption-only workload profile
+    // - No dedicated D4 workload profile = no base compute cost
+    // - Consumption profile is automatically included
+    // - Pay only for vCPU-seconds and GiB-seconds when containers are running
+    // - FastAPI backend is lightweight and doesn't need dedicated compute
+    workloadProfiles: []
     // Peer traffic encryption
     peerTrafficEncryption: true
     // Managed identity

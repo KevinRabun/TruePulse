@@ -10,10 +10,10 @@ from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from pydantic import BaseModel, ConfigDict, Field
-from sqlalchemy.ext.asyncio import AsyncSession
 
-from api.deps import get_current_user, get_db
-from models.user import User
+from api.deps import get_current_user, get_user_repository
+from repositories.cosmos_user_repository import CosmosUserRepository
+from schemas.user import UserInDB
 from services.passkey_service import (
     ChallengeExpiredError,
     PasskeyAuthenticationError,
@@ -146,8 +146,8 @@ class DeletePasskeyRequest(BaseModel):
 async def get_registration_options(
     request: RegistrationOptionsRequest,
     http_request: Request,
-    db: Annotated[AsyncSession, Depends(get_db)],
-    current_user: Annotated[User, Depends(get_current_user)],
+    user_repo: Annotated[CosmosUserRepository, Depends(get_user_repository)],
+    current_user: Annotated[UserInDB, Depends(get_current_user)],
 ) -> dict:
     """
     Get WebAuthn registration options for creating a new passkey.
@@ -159,7 +159,7 @@ async def get_registration_options(
     Returns registration options to be passed to `navigator.credentials.create()`.
     """
     try:
-        passkey_service = get_passkey_service(db)
+        passkey_service = get_passkey_service(user_repo)
         device_info = request.device_info.model_dump() if request.device_info else None
 
         options = await passkey_service.generate_registration_options(
@@ -186,8 +186,8 @@ async def get_registration_options(
 @router.post("/register/verify")
 async def verify_registration(
     request: RegistrationVerifyRequest,
-    db: Annotated[AsyncSession, Depends(get_db)],
-    current_user: Annotated[User, Depends(get_current_user)],
+    user_repo: Annotated[CosmosUserRepository, Depends(get_user_repository)],
+    current_user: Annotated[UserInDB, Depends(get_current_user)],
 ) -> dict:
     """
     Verify and store a WebAuthn registration response.
@@ -198,7 +198,7 @@ async def verify_registration(
     Returns the newly registered passkey information.
     """
     try:
-        passkey_service = get_passkey_service(db)
+        passkey_service = get_passkey_service(user_repo)
 
         # Credential is now received as a dict (object), not a JSON string
         # This matches the SimpleWebAuthn pattern and avoids double-stringify issues
@@ -215,8 +215,8 @@ async def verify_registration(
             "success": True,
             "passkey": {
                 "id": passkey.id,
-                "deviceName": passkey.credential_name,
-                "createdAt": passkey.created_at.isoformat(),
+                "deviceName": passkey.device_name or "Passkey",
+                "createdAt": passkey.created_at.isoformat() if passkey.created_at else None,
             },
         }
 
@@ -245,7 +245,7 @@ async def verify_registration(
 @router.post("/authenticate/options", response_model=AuthenticationOptionsResponse)
 async def get_authentication_options(
     request: AuthenticationOptionsRequest,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    user_repo: Annotated[CosmosUserRepository, Depends(get_user_repository)],
 ) -> dict:
     """
     Get WebAuthn authentication options for signing in with a passkey.
@@ -256,16 +256,13 @@ async def get_authentication_options(
 
     Returns authentication options to be passed to `navigator.credentials.get()`.
     """
-    from sqlalchemy import select
-
     try:
-        passkey_service = get_passkey_service(db)
+        passkey_service = get_passkey_service(user_repo)
         user = None
 
         # If email provided, look up user's credentials
         if request.email:
-            result = await db.execute(select(User).where(User.email == request.email))
-            user = result.scalar_one_or_none()
+            user = await user_repo.get_by_email(request.email)
             # Don't reveal if user exists - still return options for security
 
         device_info = request.device_info.model_dump() if request.device_info else None
@@ -288,7 +285,7 @@ async def get_authentication_options(
 @router.post("/authenticate/verify", response_model=AuthenticationVerifyResponse)
 async def verify_authentication(
     request: AuthenticationVerifyRequest,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    user_repo: Annotated[CosmosUserRepository, Depends(get_user_repository)],
 ) -> dict:
     """
     Verify a WebAuthn authentication response and issue tokens.
@@ -298,10 +295,12 @@ async def verify_authentication(
 
     Returns access and refresh tokens on success.
     """
+    from datetime import UTC, datetime
+
     from core.security import create_access_token, create_refresh_token
 
     try:
-        passkey_service = get_passkey_service(db)
+        passkey_service = get_passkey_service(user_repo)
 
         user, passkey = await passkey_service.verify_authentication(
             challenge_id=request.challenge_id,
@@ -309,10 +308,8 @@ async def verify_authentication(
         )
 
         # Update last login
-        from datetime import UTC, datetime
-
         user.last_login_at = datetime.now(UTC)
-        await db.commit()
+        await user_repo.update(user)
 
         # Create tokens
         access_token = create_access_token({"sub": user.id})
@@ -358,8 +355,8 @@ async def verify_authentication(
 
 @router.get("/", response_model=PasskeysListResponse)
 async def list_passkeys(
-    db: Annotated[AsyncSession, Depends(get_db)],
-    current_user: Annotated[User, Depends(get_current_user)],
+    user_repo: Annotated[CosmosUserRepository, Depends(get_user_repository)],
+    current_user: Annotated[UserInDB, Depends(get_current_user)],
 ) -> dict:
     """
     Get all registered passkeys for the current user.
@@ -367,7 +364,7 @@ async def list_passkeys(
     Returns a list of passkey information for the management UI.
     """
     try:
-        passkey_service = get_passkey_service(db)
+        passkey_service = get_passkey_service(user_repo)
         passkeys = await passkey_service.get_user_passkeys(current_user.id)
 
         return {
@@ -395,8 +392,8 @@ async def list_passkeys(
 @router.delete("/{passkey_id}")
 async def delete_passkey(
     passkey_id: str,
-    db: Annotated[AsyncSession, Depends(get_db)],
-    current_user: Annotated[User, Depends(get_current_user)],
+    user_repo: Annotated[CosmosUserRepository, Depends(get_user_repository)],
+    current_user: Annotated[UserInDB, Depends(get_current_user)],
 ) -> dict:
     """
     Delete a registered passkey.
@@ -404,7 +401,7 @@ async def delete_passkey(
     Users cannot delete their last passkey if they are using passkey-only authentication.
     """
     try:
-        passkey_service = get_passkey_service(db)
+        passkey_service = get_passkey_service(user_repo)
 
         deleted = await passkey_service.delete_passkey(
             user=current_user,

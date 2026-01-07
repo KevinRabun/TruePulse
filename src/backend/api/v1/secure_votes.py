@@ -15,15 +15,13 @@ from typing import Annotated, Optional
 import structlog
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from pydantic import BaseModel, Field
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.deps import get_current_verified_user, rate_limit_vote
 from core.security import generate_vote_hash
-from db.session import get_db
-from models.poll import PollStatus
-from repositories.poll_repository import PollRepository
-from repositories.user_repository import UserRepository
-from repositories.vote_repository import VoteRepository
+from models.cosmos_documents import PollStatus
+from repositories.cosmos_poll_repository import CosmosPollRepository
+from repositories.cosmos_user_repository import CosmosUserRepository
+from repositories.cosmos_vote_repository import CosmosVoteRepository
 from schemas.user import UserInDB
 from services.fraud_detection import (
     BehavioralSignals,
@@ -33,7 +31,6 @@ from services.fraud_detection import (
     UserReputationScore,
     fraud_detection_service,
 )
-from services.stats_service import StatsService
 
 logger = structlog.get_logger(__name__)
 
@@ -100,10 +97,9 @@ def get_client_ip(request: Request) -> str:
     return "unknown"
 
 
-async def get_user_reputation(user: UserInDB, db: AsyncSession) -> UserReputationScore:
+async def get_user_reputation(user: UserInDB, user_repo: CosmosUserRepository) -> UserReputationScore:
     """Build user reputation score from database."""
-    repo = UserRepository(db)
-    db_user = await repo.get_by_id(user.id)
+    db_user = await user_repo.get_by_id(user.id)
 
     if not db_user:
         return UserReputationScore(
@@ -171,7 +167,7 @@ async def pre_check_vote(
     request: Request,
     vote_data: SecureVoteRequest,
     current_user: Annotated[UserInDB, Depends(get_current_verified_user)],
-    db: AsyncSession = Depends(get_db),
+    user_repo: CosmosUserRepository = Depends(lambda: CosmosUserRepository()),
     _rate_limit: None = Depends(rate_limit_vote),
 ) -> VoteRiskResponse:
     """
@@ -195,7 +191,7 @@ async def pre_check_vote(
         )
 
     client_ip = get_client_ip(request)
-    user_reputation = await get_user_reputation(current_user, db)
+    user_reputation = await get_user_reputation(current_user, user_repo)
 
     # Perform risk assessment
     assessment = await fraud_detection_service.assess_vote_risk(
@@ -243,7 +239,9 @@ async def cast_secure_vote(
     request: Request,
     vote_data: SecureVoteRequest,
     current_user: Annotated[UserInDB, Depends(get_current_verified_user)],
-    db: AsyncSession = Depends(get_db),
+    poll_repo: CosmosPollRepository = Depends(lambda: CosmosPollRepository()),
+    vote_repo: CosmosVoteRepository = Depends(lambda: CosmosVoteRepository()),
+    user_repo: CosmosUserRepository = Depends(lambda: CosmosUserRepository()),
     _rate_limit: None = Depends(rate_limit_vote),
 ) -> SecureVoteResponse:
     """
@@ -269,7 +267,7 @@ async def cast_secure_vote(
         )
 
     client_ip = get_client_ip(request)
-    user_reputation = await get_user_reputation(current_user, db)
+    user_reputation = await get_user_reputation(current_user, user_repo)
 
     # Perform risk assessment
     assessment = await fraud_detection_service.assess_vote_risk(
@@ -324,16 +322,11 @@ async def cast_secure_vote(
     # Note: SMS verification removed - TruePulse uses email + passkey auth only
     # Email verification is checked by get_current_verified_user dependency
 
-    # Initialize repositories
-    poll_repo = PollRepository(db)
-    vote_repo = VoteRepository(db)
-    user_repo = UserRepository(db)
-
     # Generate privacy-preserving vote hash
     vote_hash = generate_vote_hash(current_user.id, vote_data.poll_id)
 
     # Check for existing vote
-    existing_vote = await vote_repo.exists_by_hash(vote_hash)
+    existing_vote = await vote_repo.exists_by_hash(vote_hash, vote_data.poll_id)
     if existing_vote:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
@@ -349,10 +342,9 @@ async def cast_secure_vote(
         )
 
     if poll.status != PollStatus.ACTIVE:
-        status_str = str(poll.status)
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Poll is not currently active (status: {status_str})",
+            detail=f"Poll is not currently active (status: {poll.status.value})",
         )
 
     # Verify choice is valid for this poll
@@ -391,12 +383,6 @@ async def cast_secure_vote(
     # Update user vote count and streak
     await user_repo.increment_votes_cast(current_user.id)
 
-    # Invalidate platform stats cache so votes_cast updates on home page
-    stats_service = StatsService(db)
-    await stats_service.invalidate_cache()
-
-    await db.commit()
-
     return SecureVoteResponse(
         success=True,
         message="Vote recorded successfully",
@@ -410,7 +396,6 @@ async def verify_captcha(
     request: Request,
     token: str,
     current_user: Annotated[UserInDB, Depends(get_current_verified_user)],
-    db: AsyncSession = Depends(get_db),
     _rate_limit: None = Depends(rate_limit_vote),
 ) -> dict:
     """

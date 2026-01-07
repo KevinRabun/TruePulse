@@ -35,6 +35,7 @@ VOTES_TABLE = "votes"
 TOKEN_BLACKLIST_TABLE = "tokenblacklist"
 RESET_TOKENS_TABLE = "resettokens"
 RATE_LIMITS_TABLE = "ratelimits"
+FEEDBACK_TABLE = "feedback"
 
 
 class AzureTableService:
@@ -46,6 +47,7 @@ class AzureTableService:
     - Token blacklist for logout
     - Password reset tokens
     - Rate limiting data
+    - Poll feedback (partition by poll_id)
     """
 
     def __init__(
@@ -114,6 +116,7 @@ class AzureTableService:
             TOKEN_BLACKLIST_TABLE,
             RESET_TOKENS_TABLE,
             RATE_LIMITS_TABLE,
+            FEEDBACK_TABLE,
         ]
 
         for table_name in tables:
@@ -455,6 +458,165 @@ class AzureTableService:
         remaining = max(0, max_requests - count)
 
         return allowed, remaining
+
+    # =========================================================================
+    # Feedback Operations
+    # =========================================================================
+
+    async def store_feedback(
+        self,
+        poll_id: str,
+        vote_hash: str,
+        quality_rating: int,
+        issues: Optional[list[str]] = None,
+        feedback_text: Optional[str] = None,
+        poll_category: Optional[str] = None,
+        was_ai_generated: bool = True,
+    ) -> dict:
+        """
+        Store poll feedback in Azure Tables.
+
+        Partition key: poll_id (efficient queries by poll)
+        Row key: vote_hash (ensures uniqueness per user+poll)
+
+        Args:
+            poll_id: The poll identifier (partition key)
+            vote_hash: SHA-256 hash of user_id + poll_id (row key)
+            quality_rating: 1-5 star rating
+            issues: List of issue type values
+            feedback_text: Optional free-form feedback
+            poll_category: Category of the poll
+            was_ai_generated: Whether the poll was AI-generated
+
+        Returns:
+            Created feedback entity
+
+        Raises:
+            ResourceExistsError: If feedback already exists for this user+poll
+        """
+        table_client = self._get_table_client(FEEDBACK_TABLE)
+
+        feedback_id = f"{poll_id}_{vote_hash[:16]}"
+        now = datetime.now(timezone.utc)
+
+        entity = {
+            "PartitionKey": poll_id,
+            "RowKey": vote_hash,
+            "id": feedback_id,
+            "poll_id": poll_id,
+            "vote_hash": vote_hash,
+            "quality_rating": quality_rating,
+            "issues": ",".join(issues) if issues else "",
+            "feedback_text": feedback_text or "",
+            "poll_category": poll_category or "",
+            "was_ai_generated": was_ai_generated,
+            "created_at": now.isoformat(),
+        }
+
+        # create_entity will raise ResourceExistsError if duplicate
+        await table_client.create_entity(entity)
+        logger.info("feedback_stored", poll_id=poll_id, vote_hash=vote_hash[:8])
+
+        return entity
+
+    async def get_feedback(self, poll_id: str, vote_hash: str) -> Optional[dict]:
+        """
+        Get feedback by poll and vote hash.
+
+        Args:
+            poll_id: The poll identifier
+            vote_hash: The vote hash to check
+
+        Returns:
+            Feedback entity if found, None otherwise
+        """
+        table_client = self._get_table_client(FEEDBACK_TABLE)
+
+        try:
+            entity = await table_client.get_entity(poll_id, vote_hash)
+            return dict(entity)
+        except ResourceNotFoundError:
+            return None
+
+    async def get_poll_feedback(self, poll_id: str) -> list[dict]:
+        """
+        Get all feedback for a poll.
+
+        Args:
+            poll_id: The poll identifier
+
+        Returns:
+            List of feedback entities
+        """
+        table_client = self._get_table_client(FEEDBACK_TABLE)
+
+        feedback_list = []
+        async for entity in table_client.query_entities(query_filter=f"PartitionKey eq '{poll_id}'"):
+            feedback_list.append(dict(entity))
+
+        return feedback_list
+
+    async def get_poll_feedback_summary(self, poll_id: str) -> dict:
+        """
+        Get aggregated feedback summary for a poll.
+
+        Args:
+            poll_id: The poll identifier
+
+        Returns:
+            Dict with:
+            - total_feedback_count
+            - average_rating
+            - rating_distribution
+            - top_issues
+            - has_sufficient_feedback
+        """
+        feedback_list = await self.get_poll_feedback(poll_id)
+
+        if not feedback_list:
+            return {
+                "poll_id": poll_id,
+                "total_feedback_count": 0,
+                "average_rating": 0.0,
+                "rating_distribution": {1: 0, 2: 0, 3: 0, 4: 0, 5: 0},
+                "top_issues": [],
+                "has_sufficient_feedback": False,
+            }
+
+        # Calculate metrics
+        total = len(feedback_list)
+        avg_rating = sum(f.get("quality_rating", 0) for f in feedback_list) / total
+
+        # Rating distribution
+        rating_dist = {1: 0, 2: 0, 3: 0, 4: 0, 5: 0}
+        for f in feedback_list:
+            rating = f.get("quality_rating", 0)
+            if rating in rating_dist:
+                rating_dist[rating] += 1
+
+        # Issue frequency
+        issue_counts: dict[str, int] = {}
+        for f in feedback_list:
+            issues_str = f.get("issues", "")
+            if issues_str:
+                for issue in issues_str.split(","):
+                    issue = issue.strip()
+                    if issue:
+                        issue_counts[issue] = issue_counts.get(issue, 0) + 1
+
+        # Sort issues by frequency
+        top_issues = [
+            {"issue": issue, "count": count} for issue, count in sorted(issue_counts.items(), key=lambda x: -x[1])[:5]
+        ]
+
+        return {
+            "poll_id": poll_id,
+            "total_feedback_count": total,
+            "average_rating": round(avg_rating, 2),
+            "rating_distribution": rating_dist,
+            "top_issues": top_issues,
+            "has_sufficient_feedback": total >= 10,
+        }
 
 
 # Singleton instance

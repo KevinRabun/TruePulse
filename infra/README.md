@@ -11,9 +11,9 @@ This directory contains the Azure infrastructure as code (IaC) using Bicep templ
 │  │                    Resource Group (rg-truepulse-{env})                │  │
 │  │                                                                       │  │
 │  │  ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐   │  │
-│  │  │  Static Web App │───▶│  Container App  │───▶│   PostgreSQL    │   │  │
-│  │  │    (Frontend)   │    │     (API)       │    │  Flexible Server│   │  │
-│  │  └─────────────────┘    └────────┬────────┘    │   🔐 CMK        │   │  │
+│  │  │  Static Web App │───▶│  Container App  │───▶│   Cosmos DB     │   │  │
+│  │  │    (Frontend)   │    │     (API)       │    │   Serverless    │   │  │
+│  │  └─────────────────┘    └────────┬────────┘    │                 │   │  │
 │  │                                  │             └─────────────────┘   │  │
 │  │                    ┌─────────────┼─────────────┐                     │  │
 │  │                    ▼             ▼             ▼                     │  │
@@ -32,7 +32,7 @@ This directory contains the Azure infrastructure as code (IaC) using Bicep templ
 │  │  │                    Virtual Network                          │     │  │
 │  │  │  ┌─────────────────────┐  ┌─────────────────────────────┐  │     │  │
 │  │  │  │ Container Apps      │  │  Private Endpoints Subnet   │  │     │  │
-│  │  │  │ Subnet (/23)        │  │  (PostgreSQL, Storage, etc.)│  │     │  │
+│  │  │  │ Subnet (/23)        │  │  (Cosmos DB, Storage, etc.) │  │     │  │
 │  │  │  └─────────────────────┘  └─────────────────────────────┘  │     │  │
 │  │  └─────────────────────────────────────────────────────────────┘     │  │
 │  └───────────────────────────────────────────────────────────────────────┘  │
@@ -46,7 +46,7 @@ TruePulse uses **Customer Managed Keys** for encryption at rest, ensuring maximu
 | Service | Data Protected | Key Rotation |
 |---------|----------------|--------------|
 | **Storage Account** | Vote records, tokens, rate limits | 90 days (automatic) |
-| **PostgreSQL** | User accounts, polls, achievements | 90 days (automatic) |
+| **Cosmos DB** | User accounts, polls, achievements | Managed by Azure |
 
 ### CMK Benefits for a Voting Platform:
 - **Key custody control** - You own and control encryption keys
@@ -66,7 +66,7 @@ az deployment sub create \
 |----------|---------|--------|
 | **Static Web App** | React frontend hosting | `staticWebApp.bicep` |
 | **Container App** | FastAPI backend | `containerAppApi.bicep` |
-| **PostgreSQL Flexible** | User data, polls, gamification | `postgres.bicep` |
+| **Cosmos DB** | User data, polls, gamification | `cosmosdb.bicep` |
 | **Storage Account** | Votes (Azure Tables), blob storage, token management | `storageAccount.bicep` |
 | **Azure OpenAI** | AI-powered poll generation | `azureOpenAI.bicep` |
 | **Key Vault** | Secrets management | `keyVault.bicep` |
@@ -100,8 +100,6 @@ az deployment sub create \
   --location eastus \
   --template-file main.bicep \
   --parameters environmentName=dev \
-               postgresAdminUsername=truepulseadmin \
-               postgresAdminPassword="<secure-password>" \
                jwtSecretKey="<32-char-secret>" \
                voteHashSecret="<32-char-secret>"
 ```
@@ -129,8 +127,7 @@ See `.github/workflows/infra.yml` for automated deployment.
 
 | Parameter | Description | Example |
 |-----------|-------------|---------|
-| `postgresAdminUsername` | PostgreSQL admin username | `truepulseadmin` |
-| `postgresAdminPassword` | PostgreSQL admin password | Secure string |
+
 | `jwtSecretKey` | JWT signing key (32+ chars) | Secure string |
 | `voteHashSecret` | Vote anonymization secret | Secure string |
 
@@ -297,7 +294,7 @@ The dev environment is configured with serverless/minimal SKUs. Note: Redis and 
 | Resource | SKU | Monthly Cost | Notes |
 |----------|-----|--------------|-------|
 | Container App | 0.25 vCPU, 0.5GB | ~$15-20 | Scale to 0 when idle |
-| PostgreSQL Flexible | B2s (1 vCore) | ~$15 | Burstable, cost-effective |
+| Cosmos DB Serverless | Serverless | ~$5-15 | Pay per RU, scales to 0 |
 | Storage Account (Tables) | Standard | ~$5-10 | Token blacklist, rate limiting |
 | Static Web App | Free | $0 | 2 custom domains included |
 | Log Analytics | Pay per GB | ~$5 | Minimal logs in dev |
@@ -313,7 +310,7 @@ The dev environment is configured with serverless/minimal SKUs. Note: Redis and 
 | Resource | SKU | Monthly Cost | Notes |
 |----------|-----|--------------|-------|
 | Container App | 1-4 vCPU, 2-8GB | ~$50-200 | Auto-scale with traffic |
-| PostgreSQL Flexible | D4s (4 vCores) | ~$150-400 | Zone redundant, HA |
+| Cosmos DB | Provisioned | ~$50-200 | Scales with RU capacity |
 | Storage Account (Tables) | Standard | ~$10-50 | Scales with usage |
 | Static Web App | Standard | ~$9 | Enterprise features |
 | **Total Prod Estimate** | | **~$300-700/month** | Scales with usage |
@@ -322,7 +319,7 @@ The dev environment is configured with serverless/minimal SKUs. Note: Redis and 
 
 1. **Storage Tables**: Uses serverless pricing - pay per transaction and storage. Very cost-effective for token/rate-limit data.
 2. **Container Apps**: Scales to 0 when idle. Set `minReplicas: 0` in dev.
-3. **PostgreSQL**: B2s is burstable - sufficient for dev/low traffic.
+3. **Cosmos DB**: Serverless mode charges only for consumed RUs - ideal for dev/low traffic.
 4. **Private Endpoints**: Each costs ~$7.50/month. Consider reducing for dev if security allows.
 
 ## Monitoring & Alerts
@@ -372,7 +369,7 @@ modules/
 ├── keyVault.bicep          # Secrets management
 ├── keyVaultSecret.bicep    # Individual secret management
 ├── containerRegistry.bicep # ACR for images
-├── postgres.bicep          # PostgreSQL Flexible
+├── cosmosdb.bicep          # Cosmos DB Serverless
 ├── storageAccount.bicep    # Azure Storage (Blobs + Tables)
 ├── azureOpenAI.bicep       # Azure OpenAI Service
 ├── communicationServices.bicep  # SMS (ACS)

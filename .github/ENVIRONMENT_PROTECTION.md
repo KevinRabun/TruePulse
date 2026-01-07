@@ -37,7 +37,6 @@ Ensure these secrets are configured for the `prod` environment:
 - `AZURE_CLIENT_ID` - Azure AD app client ID
 - `AZURE_TENANT_ID` - Azure AD tenant ID
 - `AZURE_SUBSCRIPTION_ID` - Azure subscription ID
-- `POSTGRES_PASSWORD` - Production database password
 - `JWT_SECRET_KEY` - Production JWT signing key
 - `VOTE_HASH_SECRET` - Production vote hash secret
 - `NEWSDATA_API_KEY` - NewsData.io API key

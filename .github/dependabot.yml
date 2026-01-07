@@ -12,8 +12,6 @@ updates:
       time: "09:00"
       timezone: "America/New_York"
     open-pull-requests-limit: 5
-    reviewers:
-      - "KevinRabun"
     labels:
       - "dependencies"
       - "python"
@@ -37,8 +35,6 @@ updates:
       time: "09:00"
       timezone: "America/New_York"
     open-pull-requests-limit: 5
-    reviewers:
-      - "KevinRabun"
     labels:
       - "dependencies"
       - "javascript"
@@ -80,8 +76,6 @@ updates:
       time: "09:00"
       timezone: "America/New_York"
     open-pull-requests-limit: 3
-    reviewers:
-      - "KevinRabun"
     labels:
       - "dependencies"
       - "github-actions"

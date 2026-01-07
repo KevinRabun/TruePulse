@@ -134,7 +134,7 @@ async def service_status() -> dict:
             "configured": email_service.is_available,
         },
         "database": {
-            "configured": bool(settings.POSTGRES_HOST),
+            "configured": bool(settings.AZURE_COSMOS_ENDPOINT or settings.AZURE_COSMOS_CONNECTION_STRING),
         },
         "openai": {
             "configured": bool(settings.AZURE_OPENAI_ENDPOINT),

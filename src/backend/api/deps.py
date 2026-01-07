@@ -12,13 +12,11 @@ from typing import Annotated
 import structlog
 from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.config import settings
 from core.security import decode_token
-from db.session import get_db
-from models.user import User
+from models.cosmos_documents import UserDocument
+from repositories.cosmos_user_repository import CosmosUserRepository
 from schemas.user import UserInDB
 from services.redis_service import RedisService, get_redis_service
 
@@ -30,19 +28,29 @@ security_optional = HTTPBearer(auto_error=False)
 
 
 # =============================================================================
+# Repository Dependencies
+# =============================================================================
+
+
+def get_user_repository() -> CosmosUserRepository:
+    """Get the Cosmos DB user repository instance."""
+    return CosmosUserRepository()
+
+
+# =============================================================================
 # Helper Functions
 # =============================================================================
 
 
-def _user_model_to_schema(user: User) -> UserInDB:
+def _user_doc_to_schema(user: UserDocument) -> UserInDB:
     """
-    Convert a User SQLAlchemy model to a UserInDB Pydantic schema.
+    Convert a UserDocument (Cosmos DB) to a UserInDB Pydantic schema.
 
-    This is the single source of truth for User -> UserInDB conversion,
+    This is the single source of truth for UserDocument -> UserInDB conversion,
     ensuring consistent field mapping across all authentication flows.
     """
     return UserInDB(
-        id=str(user.id),
+        id=user.id,
         email=user.email,
         username=user.username,
         display_name=user.display_name,
@@ -66,7 +74,7 @@ def _user_model_to_schema(user: User) -> UserInDB:
 
 async def get_current_user(
     credentials: Annotated[HTTPAuthorizationCredentials, Depends(security)],
-    db: AsyncSession = Depends(get_db),
+    user_repo: CosmosUserRepository = Depends(get_user_repository),
     token_service: RedisService = Depends(get_redis_service),
 ) -> UserInDB:
     """
@@ -106,9 +114,8 @@ async def get_current_user(
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    # Fetch user from database
-    result = await db.execute(select(User).where(User.id == user_id))
-    user = result.scalar_one_or_none()
+    # Fetch user from Cosmos DB
+    user = await user_repo.get_by_id(user_id)
 
     if not user:
         raise HTTPException(
@@ -117,12 +124,12 @@ async def get_current_user(
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    return _user_model_to_schema(user)
+    return _user_doc_to_schema(user)
 
 
 async def get_current_user_optional(
     credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(security_optional)],
-    db: AsyncSession = Depends(get_db),
+    user_repo: CosmosUserRepository = Depends(get_user_repository),
 ) -> UserInDB | None:
     """
     Optionally extract and validate the current user from the JWT token.
@@ -144,14 +151,13 @@ async def get_current_user_optional(
     if user_id is None:
         return None
 
-    # Fetch user from database
-    result = await db.execute(select(User).where(User.id == user_id))
-    user = result.scalar_one_or_none()
+    # Fetch user from Cosmos DB
+    user = await user_repo.get_by_id(user_id)
 
     if not user:
         return None
 
-    return _user_model_to_schema(user)
+    return _user_doc_to_schema(user)
 
 
 async def get_current_active_user(

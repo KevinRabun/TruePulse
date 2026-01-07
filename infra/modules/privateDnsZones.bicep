@@ -31,13 +31,6 @@ resource openaiDnsZone 'Microsoft.Network/privateDnsZones@2020-06-01' = {
   tags: tags
 }
 
-// PostgreSQL Flexible Server
-resource postgresDnsZone 'Microsoft.Network/privateDnsZones@2020-06-01' = {
-  name: 'privatelink.postgres.database.azure.com'
-  location: 'global'
-  tags: tags
-}
-
 // Key Vault
 resource keyVaultDnsZone 'Microsoft.Network/privateDnsZones@2020-06-01' = {
   name: 'privatelink.vaultcore.azure.net'
@@ -48,6 +41,13 @@ resource keyVaultDnsZone 'Microsoft.Network/privateDnsZones@2020-06-01' = {
 // Azure Container Registry
 resource acrDnsZone 'Microsoft.Network/privateDnsZones@2020-06-01' = {
   name: 'privatelink.azurecr.io'
+  location: 'global'
+  tags: tags
+}
+
+// Azure Cosmos DB (NoSQL API)
+resource cosmosDnsZone 'Microsoft.Network/privateDnsZones@2020-06-01' = {
+  name: 'privatelink.documents.azure.com'
   location: 'global'
   tags: tags
 }
@@ -65,11 +65,11 @@ output tableDnsZoneName string = tableDnsZone.name
 output openaiDnsZoneId string = openaiDnsZone.id
 output openaiDnsZoneName string = openaiDnsZone.name
 
-output postgresDnsZoneId string = postgresDnsZone.id
-output postgresDnsZoneName string = postgresDnsZone.name
-
 output keyVaultDnsZoneId string = keyVaultDnsZone.id
 output keyVaultDnsZoneName string = keyVaultDnsZone.name
 
 output acrDnsZoneId string = acrDnsZone.id
 output acrDnsZoneName string = acrDnsZone.name
+
+output cosmosDnsZoneId string = cosmosDnsZone.id
+output cosmosDnsZoneName string = cosmosDnsZone.name

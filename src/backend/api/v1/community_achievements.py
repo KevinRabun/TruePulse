@@ -10,18 +10,11 @@ from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel
-from sqlalchemy import and_, func, select
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
 
-from api.deps import get_current_user_optional, get_current_verified_user
-from db.session import get_db
-from models.achievement import (
-    CommunityAchievement,
-    CommunityAchievementEvent,
-    CommunityAchievementParticipant,
-)
-from models.user import User
+from api.deps import get_current_user_optional, get_current_verified_user, get_user_repository
+from repositories.cosmos_achievement_repository import CosmosAchievementRepository
+from repositories.cosmos_user_repository import CosmosUserRepository
+from repositories.provider import get_achievement_repository
 from schemas.user import UserInDB
 
 router = APIRouter()
@@ -103,7 +96,7 @@ class CommunityLeaderboard(BaseModel):
 @router.get("/active", response_model=list[CommunityAchievementProgress])
 async def get_active_community_achievements(
     current_user: Optional[UserInDB] = Depends(get_current_user_optional),
-    db: AsyncSession = Depends(get_db),
+    achievement_repo: CosmosAchievementRepository = Depends(get_achievement_repository),
 ) -> list[CommunityAchievementProgress]:
     """
     Get all active community achievements with current progress.
@@ -112,30 +105,14 @@ async def get_active_community_achievements(
     along with current progress and participant counts.
     """
     # Get active community achievements
-    result = await db.execute(
-        select(CommunityAchievement)
-        .where(CommunityAchievement.is_active == True)
-        .order_by(CommunityAchievement.sort_order.asc())
-    )
-    achievements = result.scalars().all()
+    achievements = await achievement_repo.get_active_community_achievements()
 
     progress_list = []
     now = datetime.now(timezone.utc)
 
     for ach in achievements:
         # Get the latest event for this achievement (if any)
-        event_result = await db.execute(
-            select(CommunityAchievementEvent)
-            .where(
-                and_(
-                    CommunityAchievementEvent.achievement_id == ach.id,
-                    CommunityAchievementEvent.is_completed == False,
-                )
-            )
-            .order_by(CommunityAchievementEvent.triggered_at.desc())
-            .limit(1)
-        )
-        event = event_result.scalar_one_or_none()
+        event = await achievement_repo.get_community_achievement_event(ach.id, active_only=True)
 
         # Calculate progress
         current_count = 0
@@ -152,28 +129,39 @@ async def get_active_community_achievements(
 
             # Calculate time remaining if there's a window
             if ach.time_window_hours:
-                end_time = event.triggered_at.replace(tzinfo=timezone.utc) + timedelta(hours=ach.time_window_hours)
+                triggered = event.triggered_at
+                if triggered.tzinfo is None:
+                    triggered = triggered.replace(tzinfo=timezone.utc)
+                end_time = triggered + timedelta(hours=ach.time_window_hours)
                 remaining = (end_time - now).total_seconds() / 3600
                 time_remaining = max(0, remaining)
 
             # Check if current user participated
             if current_user:
-                part_result = await db.execute(
-                    select(CommunityAchievementParticipant).where(
-                        and_(
-                            CommunityAchievementParticipant.event_id == event.id,
-                            CommunityAchievementParticipant.user_id == current_user.id,
-                        )
-                    )
-                )
-                participant = part_result.scalar_one_or_none()
+                participant = await achievement_repo.get_user_community_participation(current_user.id, event.id)
                 if participant:
                     user_participated = True
                     user_contribution = participant.contribution_count
 
         progress_list.append(
             CommunityAchievementProgress(
-                achievement=CommunityAchievementSchema.model_validate(ach),
+                achievement=CommunityAchievementSchema(
+                    id=ach.id,
+                    name=ach.name,
+                    description=ach.description,
+                    icon=ach.icon,
+                    badge_icon=ach.badge_icon,
+                    goal_type=ach.goal_type,
+                    target_count=ach.target_count,
+                    time_window_hours=ach.time_window_hours,
+                    points_reward=ach.points_reward,
+                    bonus_multiplier=ach.bonus_multiplier,
+                    is_recurring=ach.is_recurring,
+                    cooldown_hours=ach.cooldown_hours,
+                    tier=ach.tier if isinstance(ach.tier, str) else ach.tier.value,
+                    category=ach.category,
+                    is_active=ach.is_active,
+                ),
                 current_count=current_count,
                 progress_percentage=min(100, (current_count / ach.target_count * 100)) if ach.target_count > 0 else 0,
                 participant_count=participant_count,
@@ -192,54 +180,44 @@ async def get_completed_community_achievements(
     page: int = Query(1, ge=1),
     per_page: int = Query(10, ge=1, le=50),
     current_user: Optional[UserInDB] = Depends(get_current_user_optional),
-    db: AsyncSession = Depends(get_db),
+    achievement_repo: CosmosAchievementRepository = Depends(get_achievement_repository),
 ) -> list[CommunityAchievementEventSchema]:
     """
     Get recently completed community achievements.
 
     Shows historical community achievements that were successfully completed.
     """
-    result = await db.execute(
-        select(CommunityAchievementEvent)
-        .options(selectinload(CommunityAchievementEvent.achievement))
-        .where(CommunityAchievementEvent.is_completed == True)
-        .order_by(CommunityAchievementEvent.completed_at.desc())
-        .offset((page - 1) * per_page)
-        .limit(per_page)
-    )
-    events = result.scalars().all()
+    offset = (page - 1) * per_page
+    events = await achievement_repo.get_completed_community_events(limit=per_page, offset=offset)
 
     event_list = []
     for event in events:
+        # Get the achievement details
+        achievement = await achievement_repo.get_community_achievement(event.achievement_id)
+        if not achievement:
+            continue
+
         user_earned_badge = False
         user_earned_points = 0
 
         if current_user:
-            part_result = await db.execute(
-                select(CommunityAchievementParticipant).where(
-                    and_(
-                        CommunityAchievementParticipant.event_id == event.id,
-                        CommunityAchievementParticipant.user_id == current_user.id,
-                    )
-                )
-            )
-            participant = part_result.scalar_one_or_none()
+            participant = await achievement_repo.get_user_community_participation(current_user.id, event.id)
             if participant:
                 user_earned_badge = participant.badge_awarded
                 user_earned_points = participant.points_awarded
 
         event_list.append(
             CommunityAchievementEventSchema(
-                id=str(event.id),
+                id=event.id,
                 achievement_id=event.achievement_id,
-                achievement_name=event.achievement.name,
-                achievement_icon=event.achievement.icon,
-                badge_icon=event.achievement.badge_icon,
+                achievement_name=achievement.name,
+                achievement_icon=achievement.icon,
+                badge_icon=achievement.badge_icon,
                 triggered_at=event.triggered_at,
                 completed_at=event.completed_at,
                 final_count=event.final_count,
                 participant_count=event.participant_count,
-                points_reward=event.achievement.points_reward,
+                points_reward=achievement.points_reward,
                 user_earned_badge=user_earned_badge,
                 user_earned_points=user_earned_points,
             )
@@ -251,84 +229,72 @@ async def get_completed_community_achievements(
 @router.get("/user/badges", response_model=list[CommunityAchievementEventSchema])
 async def get_user_community_badges(
     current_user: UserInDB = Depends(get_current_verified_user),
-    db: AsyncSession = Depends(get_db),
+    achievement_repo: CosmosAchievementRepository = Depends(get_achievement_repository),
 ) -> list[CommunityAchievementEventSchema]:
     """
     Get all community badges earned by the current user.
     """
-    result = await db.execute(
-        select(CommunityAchievementParticipant)
-        .options(
-            selectinload(CommunityAchievementParticipant.event).selectinload(CommunityAchievementEvent.achievement)
-        )
-        .where(
-            and_(
-                CommunityAchievementParticipant.user_id == current_user.id,
-                CommunityAchievementParticipant.badge_awarded == True,
+    participants = await achievement_repo.get_user_community_badges(current_user.id)
+
+    result = []
+    for p in participants:
+        # Get the event and achievement details
+        event = await achievement_repo.get_community_achievement_event(p.achievement_id, active_only=False)
+        if not event:
+            continue
+
+        achievement = await achievement_repo.get_community_achievement(p.achievement_id)
+        if not achievement:
+            continue
+
+        result.append(
+            CommunityAchievementEventSchema(
+                id=event.id,
+                achievement_id=event.achievement_id,
+                achievement_name=achievement.name,
+                achievement_icon=achievement.icon,
+                badge_icon=achievement.badge_icon,
+                triggered_at=event.triggered_at,
+                completed_at=event.completed_at,
+                final_count=event.final_count,
+                participant_count=event.participant_count,
+                points_reward=achievement.points_reward,
+                user_earned_badge=True,
+                user_earned_points=p.points_awarded,
             )
         )
-        .order_by(CommunityAchievementParticipant.contributed_at.desc())
-    )
-    participants = result.scalars().all()
 
-    return [
-        CommunityAchievementEventSchema(
-            id=str(p.event.id),
-            achievement_id=p.event.achievement_id,
-            achievement_name=p.event.achievement.name,
-            achievement_icon=p.event.achievement.icon,
-            badge_icon=p.event.achievement.badge_icon,
-            triggered_at=p.event.triggered_at,
-            completed_at=p.event.completed_at,
-            final_count=p.event.final_count,
-            participant_count=p.event.participant_count,
-            points_reward=p.event.achievement.points_reward,
-            user_earned_badge=True,
-            user_earned_points=p.points_awarded,
-        )
-        for p in participants
-    ]
+    return result
 
 
 @router.get("/leaderboard", response_model=list[CommunityLeaderboard])
 async def get_community_leaderboard(
     limit: int = Query(20, ge=1, le=100),
-    db: AsyncSession = Depends(get_db),
+    achievement_repo: CosmosAchievementRepository = Depends(get_achievement_repository),
+    user_repo: CosmosUserRepository = Depends(get_user_repository),
 ) -> list[CommunityLeaderboard]:
     """
     Get the community achievement leaderboard.
 
     Shows top contributors to community achievements.
     """
-    # Aggregate user contributions
-    result = await db.execute(
-        select(
-            CommunityAchievementParticipant.user_id,
-            func.sum(CommunityAchievementParticipant.contribution_count).label("total_contributions"),
-            func.count(CommunityAchievementParticipant.id).label("achievements_participated"),
-            func.sum(func.cast(CommunityAchievementParticipant.badge_awarded, Integer)).label("badges_earned"),
-        )
-        .group_by(CommunityAchievementParticipant.user_id)
-        .order_by(func.sum(CommunityAchievementParticipant.contribution_count).desc())
-        .limit(limit)
-    )
-    rows = result.all()
+    # Get aggregated user contributions
+    rows = await achievement_repo.get_community_leaderboard(limit=limit)
 
     # Get user details
     leaderboard = []
     for row in rows:
-        user_result = await db.execute(select(User).where(User.id == row.user_id))
-        user = user_result.scalar_one_or_none()
+        user = await user_repo.get_user(row["user_id"])
 
         if user:
             leaderboard.append(
                 CommunityLeaderboard(
-                    user_id=str(user.id),
+                    user_id=user.id,
                     display_name=user.display_name or user.username,
                     avatar_url=user.avatar_url,
-                    total_contributions=row.total_contributions or 0,
-                    achievements_participated=row.achievements_participated or 0,
-                    badges_earned=row.badges_earned or 0,
+                    total_contributions=row.get("total_contributions", 0) or 0,
+                    achievements_participated=row.get("achievements_participated", 0) or 0,
+                    badges_earned=row.get("badges_earned", 0) or 0,
                 )
             )
 
@@ -339,13 +305,12 @@ async def get_community_leaderboard(
 async def get_community_achievement(
     achievement_id: str,
     current_user: Optional[UserInDB] = Depends(get_current_user_optional),
-    db: AsyncSession = Depends(get_db),
+    achievement_repo: CosmosAchievementRepository = Depends(get_achievement_repository),
 ) -> CommunityAchievementProgress:
     """
     Get details of a specific community achievement.
     """
-    result = await db.execute(select(CommunityAchievement).where(CommunityAchievement.id == achievement_id))
-    achievement = result.scalar_one_or_none()
+    achievement = await achievement_repo.get_community_achievement(achievement_id)
 
     if not achievement:
         raise HTTPException(
@@ -355,18 +320,7 @@ async def get_community_achievement(
 
     # Get current event progress
     now = datetime.now(timezone.utc)
-    event_result = await db.execute(
-        select(CommunityAchievementEvent)
-        .where(
-            and_(
-                CommunityAchievementEvent.achievement_id == achievement_id,
-                CommunityAchievementEvent.is_completed == False,
-            )
-        )
-        .order_by(CommunityAchievementEvent.triggered_at.desc())
-        .limit(1)
-    )
-    event = event_result.scalar_one_or_none()
+    event = await achievement_repo.get_community_achievement_event(achievement_id, active_only=True)
 
     current_count = 0
     participant_count = 0
@@ -381,26 +335,37 @@ async def get_community_achievement(
         started_at = event.triggered_at
 
         if achievement.time_window_hours:
-            end_time = event.triggered_at.replace(tzinfo=timezone.utc) + timedelta(hours=achievement.time_window_hours)
+            triggered = event.triggered_at
+            if triggered.tzinfo is None:
+                triggered = triggered.replace(tzinfo=timezone.utc)
+            end_time = triggered + timedelta(hours=achievement.time_window_hours)
             remaining = (end_time - now).total_seconds() / 3600
             time_remaining = max(0, remaining)
 
         if current_user:
-            part_result = await db.execute(
-                select(CommunityAchievementParticipant).where(
-                    and_(
-                        CommunityAchievementParticipant.event_id == event.id,
-                        CommunityAchievementParticipant.user_id == current_user.id,
-                    )
-                )
-            )
-            participant = part_result.scalar_one_or_none()
+            participant = await achievement_repo.get_user_community_participation(current_user.id, event.id)
             if participant:
                 user_participated = True
                 user_contribution = participant.contribution_count
 
     return CommunityAchievementProgress(
-        achievement=CommunityAchievementSchema.model_validate(achievement),
+        achievement=CommunityAchievementSchema(
+            id=achievement.id,
+            name=achievement.name,
+            description=achievement.description,
+            icon=achievement.icon,
+            badge_icon=achievement.badge_icon,
+            goal_type=achievement.goal_type,
+            target_count=achievement.target_count,
+            time_window_hours=achievement.time_window_hours,
+            points_reward=achievement.points_reward,
+            bonus_multiplier=achievement.bonus_multiplier,
+            is_recurring=achievement.is_recurring,
+            cooldown_hours=achievement.cooldown_hours,
+            tier=achievement.tier if isinstance(achievement.tier, str) else achievement.tier.value,
+            category=achievement.category,
+            is_active=achievement.is_active,
+        ),
         current_count=current_count,
         progress_percentage=min(100, (current_count / achievement.target_count * 100))
         if achievement.target_count > 0
@@ -411,7 +376,3 @@ async def get_community_achievement(
         user_participated=user_participated,
         user_contribution=user_contribution,
     )
-
-
-# Import needed for leaderboard query
-from sqlalchemy import Integer

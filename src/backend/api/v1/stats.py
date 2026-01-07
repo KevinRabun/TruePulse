@@ -5,17 +5,45 @@ Provides public platform statistics (polls created, votes cast, active users)
 with configurable caching to minimize database load.
 """
 
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
+from typing import Optional
 
 from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.config import settings
-from db.session import get_db
-from services.stats_service import StatsService, format_stat_value
+from models.cosmos_documents import PollStatus
+from repositories.cosmos_poll_repository import CosmosPollRepository
+from repositories.cosmos_user_repository import CosmosUserRepository
+from repositories.cosmos_vote_repository import CosmosVoteRepository
+from services.stats_service import format_stat_value
 
 router = APIRouter()
+
+
+# =============================================================================
+# Repository Dependencies
+# =============================================================================
+
+
+def get_user_repository() -> CosmosUserRepository:
+    """Get the Cosmos DB user repository instance."""
+    return CosmosUserRepository()
+
+
+def get_poll_repository() -> CosmosPollRepository:
+    """Get the Cosmos DB poll repository instance."""
+    return CosmosPollRepository()
+
+
+def get_vote_repository() -> CosmosVoteRepository:
+    """Get the Cosmos DB vote repository instance."""
+    return CosmosVoteRepository()
+
+
+# =============================================================================
+# Response Models
+# =============================================================================
 
 
 class FormattedStats(BaseModel):
@@ -89,6 +117,46 @@ class PlatformStatsResponse(BaseModel):
 DEFAULT_CACHE_TTL_HOURS = getattr(settings, "STATS_CACHE_TTL_HOURS", 24)
 
 
+# =============================================================================
+# Simple In-Memory Cache
+# =============================================================================
+
+
+class _StatsCache:
+    """Simple in-memory cache for platform statistics."""
+
+    def __init__(self) -> None:
+        self._cached_stats: Optional[dict] = None
+        self._computed_at: Optional[datetime] = None
+        self._ttl_hours: int = DEFAULT_CACHE_TTL_HOURS
+
+    def is_valid(self) -> bool:
+        """Check if cache is valid and not stale."""
+        if self._cached_stats is None or self._computed_at is None:
+            return False
+        expiry = self._computed_at + timedelta(hours=self._ttl_hours)
+        return datetime.now(timezone.utc) <= expiry
+
+    def get(self) -> Optional[tuple[dict, datetime]]:
+        """Get cached stats if valid."""
+        if self.is_valid():
+            return self._cached_stats, self._computed_at
+        return None
+
+    def set(self, stats: dict, computed_at: datetime) -> None:
+        """Cache the stats."""
+        self._cached_stats = stats
+        self._computed_at = computed_at
+
+    def invalidate(self) -> None:
+        """Invalidate the cache."""
+        self._cached_stats = None
+        self._computed_at = None
+
+
+_stats_cache = _StatsCache()
+
+
 @router.get(
     "/",
     response_model=PlatformStatsResponse,
@@ -108,7 +176,9 @@ DEFAULT_CACHE_TTL_HOURS = getattr(settings, "STATS_CACHE_TTL_HOURS", 24)
     """,
 )
 async def get_platform_stats(
-    db: AsyncSession = Depends(get_db),
+    user_repo: CosmosUserRepository = Depends(get_user_repository),
+    poll_repo: CosmosPollRepository = Depends(get_poll_repository),
+    vote_repo: CosmosVoteRepository = Depends(get_vote_repository),
     refresh: bool = Query(
         False,
         description="Force refresh stats (admin use only, respects rate limits)",
@@ -120,39 +190,78 @@ async def get_platform_stats(
     Returns cached statistics to minimize database load.
     Stats are automatically refreshed based on cache_ttl_hours setting.
     """
-    # Create stats service with configurable TTL
-    stats_service = StatsService(
-        db=db,
-        cache_ttl_hours=DEFAULT_CACHE_TTL_HOURS,
-    )
+    # Check cache first
+    if not refresh:
+        cached = _stats_cache.get()
+        if cached:
+            stats_dict, computed_at = cached
+            next_refresh = computed_at + timedelta(hours=DEFAULT_CACHE_TTL_HOURS)
+            return PlatformStatsResponse(
+                stats=FormattedStats(**stats_dict),
+                computed_at=computed_at,
+                cache_ttl_hours=DEFAULT_CACHE_TTL_HOURS,
+                next_refresh_at=next_refresh,
+            )
 
-    # Get stats (cached or fresh)
-    stats = await stats_service.get_stats(force_refresh=refresh)
+    # Compute fresh stats using Cosmos repositories
+    now = datetime.now(timezone.utc)
 
-    # Calculate next refresh time
-    from datetime import timedelta
+    # Count polls by status using repository
+    active_polls = await poll_repo.count_polls_by_status(PollStatus.ACTIVE)
+    closed_polls = await poll_repo.count_polls_by_status(PollStatus.CLOSED)
+    archived_polls = await poll_repo.count_polls_by_status(PollStatus.ARCHIVED)
+    polls_created = active_polls + closed_polls + archived_polls
+    completed_polls = closed_polls + archived_polls
 
-    next_refresh = stats.computed_at + timedelta(hours=stats.cache_ttl_hours)
+    # Count total votes using repository
+    votes_cast = await vote_repo.get_total_votes_across_all_polls()
 
-    # Format for display
+    # Count active users using repository
+    active_users = await user_repo.count_active_users()
+
+    # Note: total_users and countries_represented require additional repository methods
+    # For now, use active_users as a proxy or implement additional methods
+    total_users = active_users  # TODO: Add count_total_users() to CosmosUserRepository
+    countries_represented = 0  # TODO: Add count_countries() to CosmosUserRepository
+
+    # Build formatted stats
     formatted = FormattedStats(
-        polls_created=format_stat_value(stats.polls_created),
-        polls_created_raw=stats.polls_created,
-        completed_polls=format_stat_value(stats.completed_polls),
-        completed_polls_raw=stats.completed_polls,
-        votes_cast=format_stat_value(stats.votes_cast),
-        votes_cast_raw=stats.votes_cast,
-        active_users=format_stat_value(stats.active_users),
-        active_users_raw=stats.active_users,
-        total_users=format_stat_value(stats.total_users),
-        total_users_raw=stats.total_users,
-        countries_represented=str(stats.countries_represented),
-        countries_represented_raw=stats.countries_represented,
+        polls_created=format_stat_value(polls_created),
+        polls_created_raw=polls_created,
+        completed_polls=format_stat_value(completed_polls),
+        completed_polls_raw=completed_polls,
+        votes_cast=format_stat_value(votes_cast),
+        votes_cast_raw=votes_cast,
+        active_users=format_stat_value(active_users),
+        active_users_raw=active_users,
+        total_users=format_stat_value(total_users),
+        total_users_raw=total_users,
+        countries_represented=str(countries_represented),
+        countries_represented_raw=countries_represented,
     )
+
+    # Cache the stats
+    stats_dict = {
+        "polls_created": formatted.polls_created,
+        "polls_created_raw": formatted.polls_created_raw,
+        "completed_polls": formatted.completed_polls,
+        "completed_polls_raw": formatted.completed_polls_raw,
+        "votes_cast": formatted.votes_cast,
+        "votes_cast_raw": formatted.votes_cast_raw,
+        "active_users": formatted.active_users,
+        "active_users_raw": formatted.active_users_raw,
+        "total_users": formatted.total_users,
+        "total_users_raw": formatted.total_users_raw,
+        "countries_represented": formatted.countries_represented,
+        "countries_represented_raw": formatted.countries_represented_raw,
+    }
+    _stats_cache.set(stats_dict, now)
+
+    next_refresh = now + timedelta(hours=DEFAULT_CACHE_TTL_HOURS)
 
     return PlatformStatsResponse(
         stats=formatted,
-        computed_at=stats.computed_at,
-        cache_ttl_hours=stats.cache_ttl_hours,
+        computed_at=now,
+        cache_ttl_hours=DEFAULT_CACHE_TTL_HOURS,
         next_refresh_at=next_refresh,
     )

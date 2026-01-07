@@ -1,6 +1,10 @@
 # TruePulse - Docker Compose for Local Development
 # Run with: docker compose up -d
 # API available at http://localhost:8001, Frontend at http://localhost:3000
+#
+# NOTE: For local development, use the Azure Cosmos DB Emulator installed locally
+# rather than running it in Docker (emulator in Docker has limitations)
+# Download: https://aka.ms/cosmosdb-emulator
 
 services:
   # ==========================================================================
@@ -14,12 +18,6 @@ services:
     ports:
       - "8001:8000"
     environment:
-      - DATABASE_URL=postgresql+asyncpg://truepulse:truepulse_dev@postgres:5432/truepulse
-      - POSTGRES_HOST=postgres
-      - POSTGRES_PORT=5432
-      - POSTGRES_USER=truepulse
-      - POSTGRES_PASSWORD=truepulse_dev
-      - POSTGRES_DB=truepulse
       - SECRET_KEY=${SECRET_KEY:-dev-secret-key-change-in-production}
       - JWT_SECRET_KEY=${JWT_SECRET_KEY:-dev-secret-key-change-in-production}
       - JWT_ALGORITHM=HS256
@@ -29,9 +27,12 @@ services:
       - AI_FOUNDRY_DEPLOYMENT_NAME=${AI_FOUNDRY_DEPLOYMENT_NAME:-gpt-4}
       - ENVIRONMENT=development
       - LOG_LEVEL=DEBUG
-    depends_on:
-      postgres:
-        condition: service_healthy
+      # Cosmos DB - point to host machine's emulator
+      - AZURE_COSMOS_CONNECTION_STRING=${AZURE_COSMOS_CONNECTION_STRING:-AccountEndpoint=https://host.docker.internal:8081/;AccountKey=C2y6yDjf5/R+ob0N8A7Cgv30VRDJIWEHLM+4QDU5DE2nQ9nDuVTqobD4b8mGGyPMbIZnqyMsEcaGQy67XIw/Jw==}
+      - AZURE_COSMOS_DATABASE=truepulse
+      - AZURE_COSMOS_DISABLE_SSL=true
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
       interval: 30s
@@ -65,68 +66,6 @@ services:
       - truepulse-network
     restart: unless-stopped
 
-  # ==========================================================================
-  # PostgreSQL Database
-  # ==========================================================================
-  postgres:
-    image: postgres:16-alpine
-    container_name: truepulse-postgres
-    ports:
-      - "5432:5432"
-    environment:
-      - POSTGRES_USER=truepulse
-      - POSTGRES_PASSWORD=truepulse_dev
-      - POSTGRES_DB=truepulse
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-      - ./scripts/init-db.sql:/docker-entrypoint-initdb.d/init.sql:ro
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U truepulse -d truepulse"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-    networks:
-      - truepulse-network
-    restart: unless-stopped
-
-  # ==========================================================================
-  # PgAdmin (Optional - Database administration)
-  # ==========================================================================
-  pgadmin:
-    image: dpage/pgadmin4:latest
-    container_name: truepulse-pgadmin
-    ports:
-      - "5050:80"
-    environment:
-      - PGADMIN_DEFAULT_EMAIL=admin@truepulse.dev
-      - PGADMIN_DEFAULT_PASSWORD=admin
-      - PGADMIN_CONFIG_SERVER_MODE=False
-    volumes:
-      - pgadmin_data:/var/lib/pgadmin
-    depends_on:
-      - postgres
-    networks:
-      - truepulse-network
-    profiles:
-      - tools
-
-  # ==========================================================================
-  # Redis Commander (Optional - Redis administration)
-  # ==========================================================================
-  redis-commander:
-    image: rediscommander/redis-commander:latest
-    container_name: truepulse-redis-commander
-    ports:
-      - "8085:8081"
-    environment:
-      - REDIS_HOSTS=local:redis:6379
-    depends_on:
-      - redis
-    networks:
-      - truepulse-network
-    profiles:
-      - tools
-
 # ==========================================================================
 # Networks
 # ==========================================================================
@@ -138,5 +77,3 @@ networks:
 # Volumes
 # ==========================================================================
 volumes:
-  postgres_data:
-  pgadmin_data:

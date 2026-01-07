@@ -5,15 +5,11 @@ User profile and settings endpoints.
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import func, select
-from sqlalchemy.ext.asyncio import AsyncSession
 
-from api.deps import get_current_active_user, get_current_verified_user
-from db.session import get_db
-from models.achievement import UserAchievement
-from models.poll import Poll
-from models.user_vote_history import UserVoteHistory
-from repositories.user_repository import UserRepository
+from api.deps import get_current_active_user, get_current_verified_user, get_user_repository
+from repositories.cosmos_achievement_repository import CosmosAchievementRepository
+from repositories.cosmos_user_repository import CosmosUserRepository
+from repositories.provider import get_achievement_repository
 from schemas.user import (
     DEMOGRAPHIC_POINTS,
     DemographicsUpdateResponse,
@@ -24,7 +20,6 @@ from schemas.user import (
     UserResponse,
     UserSettings,
 )
-from services.achievement_service import AchievementService
 
 router = APIRouter()
 
@@ -32,37 +27,22 @@ router = APIRouter()
 @router.get("/me", response_model=UserResponse)
 async def get_current_user_profile(
     current_user: Annotated[UserInDB, Depends(get_current_active_user)],
-    db: AsyncSession = Depends(get_db),
+    achievement_repo: CosmosAchievementRepository = Depends(get_achievement_repository),
 ) -> UserResponse:
     """
     Get the current user's profile.
     """
-    # Get recent votes from vote history
-    result = await db.execute(
-        select(UserVoteHistory, Poll.question)
-        .join(Poll, UserVoteHistory.poll_id == Poll.id)
-        .where(UserVoteHistory.user_id == current_user.id)
-        .order_by(UserVoteHistory.voted_at.desc())
-        .limit(10)
-    )
-    vote_history = result.all()
+    # Get recent votes - Note: Vote history is not stored in Cosmos due to privacy design
+    # Votes don't contain user_id. This would require a separate user-votes container.
+    # For now, return empty list pending full vote history migration.
+    recent_votes: list[RecentVote] = []
 
-    recent_votes = [
-        RecentVote(
-            poll_id=str(vh.poll_id),
-            poll_question=question,
-            voted_at=vh.voted_at,
-        )
-        for vh, question in vote_history
-    ]
-
-    # Count unlocked achievements
-    achievements_result = await db.execute(
-        select(func.count(func.distinct(UserAchievement.achievement_id)))
-        .where(UserAchievement.user_id == current_user.id)
-        .where(UserAchievement.is_unlocked == True)
+    # Count unlocked achievements using Cosmos repository
+    user_achievements = await achievement_repo.get_user_achievements(
+        user_id=current_user.id,
+        unlocked_only=True,
     )
-    achievements_count = achievements_result.scalar() or 0
+    achievements_count = len(user_achievements)
 
     return UserResponse(
         id=current_user.id,
@@ -87,28 +67,32 @@ async def get_current_user_profile(
 async def update_profile(
     profile_data: UserProfileUpdate,
     current_user: Annotated[UserInDB, Depends(get_current_verified_user)],
-    db: AsyncSession = Depends(get_db),
+    user_repo: CosmosUserRepository = Depends(get_user_repository),
 ) -> UserResponse:
     """
     Update the current user's profile.
     """
-    repo = UserRepository(db)
-
     # Check if new username is already taken (if changing)
     if profile_data.username and profile_data.username != current_user.username:
-        if await repo.username_exists(profile_data.username):
+        if await user_repo.username_exists(profile_data.username):
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Username already taken",
             )
 
-    updated_user = await repo.update_profile(
-        user_id=current_user.id,
-        username=profile_data.username,
-        display_name=profile_data.display_name,
-        avatar_url=profile_data.avatar_url,
-        bio=profile_data.bio,
-    )
+    try:
+        updated_user = await user_repo.update_profile(
+            user_id=current_user.id,
+            username=profile_data.username,
+            display_name=profile_data.display_name,
+            avatar_url=profile_data.avatar_url,
+            bio=profile_data.bio,
+        )
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e),
+        )
 
     if not updated_user:
         raise HTTPException(
@@ -133,7 +117,7 @@ async def update_profile(
 @router.get("/me/demographics", response_model=UserDemographics | None)
 async def get_demographics(
     current_user: Annotated[UserInDB, Depends(get_current_verified_user)],
-    db: AsyncSession = Depends(get_db),
+    user_repo: CosmosUserRepository = Depends(get_user_repository),
 ) -> UserDemographics | None:
     """
     Get the current user's demographic information.
@@ -141,8 +125,7 @@ async def get_demographics(
     This data is used ONLY for aggregated polling insights.
     It is NEVER linked to individual vote records.
     """
-    repo = UserRepository(db)
-    user = await repo.get_by_id(current_user.id)
+    user = await user_repo.get_by_id(current_user.id)
 
     if not user:
         return None
@@ -188,7 +171,7 @@ async def get_demographics(
 async def update_demographics(
     demographics: UserDemographics,
     current_user: Annotated[UserInDB, Depends(get_current_verified_user)],
-    db: AsyncSession = Depends(get_db),
+    user_repo: CosmosUserRepository = Depends(get_user_repository),
 ) -> DemographicsUpdateResponse:
     """
     Update demographic information.
@@ -210,10 +193,8 @@ async def update_demographics(
     Privacy Note: Demographics are stored separately from votes
     and only used in aggregated form.
     """
-    repo = UserRepository(db)
-
     # Get existing user demographics to avoid double-awarding points
-    existing_user = await repo.get_by_id(current_user.id)
+    existing_user = await user_repo.get_by_id(current_user.id)
     if not existing_user:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -235,12 +216,11 @@ async def update_demographics(
                 total_points_earned += points
 
     # Update demographics in database
-    updated_user = await repo.update_demographics(
+    updated_user = await user_repo.update_demographics(
         user_id=current_user.id,
         age_range=demographics.age_range,
         gender=demographics.gender,
         country=demographics.country,
-        region=demographics.region,
         state_province=demographics.state_province,
         city=demographics.city,
         education_level=demographics.education_level,
@@ -257,18 +237,15 @@ async def update_demographics(
 
     # Award gamification points if any earned
     if total_points_earned > 0:
-        await repo.award_points(current_user.id, total_points_earned, update_level=True)
+        await user_repo.award_points(current_user.id, total_points_earned, update_level=True)
 
     # Refresh to get updated points
-    updated_user = await repo.get_by_id(current_user.id)
+    updated_user = await user_repo.get_by_id(current_user.id)
     new_total_points = updated_user.total_points if updated_user else 0
 
-    # Check and award demographic achievements
-    if updated_user:
-        achievement_service = AchievementService(db)
-        # Pass any field that was updated to check relevant achievements
-        for field in demographics_dict.keys():
-            await achievement_service.check_and_award_demographic_achievements(updated_user, field)
+    # TODO: Migrate AchievementService to use Cosmos repositories
+    # Achievement checking for demographics is temporarily disabled pending migration
+    # Previously: achievement_service.check_and_award_demographic_achievements(updated_user, field)
 
     return DemographicsUpdateResponse(
         demographics=demographics,
@@ -284,13 +261,12 @@ async def update_demographics(
 @router.get("/me/settings", response_model=UserSettings)
 async def get_settings(
     current_user: Annotated[UserInDB, Depends(get_current_verified_user)],
-    db: AsyncSession = Depends(get_db),
+    user_repo: CosmosUserRepository = Depends(get_user_repository),
 ) -> UserSettings:
     """
     Get user notification and privacy settings.
     """
-    repo = UserRepository(db)
-    user = await repo.get_by_id(current_user.id)
+    user = await user_repo.get_by_id(current_user.id)
 
     if not user:
         raise HTTPException(
@@ -317,14 +293,12 @@ async def get_settings(
 async def update_settings(
     settings: UserSettings,
     current_user: Annotated[UserInDB, Depends(get_current_verified_user)],
-    db: AsyncSession = Depends(get_db),
+    user_repo: CosmosUserRepository = Depends(get_user_repository),
 ) -> UserSettings:
     """
     Update user settings.
     """
-    repo = UserRepository(db)
-
-    updated_user = await repo.update_settings(
+    updated_user = await user_repo.update_settings(
         user_id=current_user.id,
         email_notifications=settings.email_notifications,
         push_notifications=settings.push_notifications,
@@ -349,7 +323,7 @@ async def update_settings(
 @router.delete("/me")
 async def delete_account(
     current_user: Annotated[UserInDB, Depends(get_current_verified_user)],
-    db: AsyncSession = Depends(get_db),
+    user_repo: CosmosUserRepository = Depends(get_user_repository),
 ) -> dict[str, str]:
     """
     Delete user account and all associated data.
@@ -358,10 +332,8 @@ async def delete_account(
     will remain in the system to maintain polling accuracy,
     but they cannot be linked back to the deleted user.
     """
-    repo = UserRepository(db)
-
-    # Soft delete or hard delete the user
+    # Soft delete the user (Cosmos uses soft_delete method)
     # Vote hashes remain (already anonymized - no user_id stored)
-    await repo.delete_user(current_user.id)
+    await user_repo.soft_delete(current_user.id)
 
     return {"message": "Account deleted successfully"}

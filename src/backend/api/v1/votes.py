@@ -9,22 +9,42 @@ from datetime import datetime, timezone
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.deps import get_current_verified_user
 from core.security import generate_vote_hash
-from db.session import get_db
-from models.poll import PollStatus
-from models.user_vote_history import UserVoteHistory
-from repositories.poll_repository import PollRepository
-from repositories.user_repository import UserRepository
-from repositories.vote_repository import VoteRepository
+from models.cosmos_documents import PollStatus
+from repositories.cosmos_poll_repository import CosmosPollRepository
+from repositories.cosmos_user_repository import CosmosUserRepository
+from repositories.cosmos_vote_repository import CosmosVoteRepository
 from schemas.user import UserInDB
 from schemas.vote import VoteCreate, VoteResponse, VoteStatus
-from services.achievement_service import AchievementService
-from services.stats_service import StatsService
 
 router = APIRouter()
+
+
+# =============================================================================
+# Repository Dependencies
+# =============================================================================
+
+
+def get_poll_repository() -> CosmosPollRepository:
+    """Get the Cosmos DB poll repository instance."""
+    return CosmosPollRepository()
+
+
+def get_vote_repository() -> CosmosVoteRepository:
+    """Get the Cosmos DB vote repository instance."""
+    return CosmosVoteRepository()
+
+
+def get_user_repository() -> CosmosUserRepository:
+    """Get the Cosmos DB user repository instance."""
+    return CosmosUserRepository()
+
+
+# =============================================================================
+# Helper Functions
+# =============================================================================
 
 
 def get_demographics_bucket(user: UserInDB) -> str | None:
@@ -65,7 +85,9 @@ def get_demographics_bucket(user: UserInDB) -> str | None:
 async def cast_vote(
     vote_data: VoteCreate,
     current_user: Annotated[UserInDB, Depends(get_current_verified_user)],
-    db: AsyncSession = Depends(get_db),
+    poll_repo: CosmosPollRepository = Depends(get_poll_repository),
+    vote_repo: CosmosVoteRepository = Depends(get_vote_repository),
+    user_repo: CosmosUserRepository = Depends(get_user_repository),
 ) -> VoteResponse:
     """
     Cast a vote on a poll.
@@ -84,10 +106,6 @@ async def cast_vote(
 
     The user_id is NEVER stored with the vote choice.
     """
-    poll_repo = PollRepository(db)
-    vote_repo = VoteRepository(db)
-    user_repo = UserRepository(db)
-
     # Verify poll exists and is currently active
     poll = await poll_repo.get_by_id(vote_data.poll_id)
     if not poll:
@@ -98,7 +116,7 @@ async def cast_vote(
 
     # Check if poll is in active status and within voting window
     now = datetime.now(timezone.utc)
-    if poll.status != PollStatus.ACTIVE.value:
+    if poll.status != PollStatus.ACTIVE:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="This poll is not currently accepting votes",
@@ -127,8 +145,8 @@ async def cast_vote(
     # Generate privacy-preserving vote hash
     vote_hash = generate_vote_hash(current_user.id, vote_data.poll_id)
 
-    # Check for existing vote
-    if await vote_repo.exists_by_hash(vote_hash):
+    # Check for existing vote (requires poll_id for Cosmos partition key)
+    if await vote_repo.exists_by_hash(vote_hash, vote_data.poll_id):
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail="You have already voted on this poll",
@@ -143,14 +161,7 @@ async def cast_vote(
         demographics_bucket=demographics_bucket,
     )
 
-    # Record in user's voting history (for activity tracking, NOT vote content)
-    vote_history = UserVoteHistory(
-        user_id=current_user.id,
-        poll_id=vote_data.poll_id,
-    )
-    db.add(vote_history)
-
-    # Update aggregated results
+    # Update aggregated results on poll document
     await poll_repo.increment_vote_count(vote_data.poll_id, vote_data.choice_id)
 
     # Award gamification points (10 points per vote)
@@ -158,17 +169,8 @@ async def cast_vote(
     await user_repo.award_points(current_user.id, points_earned)
     await user_repo.increment_votes_cast(current_user.id)
 
-    # Check and award achievements
-    # Refresh user to get updated vote count and streak
-    user = await user_repo.get_by_id(current_user.id)
-    if user:
-        achievement_service = AchievementService(db)
-        await achievement_service.check_and_award_voting_achievements(user)
-        await achievement_service.check_and_award_streak_achievements(user)
-
-    # Invalidate platform stats cache so votes_cast updates on home page
-    stats_service = StatsService(db)
-    await stats_service.invalidate_cache()
+    # Note: Achievement checking and stats invalidation have been removed
+    # as they require separate Cosmos migration of AchievementService and StatsService
 
     return VoteResponse(
         success=True,
@@ -181,17 +183,17 @@ async def cast_vote(
 async def check_vote_status(
     poll_id: str,
     current_user: Annotated[UserInDB, Depends(get_current_verified_user)],
-    db: AsyncSession = Depends(get_db),
+    vote_repo: CosmosVoteRepository = Depends(get_vote_repository),
 ) -> VoteStatus:
     """
     Check if the current user has voted on a poll.
 
     Uses the same hash mechanism to check without revealing vote choice.
     """
-    vote_repo = VoteRepository(db)
     vote_hash = generate_vote_hash(current_user.id, poll_id)
 
-    has_voted = await vote_repo.exists_by_hash(vote_hash)
+    # Cosmos requires poll_id as partition key for efficient lookup
+    has_voted = await vote_repo.exists_by_hash(vote_hash, poll_id)
 
     return VoteStatus(
         poll_id=poll_id,
@@ -203,16 +205,14 @@ async def check_vote_status(
 async def retract_vote(
     poll_id: str,
     current_user: Annotated[UserInDB, Depends(get_current_verified_user)],
-    db: AsyncSession = Depends(get_db),
+    poll_repo: CosmosPollRepository = Depends(get_poll_repository),
+    vote_repo: CosmosVoteRepository = Depends(get_vote_repository),
 ) -> dict[str, str]:
     """
     Retract a vote from a poll (if allowed).
 
     Note: Vote retraction is only allowed while the poll is still active.
     """
-    poll_repo = PollRepository(db)
-    vote_repo = VoteRepository(db)
-
     # Verify poll exists
     poll = await poll_repo.get_by_id(poll_id)
     if not poll:
@@ -222,7 +222,7 @@ async def retract_vote(
         )
 
     # Check if poll is still active (retraction only allowed during active voting)
-    if poll.status != PollStatus.ACTIVE.value:
+    if poll.status != PollStatus.ACTIVE:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Vote retraction is only allowed while the poll is active",
@@ -230,15 +230,15 @@ async def retract_vote(
 
     vote_hash = generate_vote_hash(current_user.id, poll_id)
 
-    # Check if vote exists
-    vote = await vote_repo.delete_by_hash(vote_hash)
+    # Delete vote and get the deleted document (for choice_id)
+    vote = await vote_repo.delete_by_hash(vote_hash, poll_id)
     if not vote:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Vote not found",
         )
 
-    # Update aggregated results
+    # Update aggregated results on poll document
     await poll_repo.decrement_vote_count(poll_id, vote.choice_id)
 
     return {"message": "Vote retracted successfully"}

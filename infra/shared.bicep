@@ -11,7 +11,7 @@
 //
 // PER-ENVIRONMENT RESOURCES (require private endpoints or data isolation):
 // - Azure OpenAI: Requires private endpoint per VNet
-// - PostgreSQL: Data isolation per environment
+// - Cosmos DB: Data isolation per environment (serverless)
 // - Key Vault: Secrets isolation per environment
 // - Storage Account: Data isolation per environment
 
@@ -162,6 +162,6 @@ output dnsZoneResourceId string = dnsZone.outputs.resourceId
 output blobDnsZoneId string = privateDnsZones.outputs.blobDnsZoneId
 output tableDnsZoneId string = privateDnsZones.outputs.tableDnsZoneId
 output openaiDnsZoneId string = privateDnsZones.outputs.openaiDnsZoneId
-output postgresDnsZoneId string = privateDnsZones.outputs.postgresDnsZoneId
 output keyVaultDnsZoneId string = privateDnsZones.outputs.keyVaultDnsZoneId
 output acrDnsZoneId string = privateDnsZones.outputs.acrDnsZoneId
+output cosmosDnsZoneId string = privateDnsZones.outputs.cosmosDnsZoneId

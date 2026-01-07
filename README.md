@@ -42,7 +42,7 @@ TruePulse is a privacy-first polling platform that automatically generates unbia
 │  ┌──────────────────────────────────────────────────────────────────────┐   │
 │  │                           Data Layer                                  │   │
 │  │  ┌────────────┐  ┌────────────┐  ┌────────────┐  ┌────────────────┐  │   │
-│  │  │Azure Tables│  │ PostgreSQL │  │ Key Vault  │  │  Blob Storage  │  │   │
+│  │  │Azure Tables│  │ Cosmos DB  │  │ Key Vault  │  │  Blob Storage  │  │   │
 │  │  │  (Votes)   │  │  (Users,   │  │  (Secrets) │  │   (Assets)     │  │   │
 │  │  │            │  │   Polls)   │  │            │  │                │  │   │
 │  │  └────────────┘  └────────────┘  └────────────┘  └────────────────┘  │   │
@@ -112,7 +112,7 @@ TruePulse/
 
 - Python 3.11+
 - Node.js 20+
-- PostgreSQL 16+ (local) or Azure PostgreSQL
+- Azure Cosmos DB Emulator (for local development)
 - Azure CLI (for deployment)
 
 ### Local Development

@@ -13,8 +13,6 @@ from datetime import UTC, datetime, timedelta
 from typing import Any
 from uuid import uuid4
 
-from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
 from webauthn import (
     generate_authentication_options,
     generate_registration_options,
@@ -37,8 +35,10 @@ from webauthn.helpers.structs import (
 )
 
 from core.config import settings
-from models.passkey import DeviceTrustScore, PasskeyChallenge, PasskeyCredential
-from models.user import User
+from models.cosmos_documents import PasskeyDocument, UserDocument
+from repositories.cosmos_user_repository import CosmosUserRepository
+from schemas.user import UserInDB
+from services.redis_service import RedisService, get_redis_service
 
 logger = logging.getLogger(__name__)
 
@@ -83,14 +83,16 @@ class PasskeyService:
     RP_NAME = settings.WEBAUTHN_RP_NAME  # Relying Party name
     ORIGIN = settings.WEBAUTHN_ORIGIN  # Expected origin
     CHALLENGE_TIMEOUT = timedelta(minutes=5)  # Challenge validity period
+    CHALLENGE_PREFIX = "passkey:challenge:"  # Redis key prefix for challenges
 
-    def __init__(self, db: AsyncSession):
+    def __init__(self, user_repo: CosmosUserRepository, redis_service: RedisService | None = None):
         """Initialize the passkey service."""
-        self.db = db
+        self.user_repo = user_repo
+        self._redis_service = redis_service
 
     async def generate_registration_options(
         self,
-        user: User,
+        user: UserInDB,
         device_info: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """
@@ -112,9 +114,14 @@ class PasskeyService:
                 "Email verification required before registering a passkey. This helps ensure one person = one vote."
             )
 
-        # Get existing credentials to exclude
-        existing_credentials = await self._get_user_credentials(user.id)
-        exclude_credentials = [PublicKeyCredentialDescriptor(id=cred.credential_id) for cred in existing_credentials]
+        # Get existing credentials to exclude from UserDocument
+        user_doc = await self.user_repo.get_by_id(user.id)
+        existing_passkeys = user_doc.passkeys if user_doc else []
+        exclude_credentials = [
+            PublicKeyCredentialDescriptor(id=base64url_to_bytes(pk.credential_id))
+            for pk in existing_passkeys
+            if pk.is_active
+        ]
 
         # Generate registration options
         options = generate_registration_options(
@@ -180,11 +187,11 @@ class PasskeyService:
 
     async def verify_registration(
         self,
-        user: User,
+        user: UserInDB,
         challenge_id: str,
         credential_data: dict[str, Any],
         credential_name: str | None = None,
-    ) -> PasskeyCredential:
+    ) -> PasskeyDocument:
         """
         Verify and store a WebAuthn registration response.
 
@@ -195,7 +202,7 @@ class PasskeyService:
             credential_name: Optional friendly name for the passkey
 
         Returns:
-            The stored PasskeyCredential
+            The stored PasskeyDocument
 
         Raises:
             PasskeyRegistrationError: If verification fails
@@ -310,41 +317,30 @@ class PasskeyService:
                 require_user_verification=True,
             )
 
-            # No phone binding - passkeys are bound to email-verified user identity
-            phone_hash = None
-
             # Determine transports
             transports = []
             if credential.response.transports:
                 transports = [t.value for t in credential.response.transports]
 
-            # Create passkey credential record
-            passkey = PasskeyCredential(
+            # Create passkey document for embedding in user
+            passkey = PasskeyDocument(
                 id=str(uuid4()),
-                user_id=user.id,
-                credential_id=verification.credential_id,
-                public_key=verification.credential_public_key,
+                credential_id=bytes_to_base64url(verification.credential_id),
+                public_key=bytes_to_base64url(verification.credential_public_key),
                 sign_count=verification.sign_count,
-                credential_name=credential_name or self._generate_device_name(challenge_data.get("device_info")),
-                transports=json.dumps(transports) if transports else None,
-                is_backup_eligible=getattr(verification, "credential_backed_up", False),
-                is_backed_up=getattr(verification, "credential_backed_up", False),
-                bound_phone_hash=phone_hash,
-                aaguid=str(verification.aaguid) if verification.aaguid else None,
+                device_name=credential_name or self._generate_device_name(challenge_data.get("device_info")),
+                transports=transports,
+                created_at=datetime.now(UTC),
+                is_active=True,
             )
 
-            self.db.add(passkey)
+            # Add passkey to user document and update
+            user_doc = await self.user_repo.get_by_id(user.id)
+            if not user_doc:
+                raise PasskeyRegistrationError("User not found")
 
-            # Update device trust score if device info provided
-            if challenge_data.get("device_info"):
-                await self._update_device_trust(
-                    user_id=user.id,
-                    device_info=challenge_data["device_info"],
-                    verification_type="passkey_registration",
-                )
-
-            await self.db.commit()
-            await self.db.refresh(passkey)
+            user_doc.passkeys.append(passkey)
+            await self.user_repo.update(user_doc)
 
             # Invalidate challenge
             await self._invalidate_challenge(challenge_id)
@@ -366,14 +362,14 @@ class PasskeyService:
 
     async def generate_authentication_options(
         self,
-        user: User | None = None,
+        user: UserDocument | None = None,
         device_info: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """
         Generate WebAuthn authentication options.
 
         Args:
-            user: Optional user (if None, allows discoverable credential flow)
+            user: Optional user document (if None, allows discoverable credential flow)
             device_info: Optional device information
 
         Returns:
@@ -382,14 +378,14 @@ class PasskeyService:
         allow_credentials = []
 
         if user:
-            # Get user's registered credentials
-            credentials = await self._get_user_credentials(user.id)
+            # Get user's registered credentials from embedded passkeys
             allow_credentials = [
                 PublicKeyCredentialDescriptor(
-                    id=cred.credential_id,
-                    transports=json.loads(cred.transports) if cred.transports else None,
+                    id=base64url_to_bytes(pk.credential_id),
+                    transports=pk.transports if pk.transports else None,
                 )
-                for cred in credentials
+                for pk in user.passkeys
+                if pk.is_active
             ]
 
         # Generate authentication options
@@ -435,7 +431,7 @@ class PasskeyService:
         self,
         challenge_id: str,
         credential_data: dict[str, Any],
-    ) -> tuple[User, PasskeyCredential]:
+    ) -> tuple[UserDocument, PasskeyDocument]:
         """
         Verify a WebAuthn authentication response.
 
@@ -444,7 +440,7 @@ class PasskeyService:
             credential_data: The credential data from the client (as dict)
 
         Returns:
-            Tuple of (authenticated user, passkey credential used)
+            Tuple of (authenticated user document, passkey document used)
 
         Raises:
             PasskeyAuthenticationError: If verification fails
@@ -462,9 +458,9 @@ class PasskeyService:
             # Parse the credential - py_webauthn handles base64url padding
             credential = parse_authentication_credential_json(credential_data)
 
-            # Find the passkey by credential ID
-            passkey = await self._get_credential_by_id(credential.raw_id)
-            if not passkey:
+            # Find the passkey by credential ID across all users
+            user, passkey = await self._find_credential_by_id(credential.raw_id)
+            if not user or not passkey:
                 raise PasskeyAuthenticationError("Unknown credential")
 
             # Verify authentication
@@ -473,32 +469,20 @@ class PasskeyService:
                 expected_challenge=base64url_to_bytes(challenge_data["challenge"]),
                 expected_rp_id=self.RP_ID,
                 expected_origin=self.ORIGIN,
-                credential_public_key=passkey.public_key,
+                credential_public_key=base64url_to_bytes(passkey.public_key),
                 credential_current_sign_count=passkey.sign_count,
                 require_user_verification=True,
             )
 
-            # Update sign count (replay attack protection)
+            # Update sign count and last used timestamp (replay attack protection)
             passkey.sign_count = verification.new_sign_count
             passkey.last_used_at = datetime.now(UTC)
-
-            # Get user
-            user = await self._get_user(passkey.user_id)
-            if not user:
-                raise PasskeyAuthenticationError("User not found")
 
             if not user.is_active:
                 raise PasskeyAuthenticationError("User account is disabled")
 
-            # Update device trust
-            if challenge_data.get("device_info"):
-                await self._update_device_trust(
-                    user_id=user.id,
-                    device_info=challenge_data["device_info"],
-                    verification_type="passkey_authentication",
-                )
-
-            await self.db.commit()
+            # Update the user document with the modified passkey
+            await self.user_repo.update(user)
 
             # Invalidate challenge
             await self._invalidate_challenge(challenge_id)
@@ -512,28 +496,39 @@ class PasskeyService:
             logger.error(f"Passkey authentication failed: {e}")
             raise PasskeyAuthenticationError(f"Authentication verification failed: {e}") from e
 
-    async def delete_passkey(self, user: User, passkey_id: str) -> bool:
+    async def delete_passkey(self, user: UserInDB, passkey_id: str) -> bool:
         """
         Delete a passkey credential.
 
         Args:
-            user: The user who owns the passkey
+            user: The user schema who owns the passkey
             passkey_id: The passkey ID to delete
 
         Returns:
             True if deleted, False if not found
         """
-        passkey = await self._get_passkey_by_id(passkey_id)
-        if not passkey or passkey.user_id != user.id:
+        user_doc = await self.user_repo.get_by_id(user.id)
+        if not user_doc:
             return False
 
-        # Ensure user has at least one other passkey or password
-        credentials = await self._get_user_credentials(user.id)
-        if len(credentials) <= 1 and user.passkey_only:
+        # Find the passkey in embedded list
+        passkey_to_delete = None
+        for pk in user_doc.passkeys:
+            if pk.id == passkey_id:
+                passkey_to_delete = pk
+                break
+
+        if not passkey_to_delete:
+            return False
+
+        # Count active passkeys
+        active_passkeys = [pk for pk in user_doc.passkeys if pk.is_active]
+        if len(active_passkeys) <= 1 and getattr(user_doc, "passkey_only", False):
             raise PasskeyError("Cannot delete last passkey for passkey-only account")
 
-        await self.db.delete(passkey)
-        await self.db.commit()
+        # Remove passkey from list
+        user_doc.passkeys = [pk for pk in user_doc.passkeys if pk.id != passkey_id]
+        await self.user_repo.update(user_doc)
 
         logger.info(f"Deleted passkey {passkey_id} for user {user.id}")
         return True
@@ -548,20 +543,31 @@ class PasskeyService:
         Returns:
             List of passkey info dicts
         """
-        credentials = await self._get_user_credentials(user_id)
+        user_doc = await self.user_repo.get_by_id(user_id)
+        if not user_doc:
+            return []
+
         return [
             {
-                "id": cred.id,
-                "deviceName": cred.credential_name,
-                "createdAt": cred.created_at.isoformat(),
-                "lastUsedAt": cred.last_used_at.isoformat() if cred.last_used_at else None,
-                "backupEligible": cred.is_backup_eligible,
-                "backupState": cred.is_backed_up,
+                "id": pk.id,
+                "deviceName": pk.device_name or "Passkey",
+                "createdAt": pk.created_at.isoformat() if pk.created_at else None,
+                "lastUsedAt": pk.last_used_at.isoformat() if pk.last_used_at else None,
+                "backupEligible": False,  # Not tracked in embedded model
+                "backupState": False,  # Not tracked in embedded model
             }
-            for cred in credentials
+            for pk in user_doc.passkeys
+            if pk.is_active
         ]
 
     # --- Helper methods ---
+
+    async def _get_redis_service(self) -> RedisService:
+        """Get or initialize the Redis service."""
+        if self._redis_service is None:
+            self._redis_service = get_redis_service()
+            await self._redis_service.initialize()
+        return self._redis_service
 
     async def _store_challenge(
         self,
@@ -571,72 +577,69 @@ class PasskeyService:
         operation: str,
         device_info: dict[str, Any] | None = None,
     ) -> None:
-        """Store a challenge in the database for later verification.
+        """Store a challenge in Redis for later verification.
 
-        Uses database storage to support multi-worker deployments where
+        Uses Redis/Table storage to support multi-worker deployments where
         each worker has its own memory space.
         """
-        challenge_record = PasskeyChallenge(
-            id=challenge_id,
-            challenge=challenge,
-            user_id=user_id,
-            operation=operation,
-            device_info=json.dumps(device_info) if device_info else None,
-            expires_at=datetime.now(UTC) + self.CHALLENGE_TIMEOUT,
-        )
-        self.db.add(challenge_record)
-        await self.db.flush()
+        redis_service = await self._get_redis_service()
+        challenge_data = {
+            "challenge": challenge,
+            "user_id": user_id,
+            "operation": operation,
+            "device_info": device_info,
+            "expires_at": (datetime.now(UTC) + self.CHALLENGE_TIMEOUT).isoformat(),
+        }
+        key = f"{self.CHALLENGE_PREFIX}{challenge_id}"
+        ttl_seconds = int(self.CHALLENGE_TIMEOUT.total_seconds())
+        await redis_service.cache_set(key, json.dumps(challenge_data), ttl_seconds)
+        logger.debug(f"passkey_challenge_stored: challenge_id={challenge_id}")
 
     async def _get_challenge(self, challenge_id: str) -> dict[str, Any] | None:
-        """Retrieve and validate a challenge from the database."""
-        result = await self.db.execute(select(PasskeyChallenge).where(PasskeyChallenge.id == challenge_id))
-        challenge_record = result.scalar_one_or_none()
+        """Retrieve and validate a challenge from Redis."""
+        redis_service = await self._get_redis_service()
+        key = f"{self.CHALLENGE_PREFIX}{challenge_id}"
+        challenge_json = await redis_service.cache_get(key)
 
-        if not challenge_record:
+        if not challenge_json:
             return None
 
-        if datetime.now(UTC) > challenge_record.expires_at:
-            await self.db.delete(challenge_record)
-            await self.db.flush()
+        challenge_data = json.loads(challenge_json)
+
+        # Check expiration (Redis TTL should handle this, but double-check)
+        expires_at = datetime.fromisoformat(challenge_data["expires_at"])
+        if datetime.now(UTC) > expires_at:
+            await redis_service.cache_delete(key)
             return None
 
-        return {
-            "challenge": challenge_record.challenge,
-            "user_id": challenge_record.user_id,
-            "operation": challenge_record.operation,
-            "device_info": json.loads(challenge_record.device_info) if challenge_record.device_info else None,
-            "expires_at": challenge_record.expires_at,
-        }
+        return challenge_data
 
     async def _invalidate_challenge(self, challenge_id: str) -> None:
         """Remove a challenge after use."""
-        result = await self.db.execute(select(PasskeyChallenge).where(PasskeyChallenge.id == challenge_id))
-        challenge_record = result.scalar_one_or_none()
-        if challenge_record:
-            await self.db.delete(challenge_record)
-            await self.db.flush()
+        redis_service = await self._get_redis_service()
+        key = f"{self.CHALLENGE_PREFIX}{challenge_id}"
+        await redis_service.cache_delete(key)
 
-    async def _get_user_credentials(self, user_id: str) -> list[PasskeyCredential]:
-        """Get all passkey credentials for a user."""
-        result = await self.db.execute(select(PasskeyCredential).where(PasskeyCredential.user_id == user_id))
-        return list(result.scalars().all())
+    async def _find_credential_by_id(self, credential_id: bytes) -> tuple[UserDocument | None, PasskeyDocument | None]:
+        """
+        Find a passkey by its WebAuthn credential ID across all users.
 
-    async def _get_credential_by_id(self, credential_id: bytes) -> PasskeyCredential | None:
-        """Get a passkey by its WebAuthn credential ID."""
-        result = await self.db.execute(
-            select(PasskeyCredential).where(PasskeyCredential.credential_id == credential_id)
-        )
-        return result.scalar_one_or_none()
+        Since passkeys are embedded in user documents, we need to search
+        using a Cosmos DB query.
+        """
+        credential_id_b64 = bytes_to_base64url(credential_id)
 
-    async def _get_passkey_by_id(self, passkey_id: str) -> PasskeyCredential | None:
-        """Get a passkey by its internal ID."""
-        result = await self.db.execute(select(PasskeyCredential).where(PasskeyCredential.id == passkey_id))
-        return result.scalar_one_or_none()
+        # Query users container for matching credential_id in embedded passkeys
+        user_doc = await self.user_repo.get_by_passkey_credential_id(credential_id_b64)
+        if not user_doc:
+            return None, None
 
-    async def _get_user(self, user_id: str) -> User | None:
-        """Get a user by ID."""
-        result = await self.db.execute(select(User).where(User.id == user_id))
-        return result.scalar_one_or_none()
+        # Find the specific passkey
+        for passkey in user_doc.passkeys:
+            if passkey.credential_id == credential_id_b64 and passkey.is_active:
+                return user_doc, passkey
+
+        return None, None
 
     @staticmethod
     def _hash_phone(phone: str) -> str:
@@ -662,66 +665,11 @@ class PasskeyService:
             return " ".join(parts)
         return f"Passkey {secrets.token_hex(4)}"
 
-    async def _update_device_trust(
-        self,
-        user_id: str,
-        device_info: dict[str, Any],
-        verification_type: str,
-    ) -> None:
-        """Update device trust score after successful verification."""
-        device_fingerprint = device_info.get("fingerprint", "")
-        if not device_fingerprint:
-            return
-
-        # Hash the fingerprint for storage
-        import hashlib
-
-        fingerprint_hash = hashlib.sha256(device_fingerprint.encode()).hexdigest()
-
-        # Check for existing trust score
-        result = await self.db.execute(
-            select(DeviceTrustScore).where(
-                DeviceTrustScore.user_id == user_id,
-                DeviceTrustScore.device_fingerprint_hash == fingerprint_hash,
-            )
-        )
-        trust_score = result.scalar_one_or_none()
-
-        if trust_score:
-            # Update existing trust score
-            trust_score.successful_auths += 1
-            trust_score.last_seen_at = datetime.now(UTC)
-
-            # Increase verification score based on type
-            if verification_type == "passkey_registration":
-                trust_score.verification_score = min(100, trust_score.verification_score + 20)
-            elif verification_type == "passkey_authentication":
-                trust_score.verification_score = min(100, trust_score.verification_score + 5)
-
-            # Recalculate overall trust score
-            trust_score.trust_score = int(
-                trust_score.verification_score * 0.4
-                + trust_score.behavioral_score * 0.3
-                + trust_score.history_score * 0.3
-            )
-        else:
-            # Create new trust score
-            trust_score = DeviceTrustScore(
-                id=str(uuid4()),
-                user_id=user_id,
-                device_fingerprint_hash=fingerprint_hash,
-                trust_score=50,  # Initial score
-                verification_score=60 if verification_type == "passkey_registration" else 40,
-                behavioral_score=50,
-                history_score=50,
-                successful_auths=1,
-            )
-            self.db.add(trust_score)
-
-        # No commit here - let the caller commit
-
 
 # Singleton-style factory for service instances
-def get_passkey_service(db: AsyncSession) -> PasskeyService:
+def get_passkey_service(
+    user_repo: CosmosUserRepository,
+    redis_service: RedisService | None = None,
+) -> PasskeyService:
     """Get a PasskeyService instance."""
-    return PasskeyService(db)
+    return PasskeyService(user_repo, redis_service)

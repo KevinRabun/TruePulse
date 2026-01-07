@@ -2,26 +2,24 @@
 Achievement awarding service.
 
 Handles checking and awarding achievements when users perform actions.
+Now uses Cosmos DB repositories instead of SQLAlchemy.
 """
 
-from datetime import datetime, timezone
 from typing import Optional
-from uuid import uuid4
 
-from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
-
-from models.achievement import Achievement, PointsTransaction, UserAchievement
-from models.user import User
+from models.cosmos_documents import AchievementDocument, UserDocument
+from repositories.cosmos_achievement_repository import CosmosAchievementRepository
+from repositories.cosmos_user_repository import CosmosUserRepository
 
 
 class AchievementService:
-    """Service for checking and awarding achievements."""
+    """Service for checking and awarding achievements using Cosmos DB."""
 
-    def __init__(self, db: AsyncSession):
-        self.db = db
+    def __init__(self):
+        self.achievement_repo = CosmosAchievementRepository()
+        self.user_repo = CosmosUserRepository()
 
-    async def check_and_award_voting_achievements(self, user: User) -> list[Achievement]:
+    async def check_and_award_voting_achievements(self, user: UserDocument) -> list[AchievementDocument]:
         """
         Check and award voting-related achievements.
         Called after a user casts a vote.
@@ -31,8 +29,7 @@ class AchievementService:
         awarded = []
 
         # Get voting achievements
-        result = await self.db.execute(select(Achievement).where(Achievement.action_type == "vote"))
-        voting_achievements = result.scalars().all()
+        voting_achievements = await self.achievement_repo.get_achievements_by_action_type("vote")
 
         for achievement in voting_achievements:
             if user.votes_cast >= achievement.target_count:
@@ -42,7 +39,7 @@ class AchievementService:
 
         return awarded
 
-    async def check_and_award_streak_achievements(self, user: User) -> list[Achievement]:
+    async def check_and_award_streak_achievements(self, user: UserDocument) -> list[AchievementDocument]:
         """
         Check and award streak-related achievements.
         Called after streak is updated.
@@ -52,8 +49,7 @@ class AchievementService:
         awarded = []
 
         # Get streak achievements
-        result = await self.db.execute(select(Achievement).where(Achievement.action_type == "streak"))
-        streak_achievements = result.scalars().all()
+        streak_achievements = await self.achievement_repo.get_achievements_by_action_type("streak")
 
         for achievement in streak_achievements:
             # Use longest_streak so achievement stays even if current streak breaks
@@ -64,14 +60,16 @@ class AchievementService:
 
         return awarded
 
-    async def check_and_award_sharing_achievements(self, user: User, platform: str) -> tuple[list[Achievement], int]:
+    async def check_and_award_sharing_achievements(
+        self, user: UserDocument, platform: str
+    ) -> tuple[list[AchievementDocument], int]:
         """
         Check and award sharing-related achievements.
         Called after a user shares content.
 
         Args:
             user: The user who shared
-            platform: The platform shared to (twitter, facebook, linkedin, reddit, whatsapp, telegram, copy, native)
+            platform: The platform shared to
 
         Returns tuple of (newly awarded achievements, points earned from share).
         """
@@ -80,25 +78,23 @@ class AchievementService:
 
         # Award base points for sharing (5 points per share)
         share_points = 5
-        user.total_points += share_points
+        await self.user_repo.award_points(str(user.id), share_points)
         points_earned += share_points
 
-        # Create transaction for share points
-        transaction = PointsTransaction(
-            id=str(uuid4()),
+        # Record the points transaction
+        await self.achievement_repo.record_points_transaction(
             user_id=str(user.id),
             action="share",
             points=share_points,
             description=f"Shared content to {platform}",
         )
-        self.db.add(transaction)
 
-        # Increment total shares
-        user.total_shares += 1
+        # Update total shares on user (we need to refresh user after this)
+        user.total_shares = (user.total_shares or 0) + 1
+        await self.user_repo.update(user)
 
-        # Check total share achievements (first, 10th, 50th, 100th)
-        result = await self.db.execute(select(Achievement).where(Achievement.action_type == "share"))
-        share_achievements = result.scalars().all()
+        # Check total share achievements
+        share_achievements = await self.achievement_repo.get_achievements_by_action_type("share")
 
         for achievement in share_achievements:
             if user.total_shares >= achievement.target_count:
@@ -119,8 +115,7 @@ class AchievementService:
 
         if platform in platform_map:
             achievement_id = platform_map[platform]
-            result = await self.db.execute(select(Achievement).where(Achievement.id == achievement_id))
-            platform_achievement = result.scalar_one_or_none()
+            platform_achievement = await self.achievement_repo.get_achievement(achievement_id)
 
             if platform_achievement:
                 newly_awarded = await self._try_award_achievement(user, platform_achievement)
@@ -131,18 +126,11 @@ class AchievementService:
         # Check cross-platform champion achievement
         # Need to check if user has earned all platform achievements
         all_platform_ids = list(platform_map.values())
-        result = await self.db.execute(
-            select(UserAchievement).where(
-                UserAchievement.user_id == str(user.id),
-                UserAchievement.achievement_id.in_(all_platform_ids),
-                UserAchievement.is_unlocked == True,
-            )
-        )
-        earned_platform_achievements = result.scalars().all()
+        user_achievements = await self.achievement_repo.get_user_achievements(str(user.id), unlocked_only=True)
+        earned_platform_count = sum(1 for ua in user_achievements if ua.achievement_id in all_platform_ids)
 
-        if len(earned_platform_achievements) >= 6:
-            result = await self.db.execute(select(Achievement).where(Achievement.id == "share_all_platforms"))
-            cross_platform_achievement = result.scalar_one_or_none()
+        if earned_platform_count >= 6:
+            cross_platform_achievement = await self.achievement_repo.get_achievement("share_all_platforms")
 
             if cross_platform_achievement:
                 newly_awarded = await self._try_award_achievement(user, cross_platform_achievement)
@@ -152,7 +140,9 @@ class AchievementService:
 
         return awarded, points_earned
 
-    async def check_and_award_demographic_achievements(self, user: User, field_updated: str) -> list[Achievement]:
+    async def check_and_award_demographic_achievements(
+        self, user: UserDocument, field_updated: str
+    ) -> list[AchievementDocument]:
         """
         Check and award demographic-related achievements.
         Called after a user updates their profile demographics.
@@ -177,10 +167,7 @@ class AchievementService:
             all_filled = all(getattr(user, field, None) for field in required_fields)
 
             if all_filled:
-                # Get the achievement
-                result = await self.db.execute(select(Achievement).where(Achievement.id == achievement_id))
-                achievement = result.scalar_one_or_none()
-
+                achievement = await self.achievement_repo.get_achievement(achievement_id)
                 if achievement:
                     newly_awarded = await self._try_award_achievement(user, achievement)
                     if newly_awarded:
@@ -204,8 +191,7 @@ class AchievementService:
                 demo_count += 1
 
         if demo_count >= 8:
-            result = await self.db.execute(select(Achievement).where(Achievement.id == "profile_complete"))
-            achievement = result.scalar_one_or_none()
+            achievement = await self.achievement_repo.get_achievement("profile_complete")
             if achievement:
                 newly_awarded = await self._try_award_achievement(user, achievement)
                 if newly_awarded:
@@ -215,11 +201,11 @@ class AchievementService:
 
     async def award_leaderboard_achievement(
         self,
-        user: User,
+        user: UserDocument,
         rank: int,
         period_type: str,  # "daily", "monthly", "yearly"
         period_key: str,  # e.g., "2025-01-15" or "2025-01" or "2025"
-    ) -> Optional[Achievement]:
+    ) -> Optional[AchievementDocument]:
         """
         Award a leaderboard achievement for a specific period.
         Called by a scheduled job at the end of each period.
@@ -230,36 +216,19 @@ class AchievementService:
             return None
 
         achievement_id = f"{period_type}_rank_{rank}"
-
-        result = await self.db.execute(select(Achievement).where(Achievement.id == achievement_id))
-        achievement = result.scalar_one_or_none()
+        achievement = await self.achievement_repo.get_achievement(achievement_id)
 
         if not achievement:
             return None
 
         # For repeatable achievements, check if already earned for this period
-        existing = await self.db.execute(
-            select(UserAchievement).where(
-                UserAchievement.user_id == str(user.id),
-                UserAchievement.achievement_id == achievement_id,
-                UserAchievement.period_key == period_key,
-            )
-        )
+        existing = await self.achievement_repo.get_user_achievement(str(user.id), achievement_id, period_key)
 
-        if existing.scalar_one_or_none():
+        if existing and existing.is_unlocked:
             return None  # Already earned for this period
 
-        # Award the achievement
-        user_achievement = UserAchievement(
-            id=str(uuid4()),
-            user_id=str(user.id),
-            achievement_id=achievement_id,
-            progress=1,
-            is_unlocked=True,
-            period_key=period_key,
-            unlocked_at=datetime.now(timezone.utc),
-        )
-        self.db.add(user_achievement)
+        # Award the achievement with period_key
+        await self.achievement_repo.unlock_achievement(str(user.id), achievement_id, period_key=period_key)
 
         # Award points
         await self._award_points(
@@ -272,45 +241,28 @@ class AchievementService:
         return achievement
 
     async def _try_award_achievement(
-        self, user: User, achievement: Achievement, period_key: Optional[str] = None
+        self,
+        user: UserDocument,
+        achievement: AchievementDocument,
+        period_key: Optional[str] = None,
     ) -> bool:
         """
         Try to award an achievement to a user.
         Returns True if newly awarded, False if already had it.
         """
         # Check if user already has this achievement
-        query = select(UserAchievement).where(
-            UserAchievement.user_id == str(user.id),
-            UserAchievement.achievement_id == achievement.id,
-            UserAchievement.is_unlocked == True,
-        )
+        existing = await self.achievement_repo.get_user_achievement(str(user.id), achievement.id, period_key)
 
-        if not achievement.is_repeatable:
-            # For non-repeatable, just check if exists
-            result = await self.db.execute(query)
-            existing = result.scalar_one_or_none()
-            if existing:
+        if existing and existing.is_unlocked:
+            # Already have it
+            if not achievement.is_repeatable:
                 return False
-        else:
-            # For repeatable, check if exists for this period
-            if period_key:
-                query = query.where(UserAchievement.period_key == period_key)
-            result = await self.db.execute(query)
-            existing = result.scalar_one_or_none()
-            if existing:
+            # For repeatable, need to check period_key
+            if period_key and existing.period_key == period_key:
                 return False
 
         # Award the achievement
-        user_achievement = UserAchievement(
-            id=str(uuid4()),
-            user_id=str(user.id),
-            achievement_id=achievement.id,
-            progress=achievement.target_count,
-            is_unlocked=True,
-            period_key=period_key,
-            unlocked_at=datetime.now(timezone.utc),
-        )
-        self.db.add(user_achievement)
+        await self.achievement_repo.unlock_achievement(str(user.id), achievement.id, period_key=period_key)
 
         # Award points
         await self._award_points(
@@ -322,26 +274,24 @@ class AchievementService:
 
         return True
 
-    async def _award_points(self, user: User, points: int, description: str, action: str) -> None:
+    async def _award_points(self, user: UserDocument, points: int, description: str, action: str) -> None:
         """Award points to a user and create a transaction record."""
         # Update user's total points
-        user.total_points += points
+        await self.user_repo.award_points(str(user.id), points)
 
         # Create transaction record
-        transaction = PointsTransaction(
-            id=str(uuid4()),
+        await self.achievement_repo.record_points_transaction(
             user_id=str(user.id),
             action=action,
             points=points,
             description=description,
         )
-        self.db.add(transaction)
 
     async def check_and_award_verification_achievements(
         self,
-        user: User,
+        user: UserDocument,
         verification_type: str,  # "email" or "phone"
-    ) -> list[Achievement]:
+    ) -> list[AchievementDocument]:
         """
         Check and award verification-related achievements.
         Called after a user verifies their email or phone.
@@ -352,19 +302,15 @@ class AchievementService:
 
         # Award specific verification achievement
         if verification_type == "email":
-            result = await self.db.execute(select(Achievement).where(Achievement.id == "email_verified"))
-            achievement = result.scalar_one_or_none()
+            achievement = await self.achievement_repo.get_achievement("email_verified")
             if achievement:
                 newly_awarded = await self._try_award_achievement(user, achievement)
                 if newly_awarded:
                     awarded.append(achievement)
 
-        # Note: Phone verification achievements removed - TruePulse uses email + passkey auth only
-
         # Check if fully verified (email verified is our only verification requirement now)
         if user.email_verified:
-            result = await self.db.execute(select(Achievement).where(Achievement.id == "fully_verified"))
-            achievement = result.scalar_one_or_none()
+            achievement = await self.achievement_repo.get_achievement("fully_verified")
             if achievement:
                 newly_awarded = await self._try_award_achievement(user, achievement)
                 if newly_awarded:
@@ -373,14 +319,14 @@ class AchievementService:
         return awarded
 
 
-async def check_all_achievements_for_user(db: AsyncSession, user: User) -> list[Achievement]:
+async def check_all_achievements_for_user(user: UserDocument) -> list[AchievementDocument]:
     """
     Check and award all applicable achievements for a user.
     Useful for retroactively awarding achievements after system updates.
 
     Returns list of all newly awarded achievements.
     """
-    service = AchievementService(db)
+    service = AchievementService()
     awarded = []
 
     awarded.extend(await service.check_and_award_voting_achievements(user))

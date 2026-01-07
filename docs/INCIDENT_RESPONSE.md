@@ -162,7 +162,7 @@ az containerapp revision list \
 **Resolution:**
 1. If recent deployment caused issue → rollback revision
 2. If resource exhaustion → scale up replicas
-3. If database issue → check PostgreSQL status
+3. If database issue → check Cosmos DB status
 
 **Rollback Command:**
 ```bash
@@ -178,26 +178,27 @@ az containerapp revision activate \
 
 **Symptoms:**
 - Connection timeout errors
-- "too many connections" errors
+- Request throttling (429 errors)
 - Slow query performance
 
 **Investigation Steps:**
 
 ```bash
-# 1. Check PostgreSQL server status
-az postgres flexible-server show \
-  --name truepulse-db-{env} \
+# 1. Check Cosmos DB account status
+az cosmosdb show \
+  --name cosmos-truepulse-{env} \
   --resource-group rg-truepulse-{env}
 
-# 2. Check connection count
-# Connect to database and run:
-SELECT count(*) FROM pg_stat_activity;
+# 2. Check Cosmos DB metrics in Azure Portal
+# - Request Units consumed vs provisioned
+# - Number of throttled requests
+# - Latency metrics
 
-# 3. Check active queries
-SELECT pid, now() - pg_stat_activity.query_start AS duration, query 
-FROM pg_stat_activity
-WHERE state != 'idle' 
-ORDER BY duration DESC;
+# 3. Check application logs for database errors
+az containerapp logs show \
+  --name truepulse-api-{env} \
+  --resource-group rg-truepulse-{env} \
+  --tail 100 | grep -i cosmos
 ```
 
 **Resolution:**
@@ -351,23 +352,29 @@ az cdn endpoint purge \
 
 ### Database Backup
 
-Azure PostgreSQL Flexible Server provides automated backups.
+Azure Cosmos DB provides automatic continuous backups with point-in-time restore.
 
 **Restore from Point-in-Time:**
 ```bash
-az postgres flexible-server restore \
+# Restore to a new account from a specific point in time
+az cosmosdb restorable-database-account list \
+  --account-name cosmos-truepulse-{env}
+
+# Trigger restore (requires support ticket for serverless)
+# For provisioned throughput accounts:
+az cosmosdb restore \
   --resource-group rg-truepulse-{env} \
-  --name truepulse-db-{env}-restored \
-  --source-server truepulse-db-{env} \
-  --restore-time "2024-01-15T10:30:00Z"
+  --target-database-account-name cosmos-truepulse-{env}-restored \
+  --account-name cosmos-truepulse-{env} \
+  --restore-timestamp "2024-01-15T10:30:00Z" \
+  --location eastus
 ```
 
-**Restore from Backup:**
+**Check Backup Status:**
 ```bash
-# List available backups
-az postgres flexible-server backup list \
-  --resource-group rg-truepulse-{env} \
-  --name truepulse-db-{env}
+# List restorable resources
+az cosmosdb restorable-database-account list \
+  --account-name cosmos-truepulse-{env}
 ```
 
 ### Application Rollback
@@ -551,8 +558,8 @@ az resource list --resource-group rg-truepulse-{env} --output table
 # API Health
 curl https://api-{env}.truepulse.io/health
 
-# Database
-az postgres flexible-server show --name truepulse-db-{env} --resource-group rg-truepulse-{env} --query "state"
+# Cosmos DB
+az cosmosdb show --name cosmos-truepulse-{env} --resource-group rg-truepulse-{env} --query "provisioningState"
 
 # Container App
 az containerapp show --name truepulse-api-{env} --resource-group rg-truepulse-{env} --query "properties.runningStatus"

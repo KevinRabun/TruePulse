@@ -11,10 +11,8 @@ from typing import Optional
 import structlog
 from fastapi import APIRouter, Body, Depends, HTTPException, status
 from pydantic import BaseModel, EmailStr
-from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
 
-from api.deps import rate_limit_auth
+from api.deps import get_user_repository, rate_limit_auth
 from core.config import settings
 from core.security import (
     create_access_token,
@@ -23,8 +21,7 @@ from core.security import (
     create_verification_token,
     decode_token,
 )
-from db.session import get_db
-from models.user import User
+from repositories.cosmos_user_repository import CosmosUserRepository
 from schemas.auth import RefreshTokenRequest, TokenResponse
 from schemas.user import UserCreate, UserResponse
 from services.email_service import get_email_service
@@ -44,7 +41,7 @@ class ForgotPasswordRequest(BaseModel):
 @router.post("/register", response_model=TokenResponse, status_code=status.HTTP_201_CREATED)
 async def register(
     user_data: UserCreate,
-    db: AsyncSession = Depends(get_db),
+    user_repo: CosmosUserRepository = Depends(get_user_repository),
     _rate_limit: None = Depends(rate_limit_auth),
 ) -> TokenResponse:
     """
@@ -60,8 +57,7 @@ async def register(
     No passwords are used - authentication is passkey-only for maximum security.
     """
     # Check if user already exists by email
-    result = await db.execute(select(User).where(User.email == user_data.email.lower()))
-    existing_user = result.scalar_one_or_none()
+    existing_user = await user_repo.get_by_email(user_data.email.lower())
     if existing_user:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -69,8 +65,7 @@ async def register(
         )
 
     # Check if username already exists
-    result = await db.execute(select(User).where(User.username == user_data.username))
-    existing_username = result.scalar_one_or_none()
+    existing_username = await user_repo.get_by_username(user_data.username)
     if existing_username:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -79,20 +74,12 @@ async def register(
 
     # Create user in database (no password - passkey-only authentication)
     # User starts unverified - must verify email AND create passkey to vote
-    new_user = User(
+    new_user = await user_repo.create(
         email=user_data.email.lower(),
         username=user_data.username,
         display_name=user_data.display_name,
-        is_active=True,
-        is_verified=False,  # Will be True when email verified
-        email_verified=False,
-        total_points=100,  # Welcome bonus
-        level=1,
+        welcome_points=100,  # Welcome bonus
     )
-
-    db.add(new_user)
-    await db.commit()
-    await db.refresh(new_user)
 
     # Create tokens for immediate session (but user can't vote until email verified + passkey created)
     token_data = {"sub": str(new_user.id), "email": new_user.email}
@@ -120,7 +107,7 @@ async def register(
 @router.post("/send-verification-email")
 async def send_verification_email(
     email: EmailStr = Body(..., embed=True),
-    db: AsyncSession = Depends(get_db),
+    user_repo: CosmosUserRepository = Depends(get_user_repository),
 ) -> dict[str, str]:
     """
     Send a verification email to the user.
@@ -130,8 +117,7 @@ async def send_verification_email(
     - Resend verification email if the first one was lost/expired
     """
     # Find user by email
-    result = await db.execute(select(User).where(User.email == email.lower()))
-    user = result.scalar_one_or_none()
+    user = await user_repo.get_by_email(email.lower())
 
     if not user:
         # Don't reveal whether email exists for security
@@ -226,7 +212,7 @@ async def logout(
 @router.post("/verify-email/{token}")
 async def verify_email(
     token: str,
-    db: AsyncSession = Depends(get_db),
+    user_repo: CosmosUserRepository = Depends(get_user_repository),
 ) -> dict[str, str]:
     """Verify user email address."""
     # Decode the verification token
@@ -246,31 +232,24 @@ async def verify_email(
         )
 
     # Check user exists first
-    from sqlalchemy import select
-
-    user_check = await db.execute(select(User).where(User.id == user_id))
-    if not user_check.scalar_one_or_none():
+    user = await user_repo.get_by_id(user_id)
+    if not user:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="User not found",
         )
 
     # Update user to verified
-    from sqlalchemy import update as sql_update
-
     # Set email_verified=True and is_verified=True (email is our only verification now)
-    await db.execute(sql_update(User).where(User.id == user_id).values(email_verified=True, is_verified=True))
+    user.email_verified = True
+    user.is_verified = True
+    await user_repo.update(user)
 
     # Award verification achievement
-    result = await db.execute(select(User).where(User.id == user_id))
-    user = result.scalar_one_or_none()
-    if user:
-        from services.achievement_service import AchievementService
-
-        achievement_service = AchievementService(db)
-        await achievement_service.check_and_award_verification_achievements(user, "email")
-
-    await db.commit()
+    # TODO: Update achievement service to use Cosmos DB
+    # from services.achievement_service import AchievementService
+    # achievement_service = AchievementService()
+    # await achievement_service.check_and_award_verification_achievements(user, "email")
 
     return {"message": "Email verified successfully"}
 
@@ -278,7 +257,7 @@ async def verify_email(
 @router.post("/send-magic-link")
 async def send_magic_link(
     email: EmailStr = Body(..., embed=True),
-    db: AsyncSession = Depends(get_db),
+    user_repo: CosmosUserRepository = Depends(get_user_repository),
     _rate_limit: None = Depends(rate_limit_auth),
 ) -> dict[str, str]:
     """
@@ -291,8 +270,7 @@ async def send_magic_link(
     - Devices that don't support passkeys
     """
     # Find user by email
-    result = await db.execute(select(User).where(User.email == email.lower()))
-    user = result.scalar_one_or_none()
+    user = await user_repo.get_by_email(email.lower())
 
     if not user:
         # Don't reveal whether email exists for security
@@ -334,7 +312,7 @@ async def send_magic_link(
 @router.post("/verify-magic-link/{token}")
 async def verify_magic_link(
     token: str,
-    db: AsyncSession = Depends(get_db),
+    user_repo: CosmosUserRepository = Depends(get_user_repository),
 ) -> TokenResponse:
     """Verify a magic link token and return auth tokens."""
     # Decode the magic link token
@@ -354,8 +332,7 @@ async def verify_magic_link(
         )
 
     # Get user
-    result = await db.execute(select(User).where(User.id == user_id))
-    user = result.scalar_one_or_none()
+    user = await user_repo.get_by_id(user_id)
 
     if not user:
         raise HTTPException(
@@ -372,15 +349,12 @@ async def verify_magic_link(
     # Mark email as verified since clicking magic link proves email ownership
     if not user.email_verified:
         user.email_verified = True
-        await db.commit()
-        await db.refresh(user)
+        await user_repo.update(user)
         logger.info("email_verified_via_magic_link", user_id=str(user.id))
 
     # Check if user has any passkeys
-    from models.passkey import PasskeyCredential
-
-    passkey_result = await db.execute(select(PasskeyCredential).where(PasskeyCredential.user_id == user.id).limit(1))
-    has_passkey = passkey_result.scalar_one_or_none() is not None
+    # TODO: Update passkey check to use Cosmos DB passkey repository
+    has_passkey = False  # Placeholder until passkey repository is migrated
 
     # Create tokens
     token_data = {"sub": str(user.id), "email": user.email}

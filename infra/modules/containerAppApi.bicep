@@ -26,15 +26,6 @@ param keyVaultName string
 @description('Key Vault URI')
 param keyVaultUri string
 
-@description('PostgreSQL host')
-param postgresHost string
-
-@description('PostgreSQL database name')
-param postgresDatabase string
-
-@description('PostgreSQL username')
-param postgresUsername string
-
 @description('Storage Account name for Azure Tables')
 param storageAccountName string
 
@@ -49,6 +40,12 @@ param azureOpenAIDeployment string
 
 @description('Azure Storage Account blob endpoint URL')
 param storageAccountUrl string
+
+@description('Azure Cosmos DB endpoint URL')
+param cosmosDbEndpoint string = ''
+
+@description('Azure Cosmos DB database name')
+param cosmosDbDatabaseName string = 'truepulse'
 
 @description('Environment name')
 param environmentName string
@@ -82,10 +79,14 @@ var containerImage = usePlaceholderImage
   : '${containerRegistryLoginServer}/truepulse-api:latest'
 // Port depends on whether we use the placeholder image (80) or our app (8000)
 var targetPort = usePlaceholderImage ? 80 : 8000
-// Dev: scale to 0 when idle to save costs. Staging: keep 1 warm. Prod: min 2 for HA
-// For placeholder deployment, always keep 1 replica to avoid startup issues
+// COST OPTIMIZATION: Scale-to-zero for dev, warm instance for staging, HA for prod
+// Dev: scale to 0 when idle = $0 cost when not in use
+// Staging: keep 1 warm for testing availability
+// Prod: min 2 for high availability across zones
 var minReplicas = usePlaceholderImage ? 1 : (environmentName == 'prod' ? 2 : (environmentName == 'staging' ? 1 : 0))
-var maxReplicas = environmentName == 'prod' ? 10 : 3
+// COST OPTIMIZATION: Lower max replicas since each is now smaller (0.25 vCPU)
+// With right-sized containers, we can scale out more efficiently
+var maxReplicas = environmentName == 'prod' ? 20 : (environmentName == 'staging' ? 5 : 3)
 
 // Cloudflare IP ranges for security restrictions
 // https://www.cloudflare.com/ips-v4
@@ -205,6 +206,10 @@ resource placeholderContainerApp 'Microsoft.App/containerApps@2024-03-01' = if (
 }
 
 // Full Container App using Azure Verified Module - used after placeholder is replaced
+// COST OPTIMIZATION: Right-sized resources for FastAPI backend
+// - 0.25 vCPU is sufficient for Python/FastAPI REST API
+// - 0.5Gi memory handles typical request loads efficiently
+// - Scales horizontally via replicas when needed
 module containerApp 'br/public:avm/res/app/container-app:0.19.0' = if (!usePlaceholderImage) {
   name: 'container-app-api'
   params: {
@@ -212,42 +217,20 @@ module containerApp 'br/public:avm/res/app/container-app:0.19.0' = if (!usePlace
     location: location
     tags: tags
     environmentResourceId: containerAppsEnvId
-    // Container configuration
+    // Container configuration - optimized for cost
     containers: [
       {
         name: 'api'
         image: containerImage
         resources: {
-          cpu: json('0.5')
-          memory: '1Gi'
+          // COST OPTIMIZATION: Right-sized for FastAPI
+          // 0.25 vCPU handles ~50-100 concurrent requests per replica
+          // Horizontal scaling handles load spikes more cost-effectively
+          cpu: json('0.25')
+          memory: '0.5Gi'
         }
         env: [
-          // Database configuration
-          {
-            name: 'DATABASE_URL'
-            value: 'postgresql+asyncpg://${postgresUsername}@${postgresHost}/${postgresDatabase}'
-          }
-          {
-            name: 'POSTGRES_HOST'
-            value: postgresHost
-          }
-          {
-            name: 'POSTGRES_PORT'
-            value: '5432'
-          }
-          {
-            name: 'POSTGRES_USER'
-            value: postgresUsername
-          }
-          {
-            name: 'POSTGRES_DB'
-            value: postgresDatabase
-          }
-          {
-            name: 'POSTGRES_PASSWORD'
-            secretRef: 'postgres-password'
-          }
-          // Azure Storage Tables configuration (replaces Cosmos DB and Redis)
+          // Azure Storage Tables configuration (for votes)
           {
             name: 'AZURE_STORAGE_ACCOUNT_NAME'
             value: storageAccountName
@@ -291,6 +274,15 @@ module containerApp 'br/public:avm/res/app/container-app:0.19.0' = if (!usePlace
           {
             name: 'AZURE_STORAGE_BLOB_URL'
             value: storageAccountUrl
+          }
+          // Azure Cosmos DB configuration
+          {
+            name: 'AZURE_COSMOS_ENDPOINT'
+            value: cosmosDbEndpoint
+          }
+          {
+            name: 'AZURE_COSMOS_DATABASE'
+            value: cosmosDbDatabaseName
           }
           // Environment
           {
@@ -415,11 +407,6 @@ module containerApp 'br/public:avm/res/app/container-app:0.19.0' = if (!usePlace
     // Secrets from Key Vault (AVM 0.19.0 uses flat array, not secureList)
     secrets: [
       {
-        name: 'postgres-password'
-        keyVaultUrl: '${keyVaultUri}secrets/postgres-password'
-        identity: managedIdentity.id
-      }
-      {
         name: 'jwt-secret-key'
         keyVaultUrl: '${keyVaultUri}secrets/jwt-secret-key'
         identity: managedIdentity.id
@@ -496,6 +483,9 @@ module containerApp 'br/public:avm/res/app/container-app:0.19.0' = if (!usePlace
       maxAge: 86400
     }
     // Scaling configuration (AVM 0.19.0 uses scaleSettings object)
+    // COST OPTIMIZATION: Lower concurrency threshold triggers scale-out earlier
+    // With 0.25 vCPU containers, 50 concurrent requests is optimal per replica
+    // This enables more responsive scaling for bursty traffic patterns
     scaleSettings: {
       minReplicas: minReplicas
       maxReplicas: maxReplicas
@@ -504,7 +494,9 @@ module containerApp 'br/public:avm/res/app/container-app:0.19.0' = if (!usePlace
           name: 'http-scaling'
           http: {
             metadata: {
-              concurrentRequests: '100'
+              // Scale out at 50 concurrent requests per replica
+              // Smaller containers = earlier scale-out = better response times
+              concurrentRequests: '50'
             }
           }
         }
@@ -547,4 +539,4 @@ output managedIdentityId string = managedIdentity.id
 output managedIdentityPrincipalId string = managedIdentity.properties.principalId
 // System-assigned identity principal ID (only available when not using placeholder image)
 // Placeholder uses UserAssigned only, while full deployment uses both SystemAssigned and UserAssigned
-output systemAssignedPrincipalId string = usePlaceholderImage ? '' : containerApp!.outputs.systemAssignedMIPrincipalId
+output systemAssignedPrincipalId string = usePlaceholderImage ? '' : (containerApp.?outputs.?systemAssignedMIPrincipalId ?? '')

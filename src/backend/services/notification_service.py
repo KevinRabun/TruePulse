@@ -3,17 +3,16 @@ Poll Notification Service
 
 Sends email notifications to users when new polls are created.
 Respects user notification preferences and daily limits.
+Now uses Cosmos DB repositories.
 """
 
 from datetime import datetime, timezone
 
 import structlog
-from sqlalchemy import select, update
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.config import settings
-from models.poll import Poll
-from models.user import User
+from models.cosmos_documents import PollDocument, UserDocument
+from repositories.cosmos_user_repository import CosmosUserRepository
 from services.email_service import EmailService
 
 logger = structlog.get_logger(__name__)
@@ -30,13 +29,13 @@ class NotificationService:
     - Resets daily counters at midnight UTC
     """
 
-    def __init__(self, db: AsyncSession):
-        self.db = db
+    def __init__(self):
+        self.user_repo = CosmosUserRepository()
         self.email_service = EmailService()
 
     async def send_poll_notifications(
         self,
-        poll: Poll,
+        poll: PollDocument,
         poll_type: str,
     ) -> dict:
         """
@@ -70,7 +69,7 @@ class NotificationService:
             try:
                 # Check daily limit for flash polls
                 if poll_type == "flash":
-                    if not await self._can_send_flash_notification(user):
+                    if not self._can_send_flash_notification(user):
                         skipped += 1
                         continue
 
@@ -105,68 +104,39 @@ class NotificationService:
 
         return {"sent": sent, "skipped": skipped, "errors": errors}
 
-    async def _get_eligible_users(self, poll_type: str) -> list[User]:
+    async def _get_eligible_users(self, poll_type: str) -> list[UserDocument]:
         """Get users who have notifications enabled for the given poll type."""
-        # Reset daily flash notification counters if needed
-        await self._reset_daily_counters()
-
+        # Reset daily flash notification counters if needed (done in repository)
+        # Get users by notification preference
         if poll_type == "pulse":
-            query = select(User).where(
-                User.is_active == True,  # noqa: E712
-                User.email_verified == True,  # noqa: E712
-                User.pulse_poll_notifications == True,  # noqa: E712
-            )
+            users = await self.user_repo.get_users_by_notification_preference(pulse_notifications=True)
         elif poll_type == "flash":
-            query = select(User).where(
-                User.is_active == True,  # noqa: E712
-                User.email_verified == True,  # noqa: E712
-                User.flash_poll_notifications == True,  # noqa: E712
-            )
+            users = await self.user_repo.get_users_by_notification_preference(flash_notifications=True)
         else:
             return []
 
-        result = await self.db.execute(query)
-        return list(result.scalars().all())
+        # Filter to only active and verified users
+        return [u for u in users if u.is_active and u.email_verified]
 
-    async def _can_send_flash_notification(self, user: User) -> bool:
+    def _can_send_flash_notification(self, user: UserDocument) -> bool:
         """Check if user can receive another flash notification today."""
         # 0 means unlimited
-        if user.flash_polls_per_day == 0:
+        flash_per_day = getattr(user, "flash_polls_per_day", 0)
+        if flash_per_day == 0:
             return True
 
-        return user.flash_polls_notified_today < user.flash_polls_per_day
+        notified_today = getattr(user, "flash_polls_notified_today", 0)
+        return notified_today < flash_per_day
 
-    async def _increment_flash_notification_count(self, user: User) -> None:
+    async def _increment_flash_notification_count(self, user: UserDocument) -> None:
         """Increment the flash notification counter for a user."""
-        await self.db.execute(
-            update(User)
-            .where(User.id == user.id)
-            .values(flash_polls_notified_today=User.flash_polls_notified_today + 1)
-        )
-        await self.db.commit()
-
-    async def _reset_daily_counters(self) -> None:
-        """Reset flash notification counters for users whose reset date has passed."""
-        now = datetime.now(timezone.utc)
-        today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
-
-        # Reset counters for users whose reset date is before today
-        await self.db.execute(
-            update(User)
-            .where(
-                User.flash_notification_reset_date < today_start,
-            )
-            .values(
-                flash_polls_notified_today=0,
-                flash_notification_reset_date=today_start,
-            )
-        )
-        await self.db.commit()
+        user.flash_polls_notified_today = getattr(user, "flash_polls_notified_today", 0) + 1
+        await self.user_repo.update(user)
 
     async def _send_poll_notification_email(
         self,
-        user: User,
-        poll: Poll,
+        user: UserDocument,
+        poll: PollDocument,
         poll_type: str,
     ) -> bool:
         """Send a poll notification email to a user."""
@@ -190,20 +160,20 @@ class NotificationService:
             poll_emoji = "⚡"
 
         # Calculate time remaining
-        if poll.scheduled_end:
-            end_time = poll.scheduled_end
-        else:
-            end_time = poll.expires_at
+        end_time = poll.scheduled_end or poll.expires_at
 
         now = datetime.now(timezone.utc)
-        time_diff = end_time - now
-        hours_left = int(time_diff.total_seconds() // 3600)
-        minutes_left = int((time_diff.total_seconds() % 3600) // 60)
-
-        if hours_left > 0:
-            time_remaining = f"{hours_left}h {minutes_left}m"
+        if end_time is None:
+            time_remaining = "soon"
         else:
-            time_remaining = f"{minutes_left} minutes"
+            time_diff = end_time - now
+            hours_left = int(time_diff.total_seconds() // 3600)
+            minutes_left = int((time_diff.total_seconds() % 3600) // 60)
+
+            if hours_left > 0:
+                time_remaining = f"{hours_left}h {minutes_left}m"
+            else:
+                time_remaining = f"{minutes_left} minutes"
 
         html_content = f"""
         <!DOCTYPE html>
@@ -244,6 +214,9 @@ class NotificationService:
                            style="display: inline-block; background: linear-gradient(135deg, {poll_color}, {poll_color}dd); color: white; text-decoration: none; padding: 16px 40px; border-radius: 8px; font-weight: 600; font-size: 16px;">
                             Vote Now
                         </a>
+                        <p style="color: #6b7280; font-size: 12px; margin-top: 12px;">
+                            Or copy this link: <a href="{poll_url}" style="color: {poll_color};">{poll_url}</a>
+                        </p>
                     </div>
 
                     <p style="color: #9ca3af; font-size: 13px; text-align: center;">
@@ -297,20 +270,18 @@ Manage preferences: {frontend_url}/profile?tab=settings
 
 
 async def send_poll_notifications(
-    db: AsyncSession,
-    poll: Poll,
+    poll: PollDocument,
     poll_type: str,
 ) -> dict:
     """
     Convenience function to send poll notifications.
 
     Args:
-        db: Database session
         poll: The poll to notify users about
         poll_type: 'pulse' or 'flash'
 
     Returns:
         Dict with notification stats
     """
-    service = NotificationService(db)
+    service = NotificationService()
     return await service.send_poll_notifications(poll, poll_type)

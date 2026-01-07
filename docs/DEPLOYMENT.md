@@ -17,7 +17,7 @@ TruePulse deploys the following Azure resources:
 |----------|---------|
 | **Container Apps** | Hosts the FastAPI backend |
 | **Static Web App** | Hosts the Next.js frontend |
-| **PostgreSQL Flexible Server** | Primary database for users, polls |
+| **Cosmos DB (Serverless)** | Primary database for users, polls |
 | **Storage Account (Tables)** | Privacy-preserving vote storage |
 | **Storage Account (Blobs)** | Static assets and exports |
 | **Azure OpenAI** | AI poll generation (GPT-4o-mini) |
@@ -76,7 +76,6 @@ Add the following secrets to your GitHub repository:
 | `AZURE_CLIENT_ID` | Service principal (app registration) client ID |
 | `AZURE_TENANT_ID` | Azure AD tenant ID |
 | `AZURE_SUBSCRIPTION_ID` | Your Azure subscription ID |
-| `POSTGRES_PASSWORD` | PostgreSQL admin password (secure, 16+ chars) |
 | `JWT_SECRET_KEY` | Secret for JWT token signing (32+ chars) |
 | `VOTE_HASH_SECRET` | Secret for vote hashing (32+ chars) |
 | `NEWSDATA_API_KEY` | NewsData.io API key (optional) |
@@ -180,8 +179,7 @@ cd infra
 az deployment group create \
   --resource-group truepulse-rg \
   --template-file main.bicep \
-  --parameters main.parameters.dev.json \
-  --parameters postgresAdminPassword='<secure-password>'
+  --parameters main.parameters.dev.json
 ```
 
 #### 4. Build and Push Container Image
@@ -227,7 +225,8 @@ az staticwebapp deploy \
 
 | Variable | Description | Required |
 |----------|-------------|----------|
-| `DATABASE_URL` | PostgreSQL connection string | Yes |
+| `AZURE_COSMOS_ENDPOINT` | Cosmos DB endpoint URL | Yes |
+| `AZURE_COSMOS_DATABASE` | Cosmos DB database name | Yes |
 | `AZURE_STORAGE_CONNECTION_STRING` | Storage account connection | Yes |
 | `AZURE_OPENAI_ENDPOINT` | OpenAI endpoint URL | Yes |
 | `AZURE_OPENAI_API_KEY` | OpenAI API key | Yes |
@@ -256,7 +255,6 @@ az staticwebapp deploy \
   "parameters": {
     "environmentName": { "value": "dev" },
     "location": { "value": "eastus2" },
-    "postgresSkuName": { "value": "Standard_B1ms" },
     "containerAppCpu": { "value": "0.5" },
     "containerAppMemory": { "value": "1Gi" }
   }
@@ -274,30 +272,23 @@ maxReplicas: 10     // Maximum instances
 
 ### Database Sizing
 
-| Environment | SKU | vCores | Storage |
-|-------------|-----|--------|---------|
-| Development | Standard_B1ms | 1 | 32 GB |
-| Staging | Standard_B2s | 2 | 64 GB |
-| Production | Standard_D4s_v3 | 4 | 256 GB |
+Cosmos DB uses serverless capacity mode in dev, provisioned throughput in production:
+
+| Environment | Mode | RU/s | Notes |
+|-------------|------|------|-------|
+| Development | Serverless | N/A | Pay per request |
+| Staging | Provisioned | 400 | Autoscale optional |
+| Production | Provisioned | 4000+ | Autoscale enabled |
 
 ## Post-Deployment Tasks
 
-### 1. Initialize Database
+### 1. Seed Initial Data
+
+The application automatically seeds achievements and locations on startup.
 
 ```bash
-# Connect to PostgreSQL
-psql "host=<server>.postgres.database.azure.com dbname=truepulse user=truepulseadmin"
-
-# Run initialization script
-\i scripts/init-db.sql
-```
-
-### 2. Seed Initial Data
-
-```bash
-# From backend directory with proper environment
-python -m scripts.seed_achievements
-python -m scripts.seed_locations
+# Verify seeding completed by checking logs
+az containerapp logs show -n truepulse-api -g truepulse-rg | grep -i seed
 ```
 
 ### 3. Configure Custom Domain (Optional)
@@ -366,11 +357,11 @@ ContainerAppConsoleLogs_CL
 
 ### Database Connection Issues
 
-1. Verify firewall rules allow Container App subnet
-2. Check connection string format
-3. Verify PostgreSQL is running:
+1. Verify Cosmos DB endpoint is accessible
+2. Check managed identity role assignments
+3. Verify Cosmos DB is running:
    ```bash
-   az postgres flexible-server show -n truepulse-pg -g truepulse-rg --query "state"
+   az cosmosdb show -n cosmos-truepulse -g truepulse-rg --query "provisioningState"
    ```
 
 ### Static Web App Build Failures
@@ -383,7 +374,7 @@ ContainerAppConsoleLogs_CL
 
 ### Development Environment
 
-- Use B-series VMs for PostgreSQL
+- Use Cosmos DB serverless mode (pay per request)
 - Set Container Apps to scale to 0
 - Use consumption plan where possible
 
@@ -396,7 +387,7 @@ ContainerAppConsoleLogs_CL
 ## Security Checklist
 
 - [ ] All secrets stored in Key Vault
-- [ ] PostgreSQL SSL enforced
+- [ ] Cosmos DB private endpoint configured
 - [ ] Container App ingress restricted
 - [ ] CORS properly configured
 - [ ] Rate limiting enabled

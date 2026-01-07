@@ -64,21 +64,7 @@ jobs:
   backend-test:
     name: Backend Tests
     runs-on: ubuntu-latest
-    services:
-      postgres:
-        image: postgres:16
-        env:
-          POSTGRES_USER: test
-          POSTGRES_PASSWORD: test
-          POSTGRES_DB: truepulse_test
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-
+    # Note: Cosmos DB emulator not needed for unit tests - repositories are mocked
     steps:
       - uses: actions/checkout@v6
 
@@ -97,7 +83,9 @@ jobs:
 
       - name: Run tests
         env:
-          DATABASE_URL: postgresql+asyncpg://test:test@localhost:5432/truepulse_test
+          # Cosmos DB endpoint not required for unit tests (mocked)
+          AZURE_COSMOS_ENDPOINT: ""
+          AZURE_COSMOS_DATABASE: truepulse_test
           JWT_SECRET_KEY: test-secret-key-for-ci
           JWT_ALGORITHM: HS256
           VOTE_HASH_SECRET: test-vote-hash-secret
@@ -228,7 +216,6 @@ jobs:
             --location eastus2 \
             --template-file infra/main.bicep \
             --parameters environmentName=dev \
-            --parameters postgresAdminPassword=${{ secrets.POSTGRES_PASSWORD || 'placeholder' }} \
             --parameters jwtSecretKey=${{ secrets.JWT_SECRET_KEY || 'placeholder' }} \
             --parameters voteHashSecret=${{ secrets.VOTE_HASH_SECRET || 'placeholder' }}
   

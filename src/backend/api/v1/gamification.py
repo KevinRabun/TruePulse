@@ -6,14 +6,12 @@ from datetime import datetime, timezone
 from typing import Annotated, List, Optional, TypedDict
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
 
-from api.deps import get_current_active_user
-from db.session import get_db
-from models.achievement import Achievement as AchievementModel
-from models.achievement import UserAchievement
-from repositories.user_repository import UserRepository
+from api.deps import get_current_active_user, get_user_repository
+from models.cosmos_documents import AchievementDocument, UserDocument
+from repositories.cosmos_achievement_repository import CosmosAchievementRepository
+from repositories.cosmos_user_repository import CosmosUserRepository
+from repositories.provider import get_achievement_repository
 from schemas.gamification import (
     AchievementEarnedDate,
     AchievementWithHistory,
@@ -26,7 +24,6 @@ from schemas.gamification import (
     UserProgress,
 )
 from schemas.user import UserInDB
-from services.achievement_service import AchievementService
 
 router = APIRouter()
 
@@ -119,15 +116,14 @@ def get_points_to_next_level(points: int, current_level: int) -> int:
 @router.get("/progress", response_model=UserProgress)
 async def get_user_progress(
     current_user: Annotated[UserInDB, Depends(get_current_active_user)],
-    db: AsyncSession = Depends(get_db),
+    user_repo: CosmosUserRepository = Depends(get_user_repository),
 ) -> UserProgress:
     """
     Get the current user's gamification progress.
 
     Includes points, level, streaks, and progress to next level.
     """
-    repo = UserRepository(db)
-    user = await repo.get_by_id(current_user.id)
+    user = await user_repo.get_by_id(current_user.id)
 
     if not user:
         return UserProgress(
@@ -155,7 +151,7 @@ async def get_user_progress(
     )
 
 
-def calculate_achievement_progress(user, achievement: AchievementModel) -> tuple[int, bool]:
+def calculate_achievement_progress(user: UserDocument, achievement: AchievementDocument) -> tuple[int, bool]:
     """Calculate progress and unlock status for an achievement based on user data."""
     action_type = achievement.action_type
     target = achievement.target_count
@@ -230,7 +226,8 @@ def calculate_achievement_progress(user, achievement: AchievementModel) -> tuple
 @router.get("/achievements", response_model=List[AchievementWithHistory])
 async def get_achievements(
     current_user: Annotated[UserInDB, Depends(get_current_active_user)],
-    db: AsyncSession = Depends(get_db),
+    user_repo: CosmosUserRepository = Depends(get_user_repository),
+    achievement_repo: CosmosAchievementRepository = Depends(get_achievement_repository),
     include_locked: bool = Query(True),
     category: Optional[str] = Query(None, description="Filter by category: voting, streak, profile, leaderboard"),
 ) -> List[AchievementWithHistory]:
@@ -239,27 +236,22 @@ async def get_achievements(
 
     For repeatable achievements, shows all dates earned.
     """
-    repo = UserRepository(db)
-    user = await repo.get_by_id(current_user.id)
+    user = await user_repo.get_by_id(current_user.id)
 
     if not user:
         return []
 
-    # Get all achievements from database
-    query = select(AchievementModel).order_by(AchievementModel.sort_order)
+    # Get all achievements from Cosmos DB
     if category:
-        query = query.where(AchievementModel.category == category)
-
-    result = await db.execute(query)
-    all_achievements = result.scalars().all()
+        all_achievements = await achievement_repo.get_achievements_by_category(category)
+    else:
+        all_achievements = await achievement_repo.get_all_achievements()
 
     # Get user's earned achievements
-    user_achievements_result = await db.execute(
-        select(UserAchievement)
-        .where(UserAchievement.user_id == str(user.id))
-        .where(UserAchievement.is_unlocked == True)
+    user_achievements = await achievement_repo.get_user_achievements(
+        user_id=str(user.id),
+        unlocked_only=True,
     )
-    user_achievements = user_achievements_result.scalars().all()
 
     # Build a map of achievement_id -> list of earned dates
     earned_dates_map: dict[str, list[datetime]] = {}
@@ -312,7 +304,7 @@ async def get_achievements(
 
 @router.get("/achievements/all", response_model=List[AchievementWithHistory])
 async def get_all_achievements(
-    db: AsyncSession = Depends(get_db),
+    achievement_repo: CosmosAchievementRepository = Depends(get_achievement_repository),
     category: Optional[str] = Query(None, description="Filter by category: voting, streak, profile, leaderboard"),
     tier: Optional[str] = Query(None, description="Filter by tier: bronze, silver, gold, platinum"),
     search: Optional[str] = Query(None, description="Search by name or description"),
@@ -322,17 +314,19 @@ async def get_all_achievements(
 
     Does not require authentication. Shows all achievements without user progress.
     """
-    # Get all achievements from database
-    query = select(AchievementModel).order_by(AchievementModel.sort_order)
-
+    # Get all achievements from Cosmos DB
     if category:
-        query = query.where(AchievementModel.category == category)
+        all_achievements = await achievement_repo.get_achievements_by_category(category)
+    elif tier:
+        from models.cosmos_documents import AchievementTier
 
-    if tier:
-        query = query.where(AchievementModel.tier == tier)
+        all_achievements = await achievement_repo.get_achievements_by_tier(AchievementTier(tier))
+    else:
+        all_achievements = await achievement_repo.get_all_achievements()
 
-    result = await db.execute(query)
-    all_achievements = result.scalars().all()
+    # Apply tier filter if category was used
+    if category and tier:
+        all_achievements = [a for a in all_achievements if a.tier == tier]
 
     achievements_response = []
     for achievement in all_achievements:
@@ -366,7 +360,8 @@ async def get_all_achievements(
 @router.get("/achievements/user", response_model=List[AchievementWithHistory])
 async def get_user_achievements_status(
     current_user: Annotated[UserInDB, Depends(get_current_active_user)],
-    db: AsyncSession = Depends(get_db),
+    user_repo: CosmosUserRepository = Depends(get_user_repository),
+    achievement_repo: CosmosAchievementRepository = Depends(get_achievement_repository),
     category: Optional[str] = Query(None, description="Filter by category: voting, streak, profile, leaderboard"),
     tier: Optional[str] = Query(None, description="Filter by tier: bronze, silver, gold, platinum"),
     search: Optional[str] = Query(None, description="Search by name or description"),
@@ -377,31 +372,30 @@ async def get_user_achievements_status(
 
     Requires authentication. Shows which achievements the user has earned.
     """
-    repo = UserRepository(db)
-    user = await repo.get_by_id(current_user.id)
+    user = await user_repo.get_by_id(current_user.id)
 
     if not user:
         return []
 
-    # Get all achievements from database
-    query = select(AchievementModel).order_by(AchievementModel.sort_order)
-
+    # Get all achievements from Cosmos DB
     if category:
-        query = query.where(AchievementModel.category == category)
+        all_achievements = await achievement_repo.get_achievements_by_category(category)
+    elif tier:
+        from models.cosmos_documents import AchievementTier
 
-    if tier:
-        query = query.where(AchievementModel.tier == tier)
+        all_achievements = await achievement_repo.get_achievements_by_tier(AchievementTier(tier))
+    else:
+        all_achievements = await achievement_repo.get_all_achievements()
 
-    result = await db.execute(query)
-    all_achievements = result.scalars().all()
+    # Apply tier filter if category was used
+    if category and tier:
+        all_achievements = [a for a in all_achievements if a.tier == tier]
 
     # Get user's earned achievements
-    user_achievements_result = await db.execute(
-        select(UserAchievement)
-        .where(UserAchievement.user_id == str(user.id))
-        .where(UserAchievement.is_unlocked == True)
+    user_achievements = await achievement_repo.get_user_achievements(
+        user_id=str(user.id),
+        unlocked_only=True,
     )
-    user_achievements = user_achievements_result.scalars().all()
 
     # Build a map of achievement_id -> list of earned dates
     earned_dates_map: dict[str, list[datetime]] = {}
@@ -462,7 +456,7 @@ async def get_user_achievements_status(
 
 @router.get("/leaderboard", response_model=LeaderboardResponse)
 async def get_leaderboard(
-    db: AsyncSession = Depends(get_db),
+    user_repo: CosmosUserRepository = Depends(get_user_repository),
     period: str = Query("weekly", regex="^(daily|weekly|monthly|alltime)$"),
     page: int = Query(1, ge=1),
     per_page: int = Query(20, ge=1, le=100),
@@ -472,11 +466,10 @@ async def get_leaderboard(
 
     Only shows users who have opted in to leaderboard visibility.
     """
-    repo = UserRepository(db)
     offset = (page - 1) * per_page
 
     # Get leaderboard users (filtered by show_on_leaderboard in repo)
-    users = await repo.get_leaderboard(limit=per_page, offset=offset)
+    users = await user_repo.get_leaderboard(limit=per_page, offset=offset)
 
     entries = []
     for rank, user in enumerate(users, start=offset + 1):
@@ -494,7 +487,7 @@ async def get_leaderboard(
             )
 
     # Get total count for pagination
-    total_users = await repo.get_leaderboard(limit=10000, offset=0)
+    total_users = await user_repo.get_leaderboard(limit=10000, offset=0)
     total_count = len([u for u in total_users if u.show_on_leaderboard])
     total_pages = (total_count + per_page - 1) // per_page if total_count > 0 else 0
 
@@ -511,22 +504,23 @@ async def get_leaderboard(
 @router.get("/leaderboard/me", response_model=LeaderboardEntry | None)
 async def get_my_leaderboard_position(
     current_user: Annotated[UserInDB, Depends(get_current_active_user)],
-    db: AsyncSession = Depends(get_db),
+    user_repo: CosmosUserRepository = Depends(get_user_repository),
     period: str = Query("weekly", regex="^(daily|weekly|monthly|alltime)$"),
 ) -> LeaderboardEntry | None:
     """
     Get the current user's position on the leaderboard.
     """
-    repo = UserRepository(db)
-    user = await repo.get_by_id(current_user.id)
+    user = await user_repo.get_by_id(current_user.id)
 
     if not user:
         return None
 
-    rank = await repo.get_user_rank(current_user.id)
-
-    if rank is None:
-        return None
+    # Calculate rank by counting users with more points
+    all_users = await user_repo.get_leaderboard(limit=10000, offset=0)
+    rank = 1
+    for other_user in all_users:
+        if other_user.total_points > user.total_points:
+            rank += 1
 
     return LeaderboardEntry(
         rank=rank,
@@ -542,18 +536,30 @@ async def get_my_leaderboard_position(
 @router.get("/history", response_model=list[PointsTransaction])
 async def get_points_history(
     current_user: Annotated[UserInDB, Depends(get_current_active_user)],
-    db: AsyncSession = Depends(get_db),
+    achievement_repo: CosmosAchievementRepository = Depends(get_achievement_repository),
     page: int = Query(1, ge=1),
     per_page: int = Query(20, ge=1, le=100),
 ) -> list[PointsTransaction]:
     """
     Get the user's points transaction history.
-
-    Note: Points transactions are tracked in-memory for now.
-    A dedicated PointsTransaction table could be added for full history.
     """
-    # For now, return empty list - could implement points_transactions table
-    return []
+    offset = (page - 1) * per_page
+    transactions = await achievement_repo.get_points_history(
+        user_id=current_user.id,
+        limit=per_page,
+        offset=offset,
+    )
+
+    return [
+        PointsTransaction(
+            id=t.id,
+            action=t.action,
+            points=t.points,
+            description=t.description,
+            created_at=t.created_at,
+        )
+        for t in transactions
+    ]
 
 
 @router.get("/levels", response_model=list[LevelDefinitionResponse])
@@ -568,7 +574,8 @@ async def get_level_definitions() -> list[LevelDefinitionResponse]:
 async def track_share(
     request: ShareTrackRequest,
     current_user: Annotated[UserInDB, Depends(get_current_active_user)],
-    db: AsyncSession = Depends(get_db),
+    user_repo: CosmosUserRepository = Depends(get_user_repository),
+    achievement_repo: CosmosAchievementRepository = Depends(get_achievement_repository),
 ) -> ShareTrackResponse:
     """
     Track a poll share action and award points/achievements.
@@ -581,8 +588,7 @@ async def track_share(
     - Platform-specific achievements for each social platform
     - Cross-Platform Champion: Share on all available platforms
     """
-    repo = UserRepository(db)
-    user = await repo.get_by_id(current_user.id)
+    user = await user_repo.get_by_id(current_user.id)
 
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
@@ -605,16 +611,57 @@ async def track_share(
             detail=f"Invalid platform. Must be one of: {', '.join(valid_platforms)}",
         )
 
-    # Use achievement service to check and award sharing achievements
-    achievement_service = AchievementService(db)
-    (
-        awarded_achievements,
-        points_earned,
-    ) = await achievement_service.check_and_award_sharing_achievements(user, platform)
+    # Award 5 points for sharing
+    share_points = 5
+    await user_repo.award_points(user.id, share_points)
+    await user_repo.increment_shares(user.id)
 
-    # Commit the changes
-    await db.commit()
-    await db.refresh(user)
+    # Record the points transaction
+    await achievement_repo.record_points_transaction(
+        user_id=user.id,
+        action="share",
+        points=share_points,
+        description=f"Shared poll on {platform}",
+        reference_type="share",
+        reference_id=platform,
+    )
+
+    # Get updated user
+    updated_user = await user_repo.get_by_id(user.id)
+    total_shares = updated_user.total_shares if updated_user else user.total_shares + 1
+
+    # Check for sharing achievements
+    awarded_achievements: list[AchievementDocument] = []
+    share_achievements = [
+        ("first_share", 1),
+        ("social_butterfly", 10),
+        ("influencer", 50),
+        ("ambassador", 100),
+    ]
+
+    for achievement_id, target in share_achievements:
+        if total_shares >= target:
+            # Check if already unlocked
+            existing = await achievement_repo.get_user_achievement(user.id, achievement_id)
+            if not existing or not existing.is_unlocked:
+                achievement = await achievement_repo.get_achievement(achievement_id)
+                if achievement:
+                    await achievement_repo.unlock_achievement(user.id, achievement_id)
+                    awarded_achievements.append(achievement)
+                    # Award achievement points
+                    if achievement.points_reward > 0:
+                        await user_repo.award_points(user.id, achievement.points_reward)
+                        await achievement_repo.record_points_transaction(
+                            user_id=user.id,
+                            action="achievement",
+                            points=achievement.points_reward,
+                            description=f"Unlocked: {achievement.name}",
+                            reference_type="achievement",
+                            reference_id=achievement_id,
+                        )
+
+    # Calculate total points earned
+    points_earned = share_points + sum(a.points_reward for a in awarded_achievements)
 
     # Build response with new achievement details
     new_achievements = []
@@ -647,7 +694,7 @@ async def track_share(
 
     return ShareTrackResponse(
         points_earned=points_earned,
-        total_shares=user.total_shares,
+        total_shares=total_shares,
         new_achievements=new_achievements,
         message=message,
     )

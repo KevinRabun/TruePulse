@@ -4,6 +4,9 @@
 .env.*.local
 *.env
 
+# Azurite local storage emulator data
+.azurite/
+
 # Python
 __pycache__/
 *.py[cod]

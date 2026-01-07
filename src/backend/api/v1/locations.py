@@ -1,16 +1,26 @@
-"""Location API endpoints for countries, states/provinces, and cities."""
+"""
+Location API endpoints for countries, states/provinces, and cities.
 
-from typing import List, Optional
+Uses static JSON data for location reference data. This approach is:
+- Simpler: No external database dependency for read-only reference data
+- Faster: Data loaded in memory, no network calls
+- Cheaper: No Azure Table Storage or Cosmos DB costs for static data
+- More reliable: No service dependency for simple lookups
+"""
 
-from fastapi import APIRouter, Depends, Query
+import json
+from functools import lru_cache
+from pathlib import Path
+from typing import Optional
+
+from fastapi import APIRouter, Query
 from pydantic import BaseModel
-from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
-
-from db.session import get_db
-from models.location import City, Country, StateProvince
 
 router = APIRouter(prefix="/locations", tags=["locations"])
+
+
+# Location data file path
+LOCATIONS_DATA_PATH = Path(__file__).parent.parent.parent / "data" / "locations.json"
 
 
 class CountryResponse(BaseModel):
@@ -18,9 +28,6 @@ class CountryResponse(BaseModel):
 
     code: str
     name: str
-
-    class Config:
-        from_attributes = True
 
 
 class StateProvinceResponse(BaseModel):
@@ -31,9 +38,6 @@ class StateProvinceResponse(BaseModel):
     name: str
     country_code: str
 
-    class Config:
-        from_attributes = True
-
 
 class CityResponse(BaseModel):
     """Response model for city data."""
@@ -42,79 +46,103 @@ class CityResponse(BaseModel):
     name: str
     state_id: int
 
-    class Config:
-        from_attributes = True
+
+@lru_cache(maxsize=1)
+def _load_location_data() -> dict:
+    """
+    Load location data from JSON file.
+
+    Uses LRU cache to load data once and keep in memory.
+    """
+    if LOCATIONS_DATA_PATH.exists():
+        with open(LOCATIONS_DATA_PATH, encoding="utf-8") as f:
+            return json.load(f)
+    return {"countries": [], "states": {}, "cities": {}}
 
 
-@router.get("/countries", response_model=List[CountryResponse])
+def get_countries_data() -> list[dict]:
+    """Get all countries from static data."""
+    data = _load_location_data()
+    return data.get("countries", [])
+
+
+def get_states_data(country_code: str) -> list[dict]:
+    """Get states/provinces for a country from static data."""
+    data = _load_location_data()
+    return data.get("states", {}).get(country_code.upper(), [])
+
+
+def get_cities_data(state_id: int) -> list[dict]:
+    """Get cities for a state from static data."""
+    data = _load_location_data()
+    return data.get("cities", {}).get(str(state_id), [])
+
+
+@router.get("/countries", response_model=list[CountryResponse])
 async def get_countries(
-    db: AsyncSession = Depends(get_db),
     search: Optional[str] = Query(None, description="Search term for country name"),
-):
-    """Get all active countries, optionally filtered by search term."""
-    query = select(Country).where(Country.is_active == True).order_by(Country.name)
+) -> list[CountryResponse]:
+    """Get all countries, optionally filtered by search term."""
+    countries = get_countries_data()
 
+    # Sort by name
+    countries = sorted(countries, key=lambda c: c["name"])
+
+    # Filter by search term if provided
     if search:
-        query = query.where(Country.name.ilike(f"%{search}%"))
+        search_lower = search.lower()
+        countries = [c for c in countries if search_lower in c["name"].lower()]
 
-    result = await db.execute(query)
-    countries = result.scalars().all()
-
-    return [CountryResponse(code=c.code, name=c.name) for c in countries]
+    return [CountryResponse(code=c["code"], name=c["name"]) for c in countries]
 
 
-@router.get("/countries/{country_code}/states", response_model=List[StateProvinceResponse])
+@router.get("/countries/{country_code}/states", response_model=list[StateProvinceResponse])
 async def get_states_by_country(
     country_code: str,
-    db: AsyncSession = Depends(get_db),
     search: Optional[str] = Query(None, description="Search term for state/province name"),
-):
-    """Get all active states/provinces for a given country code."""
-    # First get the country
-    country_result = await db.execute(select(Country).where(Country.code == country_code.upper()))
-    country = country_result.scalar_one_or_none()
+) -> list[StateProvinceResponse]:
+    """Get all states/provinces for a given country code."""
+    states = get_states_data(country_code)
 
-    if not country:
+    if not states:
         return []
 
-    # Get states for this country
-    query = (
-        select(StateProvince)
-        .where(StateProvince.country_id == country.id)
-        .where(StateProvince.is_active == True)
-        .order_by(StateProvince.name)
-    )
+    # Sort by name
+    states = sorted(states, key=lambda s: s["name"])
 
+    # Filter by search term if provided
     if search:
-        query = query.where(StateProvince.name.ilike(f"%{search}%"))
+        search_lower = search.lower()
+        states = [s for s in states if search_lower in s["name"].lower()]
 
-    result = await db.execute(query)
-    states = result.scalars().all()
+    return [
+        StateProvinceResponse(
+            id=s["id"],
+            code=s.get("code"),
+            name=s["name"],
+            country_code=country_code.upper(),
+        )
+        for s in states
+    ]
 
-    return [StateProvinceResponse(id=s.id, code=s.code, name=s.name, country_code=country_code.upper()) for s in states]
 
-
-@router.get("/states/{state_id}/cities", response_model=List[CityResponse])
+@router.get("/states/{state_id}/cities", response_model=list[CityResponse])
 async def get_cities_by_state(
     state_id: int,
-    db: AsyncSession = Depends(get_db),
     search: Optional[str] = Query(None, description="Search term for city name"),
-):
-    """Get all active cities for a given state/province ID."""
-    # Verify state exists
-    state_result = await db.execute(select(StateProvince).where(StateProvince.id == state_id))
-    state = state_result.scalar_one_or_none()
+) -> list[CityResponse]:
+    """Get all cities for a given state/province ID."""
+    cities = get_cities_data(state_id)
 
-    if not state:
+    if not cities:
         return []
 
-    # Get cities for this state
-    query = select(City).where(City.state_province_id == state_id).where(City.is_active == True).order_by(City.name)
+    # Sort by name
+    cities = sorted(cities, key=lambda c: c["name"])
 
+    # Filter by search term if provided
     if search:
-        query = query.where(City.name.ilike(f"%{search}%"))
+        search_lower = search.lower()
+        cities = [c for c in cities if search_lower in c["name"].lower()]
 
-    result = await db.execute(query)
-    cities = result.scalars().all()
-
-    return [CityResponse(id=c.id, name=c.name, state_id=state_id) for c in cities]
+    return [CityResponse(id=c["id"], name=c["name"], state_id=state_id) for c in cities]

@@ -3,18 +3,16 @@ Platform statistics service with configurable caching.
 
 Computes and caches platform-wide statistics (polls, votes, active users)
 to avoid expensive database queries on every request.
+Now uses Cosmos DB repositories.
 """
 
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
-from sqlalchemy import and_, func, select
-from sqlalchemy.ext.asyncio import AsyncSession
-
-from models.poll import Poll, PollStatus, PollType
-from models.user import User
-from models.vote import Vote
+from repositories.cosmos_poll_repository import CosmosPollRepository
+from repositories.cosmos_user_repository import CosmosUserRepository
+from repositories.cosmos_vote_repository import CosmosVoteRepository
 
 
 @dataclass
@@ -73,17 +71,17 @@ class StatsService:
 
     def __init__(
         self,
-        db: AsyncSession,
         cache_ttl_hours: int = 1,
     ):
         """
         Initialize stats service.
 
         Args:
-            db: Database session
             cache_ttl_hours: How long to cache stats (default: 1 hour)
         """
-        self.db = db
+        self.poll_repo = CosmosPollRepository()
+        self.user_repo = CosmosUserRepository()
+        self.vote_repo = CosmosVoteRepository()
         self.cache_ttl_hours = cache_ttl_hours
         self.cache_key = "platform:stats:v1"
 
@@ -111,69 +109,26 @@ class StatsService:
         return stats
 
     async def _compute_stats(self) -> PlatformStats:
-        """Compute fresh statistics from database."""
+        """Compute fresh statistics from Cosmos DB."""
         now = datetime.now(timezone.utc)
-        thirty_days_ago = now - timedelta(days=30)
 
-        # Count published polls (active, closed, or archived - excludes scheduled)
-        polls_result = await self.db.execute(
-            select(func.count(Poll.id)).where(
-                Poll.status.in_(
-                    [
-                        PollStatus.ACTIVE.value,
-                        PollStatus.CLOSED.value,
-                        PollStatus.ARCHIVED.value,
-                    ]
-                )
-            )
-        )
-        polls_created = polls_result.scalar() or 0
+        # Count published polls using repository method
+        polls_created = await self.poll_repo.count_published_polls()
 
-        # Count completed pulse and flash polls (closed or archived)
-        completed_polls_result = await self.db.execute(
-            select(func.count(Poll.id)).where(
-                and_(
-                    Poll.status.in_([PollStatus.CLOSED.value, PollStatus.ARCHIVED.value]),
-                    Poll.poll_type.in_([PollType.PULSE.value, PollType.FLASH.value]),
-                )
-            )
-        )
-        completed_polls = completed_polls_result.scalar() or 0
+        # Count completed pulse and flash polls
+        completed_polls = await self.poll_repo.count_completed_polls()
 
         # Count total votes
-        votes_result = await self.db.execute(select(func.count(Vote.id)))
-        votes_cast = votes_result.scalar() or 0
+        votes_cast = await self.vote_repo.count_total_votes()
 
         # Count active users (logged in within last 30 days)
-        active_users_result = await self.db.execute(
-            select(func.count(User.id)).where(
-                and_(
-                    User.last_login_at >= thirty_days_ago,
-                    User.is_active == True,  # noqa: E712
-                )
-            )
-        )
-        active_users = active_users_result.scalar() or 0
+        active_users = await self.user_repo.count_active_users_since(days=30)
 
         # Count total registered users
-        total_users_result = await self.db.execute(
-            select(func.count(User.id)).where(
-                User.is_active == True  # noqa: E712
-            )
-        )
-        total_users = total_users_result.scalar() or 0
+        total_users = await self.user_repo.count_active_users()
 
         # Count unique countries from users who shared demographics
-        countries_result = await self.db.execute(
-            select(func.count(func.distinct(User.country))).where(
-                and_(
-                    User.is_active == True,  # noqa: E712
-                    User.country.isnot(None),
-                    User.share_anonymous_demographics == True,  # noqa: E712
-                )
-            )
-        )
-        countries_represented = countries_result.scalar() or 0
+        countries_represented = await self.user_repo.count_unique_countries()
 
         return PlatformStats(
             polls_created=polls_created,

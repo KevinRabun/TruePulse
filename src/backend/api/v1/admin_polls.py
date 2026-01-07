@@ -18,12 +18,10 @@ from typing import Annotated, Any, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel, Field
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.deps import get_current_admin_user
-from db.session import get_db
-from models.poll import PollStatus
-from repositories.poll_repository import PollRepository
+from models.cosmos_documents import PollStatus
+from repositories.cosmos_poll_repository import CosmosPollRepository
 from schemas.converters import poll_model_to_results_schema, poll_model_to_schema
 from schemas.poll import (
     Poll,
@@ -116,6 +114,16 @@ class PollStatsResponse(BaseModel):
 
 
 # ============================================================================
+# Dependency for Poll Repository
+# ============================================================================
+
+
+def get_poll_repository() -> CosmosPollRepository:
+    """Get an instance of the Cosmos poll repository."""
+    return CosmosPollRepository()
+
+
+# ============================================================================
 # CRUD Endpoints
 # ============================================================================
 
@@ -123,7 +131,7 @@ class PollStatsResponse(BaseModel):
 @router.get("", response_model=AdminPollListResponse)
 async def list_all_polls(
     admin: Annotated[UserInDB, Depends(get_current_admin_user)],
-    db: AsyncSession = Depends(get_db),
+    repo: Annotated[CosmosPollRepository, Depends(get_poll_repository)],
     page: int = Query(1, ge=1, description="Page number"),
     per_page: int = Query(20, ge=1, le=100, description="Items per page"),
     status_filter: Optional[PollStatusEnum] = Query(None, description="Filter by status"),
@@ -142,8 +150,6 @@ async def list_all_polls(
         f"Admin {admin.id} listing polls",
         extra={"admin_id": str(admin.id), "filters": {"status": status_filter, "poll_type": poll_type}},
     )
-
-    repo = PollRepository(db)
 
     # Get polls with filters
     polls, total = await repo.get_all_polls(
@@ -170,14 +176,13 @@ async def list_all_polls(
 @router.get("/stats", response_model=PollStatsResponse)
 async def get_poll_stats(
     admin: Annotated[UserInDB, Depends(get_current_admin_user)],
-    db: AsyncSession = Depends(get_db),
+    repo: Annotated[CosmosPollRepository, Depends(get_poll_repository)],
 ) -> PollStatsResponse:
     """
     Get aggregate statistics about polls.
 
     Provides overview metrics for admin dashboard.
     """
-    repo = PollRepository(db)
     stats = await repo.get_poll_statistics()
 
     return PollStatsResponse(**stats)
@@ -187,14 +192,13 @@ async def get_poll_stats(
 async def get_poll_details(
     poll_id: str,
     admin: Annotated[UserInDB, Depends(get_current_admin_user)],
-    db: AsyncSession = Depends(get_db),
+    repo: Annotated[CosmosPollRepository, Depends(get_poll_repository)],
 ) -> PollWithResults:
     """
     Get detailed information about a specific poll.
 
     Returns full poll data including vote counts and demographic breakdowns.
     """
-    repo = PollRepository(db)
     poll = await repo.get_by_id(poll_id)
 
     if not poll:
@@ -210,7 +214,7 @@ async def get_poll_details(
 async def create_poll(
     poll_data: AdminPollCreate,
     admin: Annotated[UserInDB, Depends(get_current_admin_user)],
-    db: AsyncSession = Depends(get_db),
+    repo: Annotated[CosmosPollRepository, Depends(get_poll_repository)],
 ) -> Poll:
     """
     Create a new poll with admin options.
@@ -226,8 +230,6 @@ async def create_poll(
             "poll_type": poll_data.poll_type,
         },
     )
-
-    repo = PollRepository(db)
 
     # Calculate scheduling
     now = datetime.now(timezone.utc)
@@ -267,7 +269,7 @@ async def update_poll(
     poll_id: str,
     poll_data: PollUpdate,
     admin: Annotated[UserInDB, Depends(get_current_admin_user)],
-    db: AsyncSession = Depends(get_db),
+    repo: Annotated[CosmosPollRepository, Depends(get_poll_repository)],
 ) -> Poll:
     """
     Update an existing poll.
@@ -281,7 +283,6 @@ async def update_poll(
         extra={"admin_id": str(admin.id), "poll_id": poll_id},
     )
 
-    repo = PollRepository(db)
     poll = await repo.get_by_id(poll_id)
 
     if not poll:
@@ -349,7 +350,7 @@ async def update_poll(
 async def delete_poll(
     poll_id: str,
     admin: Annotated[UserInDB, Depends(get_current_admin_user)],
-    db: AsyncSession = Depends(get_db),
+    repo: Annotated[CosmosPollRepository, Depends(get_poll_repository)],
     force: bool = Query(False, description="Force delete even if poll has votes"),
 ) -> None:
     """
@@ -363,7 +364,6 @@ async def delete_poll(
         extra={"admin_id": str(admin.id), "poll_id": poll_id, "force": force},
     )
 
-    repo = PollRepository(db)
     poll = await repo.get_by_id(poll_id)
 
     if not poll:
@@ -390,7 +390,7 @@ async def delete_poll(
             },
         )
 
-    deleted = await repo.delete_poll(poll_id)
+    deleted = await repo.delete(poll_id)
 
     if not deleted:
         raise HTTPException(
@@ -408,7 +408,7 @@ async def delete_poll(
 async def bulk_delete_polls(
     request: BulkDeleteRequest,
     admin: Annotated[UserInDB, Depends(get_current_admin_user)],
-    db: AsyncSession = Depends(get_db),
+    repo: Annotated[CosmosPollRepository, Depends(get_poll_repository)],
 ) -> BulkDeleteResponse:
     """
     Delete multiple polls at once.
@@ -421,7 +421,6 @@ async def bulk_delete_polls(
         extra={"admin_id": str(admin.id), "poll_count": len(request.poll_ids), "force": request.force},
     )
 
-    repo = PollRepository(db)
     deleted_count = 0
     failed_ids = []
     errors = []
@@ -440,7 +439,7 @@ async def bulk_delete_polls(
                 errors.append(f"Poll {poll_id} has {poll.total_votes} votes")
                 continue
 
-            deleted = await repo.delete_poll(poll_id)
+            deleted = await repo.delete(poll_id)
 
             if deleted:
                 deleted_count += 1
@@ -478,14 +477,13 @@ async def bulk_delete_polls(
 async def activate_poll(
     poll_id: str,
     admin: Annotated[UserInDB, Depends(get_current_admin_user)],
-    db: AsyncSession = Depends(get_db),
+    repo: Annotated[CosmosPollRepository, Depends(get_poll_repository)],
 ) -> Poll:
     """
     Manually activate a scheduled poll.
 
     Immediately sets the poll status to active and updates timestamps.
     """
-    repo = PollRepository(db)
     poll = await repo.get_by_id(poll_id)
 
     if not poll:
@@ -494,33 +492,23 @@ async def activate_poll(
             detail="Poll not found",
         )
 
-    if poll.status == PollStatus.ACTIVE.value:
+    if poll.status == PollStatus.ACTIVE:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Poll is already active",
         )
 
-    if poll.status == PollStatus.CLOSED.value:
+    if poll.status == PollStatus.CLOSED:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Cannot activate a closed poll",
         )
 
     now = datetime.now(timezone.utc)
-    updated = await repo.update_poll(
-        poll_id,
-        {
-            "status": PollStatus.ACTIVE.value,
-            "is_active": True,
-            "scheduled_start": now,
-        },
-    )
-
-    if not updated:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Poll not found after update",
-        )
+    poll.status = PollStatus.ACTIVE
+    poll.is_active = True
+    poll.scheduled_start = now
+    updated = await repo.update(poll)
 
     logger.info(
         f"Admin {admin.id} activated poll {poll_id}",
@@ -534,14 +522,13 @@ async def activate_poll(
 async def close_poll(
     poll_id: str,
     admin: Annotated[UserInDB, Depends(get_current_admin_user)],
-    db: AsyncSession = Depends(get_db),
+    repo: Annotated[CosmosPollRepository, Depends(get_poll_repository)],
 ) -> Poll:
     """
     Manually close an active poll.
 
     Immediately ends the poll and prevents further voting.
     """
-    repo = PollRepository(db)
     poll = await repo.get_by_id(poll_id)
 
     if not poll:
@@ -550,28 +537,19 @@ async def close_poll(
             detail="Poll not found",
         )
 
-    if poll.status == PollStatus.CLOSED.value:
+    if poll.status == PollStatus.CLOSED:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Poll is already closed",
         )
 
     now = datetime.now(timezone.utc)
-    updated = await repo.update_poll(
-        poll_id,
-        {
-            "status": PollStatus.CLOSED.value,
-            "is_active": False,
-            "scheduled_end": now,
-            "expires_at": now,
-        },
-    )
-
-    if not updated:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Poll not found after update",
-        )
+    poll.status = PollStatus.CLOSED
+    poll.is_active = False
+    poll.scheduled_end = now
+    poll.expires_at = now
+    poll.closed_at = now
+    updated = await repo.update(poll)
 
     logger.info(
         f"Admin {admin.id} closed poll {poll_id}",
@@ -585,7 +563,7 @@ async def close_poll(
 async def toggle_featured(
     poll_id: str,
     admin: Annotated[UserInDB, Depends(get_current_admin_user)],
-    db: AsyncSession = Depends(get_db),
+    repo: Annotated[CosmosPollRepository, Depends(get_poll_repository)],
     featured: bool = Query(True, description="Set featured status"),
 ) -> Poll:
     """
@@ -593,7 +571,6 @@ async def toggle_featured(
 
     Featured polls are highlighted in the UI and may appear in special sections.
     """
-    repo = PollRepository(db)
     poll = await repo.get_by_id(poll_id)
 
     if not poll:
@@ -602,13 +579,8 @@ async def toggle_featured(
             detail="Poll not found",
         )
 
-    updated = await repo.update_poll(poll_id, {"is_featured": featured})
-
-    if not updated:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Poll not found after update",
-        )
+    poll.is_featured = featured
+    updated = await repo.update(poll)
 
     logger.info(
         f"Admin {admin.id} set poll {poll_id} featured={featured}",

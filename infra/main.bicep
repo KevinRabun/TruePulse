@@ -28,15 +28,6 @@ param tags object = {
   managedBy: 'bicep'
 }
 
-// Database credentials
-@description('Administrator username for PostgreSQL')
-param postgresAdminUsername string
-
-@description('Administrator password for PostgreSQL')
-@minLength(8)
-@secure()
-param postgresAdminPassword string
-
 // Secrets
 @description('JWT secret key for API authentication')
 @minLength(32)
@@ -109,14 +100,14 @@ param sharedTableDnsZoneId string
 @description('Resource ID of shared OpenAI DNS zone')
 param sharedOpenaiDnsZoneId string
 
-@description('Resource ID of shared PostgreSQL DNS zone')
-param sharedPostgresDnsZoneId string
-
 @description('Resource ID of shared Key Vault DNS zone')
 param sharedKeyVaultDnsZoneId string
 
 @description('Resource ID of shared ACR DNS zone')
 param sharedAcrDnsZoneId string
+
+@description('Resource ID of shared Cosmos DB DNS zone')
+param sharedCosmosDnsZoneId string
 
 @description('Resource ID of shared Container Registry')
 param sharedContainerRegistryResourceId string
@@ -142,7 +133,7 @@ var keyVaultName = 'kv-${prefix}-${environmentName}-${shortUniqueSuffix}'
 var containerAppsEnvName = 'cae-${prefix}-${environmentName}'
 var containerAppApiName = 'ca-${prefix}-api-${environmentName}'
 var staticWebAppName = 'swa-${prefix}-${environmentName}'
-var postgresServerName = 'psql-${prefix}-${environmentName}-${shortUniqueSuffix}'
+var cosmosDbAccountName = 'cosmos-${prefix}-${environmentName}-${shortUniqueSuffix}'
 var vnetName = 'vnet-${prefix}-${environmentName}'
 var storageAccountName = 'st${prefix}${environmentName}${shortUniqueSuffix}'
 var azureOpenAIName = 'aoai-${prefix}-${environmentName}-${shortUniqueSuffix}'
@@ -229,10 +220,6 @@ module keyVault 'modules/keyVault.bicep' = {
         value: voteHashSecret
       }
       {
-        name: 'postgres-password'
-        value: postgresAdminPassword
-      }
-      {
         name: 'newsdata-api-key'
         value: newsDataApiKey
       }
@@ -253,27 +240,6 @@ module keyVault 'modules/keyVault.bicep' = {
         value: fieldEncryptionKey
       }
     ]
-  }
-}
-
-// PostgreSQL - isolated database per environment
-module postgres 'modules/postgres.bicep' = {
-  scope: resourceGroup
-  name: 'postgres-deployment'
-  params: {
-    name: postgresServerName
-    location: location
-    tags: tags
-    administratorLogin: postgresAdminUsername
-    administratorLoginPassword: postgresAdminPassword
-    logAnalyticsWorkspaceId: sharedLogAnalyticsWorkspaceId
-    subnetId: vnet.outputs.privateEndpointsSubnetId
-    environmentName: environmentName
-    enableCMK: enableCMK
-    keyVaultName: enableCMK ? keyVault.outputs.name : ''
-    keyVaultResourceId: enableCMK ? keyVault.outputs.resourceId : ''
-    cmkKeyUri: enableCMK ? keyVault.outputs.postgresEncryptionKeyUri : ''
-    postgresDnsZoneId: sharedPostgresDnsZoneId
   }
 }
 
@@ -312,7 +278,26 @@ module azureOpenAI 'modules/azureOpenAI.bicep' = {
   }
 }
 
+// Cosmos DB Serverless - unified document database for all data
+module cosmosDb 'modules/cosmosdb.bicep' = {
+  scope: resourceGroup
+  name: 'cosmosdb-deployment'
+  params: {
+    name: cosmosDbAccountName
+    location: location
+    tags: tags
+    logAnalyticsWorkspaceId: sharedLogAnalyticsWorkspaceId
+    subnetId: vnet.outputs.privateEndpointsSubnetId
+    environmentName: environmentName
+    cosmosDnsZoneId: sharedCosmosDnsZoneId
+    // Data plane principal ID will be set after Container App deployment via separate role assignment
+    dataPlanePrincipalId: ''
+  }
+}
+
 // Container Apps Environment - isolated compute per environment
+// COST OPTIMIZATION: Uses consumption-only plan with scale-to-zero
+// Zone redundancy only enabled for production
 module containerAppsEnv 'modules/containerAppsEnv.bicep' = {
   scope: resourceGroup
   name: 'container-apps-env-deployment'
@@ -324,6 +309,7 @@ module containerAppsEnv 'modules/containerAppsEnv.bicep' = {
     platformReservedCidr: platformReservedCidr
     platformReservedDnsIP: platformReservedDnsIP
     dockerBridgeCidr: dockerBridgeCidr
+    environmentName: environmentName
   }
 }
 
@@ -339,14 +325,13 @@ module containerAppApi 'modules/containerAppApi.bicep' = {
     containerRegistryLoginServer: sharedContainerRegistryLoginServer
     keyVaultName: keyVault.outputs.name
     keyVaultUri: keyVault.outputs.uri
-    postgresHost: postgres.outputs.fqdn
-    postgresDatabase: 'truepulse'
-    postgresUsername: postgresAdminUsername
     storageAccountName: storageAccount.outputs.name
     storageAccountTableEndpoint: storageAccount.outputs.primaryTableEndpoint
     azureOpenAIEndpoint: azureOpenAI.outputs.endpoint
     azureOpenAIDeployment: azureOpenAI.outputs.deploymentName
     storageAccountUrl: storageAccount.outputs.primaryBlobEndpoint
+    cosmosDbEndpoint: cosmosDb.outputs.endpoint
+    cosmosDbDatabaseName: cosmosDb.outputs.databaseName
     environmentName: environmentName
     communicationServicesName: sharedCommunicationServiceName
     emailServiceName: ''  // Email handled via shared services
@@ -384,6 +369,17 @@ module openaiRoleAssignment 'modules/openaiRoleAssignment.bicep' = {
   }
 }
 
+// Grant Cosmos DB data access to the Container App's managed identity
+// Required because disableLocalAuth=true on Cosmos DB (keys disabled for security)
+module cosmosDbRoleAssignment 'modules/cosmosdbRoleAssignment.bicep' = {
+  scope: resourceGroup
+  name: 'cosmosdb-role-assignment-${environmentName}'
+  params: {
+    cosmosAccountName: cosmosDb.outputs.name
+    principalId: containerAppApi.outputs.managedIdentityPrincipalId
+  }
+}
+
 // Static Web App - can use slots for staging, but separate instance is cleaner
 module staticWebApp 'modules/staticWebApp.bicep' = {
   scope: resourceGroup
@@ -417,7 +413,7 @@ module budget 'modules/budget.bicep' = {
 }
 
 // Monitoring and Alerting - SLO-based alerts for service health
-// Deploys action groups and metric alerts for Container App and database
+// Deploys action groups and metric alerts for Container App and Cosmos DB
 module monitoring 'modules/monitoring.bicep' = {
   scope: resourceGroup
   name: 'monitoring-deployment'
@@ -426,7 +422,7 @@ module monitoring 'modules/monitoring.bicep' = {
     location: location
     logAnalyticsWorkspaceId: sharedLogAnalyticsWorkspaceId
     containerAppId: containerAppApi.outputs.resourceId
-    postgresServerId: postgres.outputs.resourceId
+    cosmosDbAccountId: cosmosDb.outputs.resourceId
     alertEmailAddresses: ['alerts@truepulse.net']
     enableAlerts: environmentName != 'dev' // Enable alerts for staging and prod only
   }
@@ -445,7 +441,8 @@ output frontendUrl string = frontendUrl
 output apiUrl string = apiUrl
 output storageAccountName string = storageAccount.outputs.name
 output storageAccountBlobEndpoint string = storageAccount.outputs.primaryBlobEndpoint
-output postgresServerFqdn string = postgres.outputs.fqdn
+output cosmosDbEndpoint string = cosmosDb.outputs.endpoint
+output cosmosDbDatabaseName string = cosmosDb.outputs.databaseName
 
 // Shared resource references (for convenience)
 output sharedContainerRegistryLoginServer string = sharedContainerRegistryLoginServer
