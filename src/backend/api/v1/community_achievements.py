@@ -284,7 +284,7 @@ async def get_community_leaderboard(
     # Get user details
     leaderboard = []
     for row in rows:
-        user = await user_repo.get_user(row["user_id"])
+        user = await user_repo.get_by_id(row["user_id"])
 
         if user:
             leaderboard.append(

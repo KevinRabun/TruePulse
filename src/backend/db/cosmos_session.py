@@ -331,5 +331,8 @@ async def query_count(
     """
     results = await query_items(container_name, query, parameters, partition_key)
     if results and len(results) > 0:
-        return int(results[0])  # type: ignore[arg-type]
+        result = results[0]
+        if isinstance(result, (int, float)):
+            return int(result)
+        return 0
     return 0

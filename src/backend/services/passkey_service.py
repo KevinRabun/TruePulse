@@ -382,7 +382,7 @@ class PasskeyService:
             allow_credentials = [
                 PublicKeyCredentialDescriptor(
                     id=base64url_to_bytes(pk.credential_id),
-                    transports=pk.transports if pk.transports else None,
+                    transports=pk.transports if pk.transports else None,  # type: ignore[arg-type]
                 )
                 for pk in user.passkeys
                 if pk.is_active
@@ -565,8 +565,9 @@ class PasskeyService:
     async def _get_redis_service(self) -> RedisService:
         """Get or initialize the Redis service."""
         if self._redis_service is None:
-            self._redis_service = get_redis_service()
-            await self._redis_service.initialize()
+            redis = await get_redis_service()
+            await redis.initialize()
+            self._redis_service = redis
         return self._redis_service
 
     async def _store_challenge(

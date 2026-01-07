@@ -124,6 +124,7 @@ class UserDocument(CosmosDocument):
     age_range: Optional[str] = None
     gender: Optional[str] = None
     country: Optional[str] = None
+    region: Optional[str] = None  # Legacy field for backwards compatibility
     state_province: Optional[str] = None
     city: Optional[str] = None
     education_level: Optional[str] = None

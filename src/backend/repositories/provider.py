@@ -141,23 +141,29 @@ async def get_achievement_repository():
 # FastAPI Dependencies
 # =============================================================================
 
-# Type hints for dependency injection
-UserRepository = CosmosUserRepository = None  # Will be set at import time
-PollRepository = CosmosPollRepository = None
-VoteRepository = CosmosVoteRepository = None
-AchievementRepository = CosmosAchievementRepository = None
-
 # Lazy imports to avoid circular dependencies
 if is_cosmos_enabled():
     try:
-        from repositories.cosmos_achievement_repository import CosmosAchievementRepository
-        from repositories.cosmos_poll_repository import CosmosPollRepository
-        from repositories.cosmos_user_repository import CosmosUserRepository
-        from repositories.cosmos_vote_repository import CosmosVoteRepository
-
-        UserRepository = CosmosUserRepository
-        PollRepository = CosmosPollRepository
-        VoteRepository = CosmosVoteRepository
-        AchievementRepository = CosmosAchievementRepository
+        from repositories.cosmos_achievement_repository import (
+            CosmosAchievementRepository as AchievementRepository,
+        )
+        from repositories.cosmos_poll_repository import (
+            CosmosPollRepository as PollRepository,
+        )
+        from repositories.cosmos_user_repository import (
+            CosmosUserRepository as UserRepository,
+        )
+        from repositories.cosmos_vote_repository import (
+            CosmosVoteRepository as VoteRepository,
+        )
     except ImportError as e:
         logger.warning(f"Cosmos repositories not available: {e}")
+        UserRepository = None  # type: ignore[misc,assignment]
+        PollRepository = None  # type: ignore[misc,assignment]
+        VoteRepository = None  # type: ignore[misc,assignment]
+        AchievementRepository = None  # type: ignore[misc,assignment]
+else:
+    UserRepository = None  # type: ignore[misc,assignment]
+    PollRepository = None  # type: ignore[misc,assignment]
+    VoteRepository = None  # type: ignore[misc,assignment]
+    AchievementRepository = None  # type: ignore[misc,assignment]

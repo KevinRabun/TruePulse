@@ -415,7 +415,11 @@ class CosmosAchievementRepository:
             ],
             partition_key=user_id,
         )
-        return int(results[0]) if results and results[0] else 0  # type: ignore[arg-type]
+        if results and results[0]:
+            result = results[0]
+            if isinstance(result, (int, float)):
+                return int(result)
+        return 0
 
     # ========================================================================
     # Leaderboard Operations

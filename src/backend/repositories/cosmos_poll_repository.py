@@ -681,11 +681,11 @@ class CosmosPollRepository:
             WHERE {base_condition}
         """
         total_votes_result = await query_items(POLLS_CONTAINER, total_votes_query)
-        total_votes: int = (
-            int(total_votes_result[0])  # type: ignore[arg-type]
-            if total_votes_result and total_votes_result[0] is not None
-            else 0
-        )
+        total_votes: int = 0
+        if total_votes_result and total_votes_result[0] is not None:
+            result = total_votes_result[0]
+            if isinstance(result, (int, float)):
+                total_votes = int(result)
 
         # AI generated vs manual
         ai_generated_query = f"""

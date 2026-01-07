@@ -137,9 +137,9 @@ class _StatsCache:
         expiry = self._computed_at + timedelta(hours=self._ttl_hours)
         return datetime.now(timezone.utc) <= expiry
 
-    def get(self) -> Optional[tuple[dict, datetime]]:
+    def get(self) -> tuple[dict, datetime] | None:
         """Get cached stats if valid."""
-        if self.is_valid():
+        if self.is_valid() and self._cached_stats is not None and self._computed_at is not None:
             return self._cached_stats, self._computed_at
         return None
 
