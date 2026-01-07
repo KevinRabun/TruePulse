@@ -30,6 +30,15 @@ param cosmosDnsZoneId string = ''
 @description('Principal ID for data plane RBAC access (Container App managed identity)')
 param dataPlanePrincipalId string = ''
 
+@description('Enable Customer Managed Keys (CMK) for encryption')
+param enableCMK bool = false
+
+@description('Key Vault resource ID for CMK')
+param keyVaultResourceId string = ''
+
+@description('CMK key name in Key Vault')
+param cmkKeyName string = ''
+
 // ============================================================================
 // Variables
 // ============================================================================
@@ -197,6 +206,9 @@ resource cosmosAccount 'Microsoft.DocumentDB/databaseAccounts@2024-05-15' = {
   location: location
   tags: tags
   kind: 'GlobalDocumentDB'
+  identity: enableCMK ? {
+    type: 'SystemAssigned'
+  } : null
   properties: {
     databaseAccountOfferType: 'Standard'
     // Enable Serverless capacity mode - pay per request, no provisioned throughput
@@ -219,8 +231,9 @@ resource cosmosAccount 'Microsoft.DocumentDB/databaseAccounts@2024-05-15' = {
     ]
     // Disable key-based authentication in favor of RBAC
     disableLocalAuth: true
-    // Enable public network access (we use private endpoints for production)
-    publicNetworkAccess: environmentName == 'dev' ? 'Enabled' : 'Disabled'
+    // SECURITY: Disable public network access for ALL environments
+    // Dev environments should use Azure VPN, Bastion, or emulator
+    publicNetworkAccess: 'Disabled'
     // Backup policy - continuous backup for point-in-time restore
     backupPolicy: {
       type: 'Continuous'
@@ -228,6 +241,8 @@ resource cosmosAccount 'Microsoft.DocumentDB/databaseAccounts@2024-05-15' = {
         tier: environmentName == 'prod' ? 'Continuous30Days' : 'Continuous7Days'
       }
     }
+    // Customer Managed Keys (CMK) for encryption at rest
+    keyVaultKeyUri: enableCMK && !empty(keyVaultResourceId) && !empty(cmkKeyName) ? '${reference(keyVaultResourceId, '2023-07-01').vaultUri}keys/${cmkKeyName}' : null
   }
 }
 
@@ -277,8 +292,22 @@ resource dataContributorRoleAssignment 'Microsoft.DocumentDB/databaseAccounts/sq
   }
 }
 
-// Private Endpoint (for staging/prod)
-resource privateEndpoint 'Microsoft.Network/privateEndpoints@2023-09-01' = if (environmentName != 'dev') {
+// Key Vault Crypto Service Encryption User role for CMK access
+// Allows Cosmos DB's managed identity to use the CMK for encryption
+var keyVaultCryptoServiceEncryptionUserRoleId = 'e147488a-f6f5-4113-8e2d-b22465e65bf6'
+resource keyVaultRoleAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = if (enableCMK && !empty(keyVaultResourceId)) {
+  name: guid(cosmosAccount.id, keyVaultResourceId, keyVaultCryptoServiceEncryptionUserRoleId)
+  scope: resourceGroup()
+  properties: {
+    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', keyVaultCryptoServiceEncryptionUserRoleId)
+    principalId: cosmosAccount.identity.principalId
+    principalType: 'ServicePrincipal'
+  }
+}
+
+// Private Endpoint (for all environments - public access is disabled)
+// Dev environment uses emulator locally, but Azure resources still need private endpoints
+resource privateEndpoint 'Microsoft.Network/privateEndpoints@2023-09-01' = {
   name: 'pe-${name}'
   location: location
   tags: tags
@@ -301,7 +330,7 @@ resource privateEndpoint 'Microsoft.Network/privateEndpoints@2023-09-01' = if (e
 }
 
 // Private DNS Zone Group (links to shared Cosmos DNS zone)
-resource privateDnsZoneGroup 'Microsoft.Network/privateEndpoints/privateDnsZoneGroups@2023-09-01' = if (environmentName != 'dev' && !empty(cosmosDnsZoneId)) {
+resource privateDnsZoneGroup 'Microsoft.Network/privateEndpoints/privateDnsZoneGroups@2023-09-01' = if (!empty(cosmosDnsZoneId)) {
   parent: privateEndpoint
   name: 'cosmos-dns-group'
   properties: {

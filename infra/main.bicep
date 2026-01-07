@@ -292,7 +292,14 @@ module cosmosDb 'modules/cosmosdb.bicep' = {
     cosmosDnsZoneId: sharedCosmosDnsZoneId
     // Data plane principal ID will be set after Container App deployment via separate role assignment
     dataPlanePrincipalId: ''
+    // Customer Managed Keys (CMK) for encryption
+    enableCMK: enableCMK
+    keyVaultResourceId: enableCMK ? keyVault.outputs.resourceId : ''
+    cmkKeyName: enableCMK ? keyVault.outputs.cosmosEncryptionKeyName : ''
   }
+  dependsOn: [
+    keyVault // Ensure Key Vault and CMK are created before Cosmos DB
+  ]
 }
 
 // Container Apps Environment - isolated compute per environment

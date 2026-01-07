@@ -140,6 +140,49 @@ resource storageEncryptionKey 'Microsoft.KeyVault/vaults/keys@2023-07-01' = if (
   dependsOn: [keyVault]
 }
 
+// CMK for Cosmos DB encryption (users, polls, votes, achievements)
+resource cosmosEncryptionKey 'Microsoft.KeyVault/vaults/keys@2023-07-01' = if (createEncryptionKeys) {
+  name: '${name}/cmk-cosmos'
+  properties: {
+    kty: 'RSA'
+    keySize: 4096
+    keyOps: [
+      'encrypt'
+      'decrypt'
+      'wrapKey'
+      'unwrapKey'
+    ]
+    attributes: {
+      enabled: true
+      exportable: false
+    }
+    rotationPolicy: {
+      lifetimeActions: [
+        {
+          action: {
+            type: 'rotate'
+          }
+          trigger: {
+            timeAfterCreate: 'P90D' // Rotate every 90 days
+          }
+        }
+        {
+          action: {
+            type: 'notify'
+          }
+          trigger: {
+            timeBeforeExpiry: 'P30D' // Notify 30 days before expiry
+          }
+        }
+      ]
+      attributes: {
+        expiryTime: 'P2Y' // Key expires after 2 years
+      }
+    }
+  }
+  dependsOn: [keyVault]
+}
+
 // ============================================================================
 // Secrets
 // ============================================================================
@@ -170,3 +213,5 @@ output uri string = keyVault.outputs.uri
 // Note: storageEncryptionKey.name returns 'vaultName/keyName', so we extract just the key name
 output storageEncryptionKeyName string = createEncryptionKeys ? 'cmk-storage' : ''
 output storageEncryptionKeyUri string = createEncryptionKeys ? storageEncryptionKey!.properties.keyUriWithVersion : ''
+output cosmosEncryptionKeyName string = createEncryptionKeys ? 'cmk-cosmos' : ''
+output cosmosEncryptionKeyUri string = createEncryptionKeys ? cosmosEncryptionKey!.properties.keyUriWithVersion : ''
