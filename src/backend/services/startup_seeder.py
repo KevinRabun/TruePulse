@@ -1395,6 +1395,9 @@ async def _seed_locations_cosmos() -> dict[str, tuple[int, int]]:
     This ensures location data is persisted and queryable without
     keeping the entire dataset in memory.
 
+    Optimization: Skips seeding if locations are already populated to
+    avoid long startup times (~5+ minutes for 150k+ cities).
+
     Returns dict with counts for each location type:
         {
             "countries": (inserted, updated),
@@ -1412,6 +1415,18 @@ async def _seed_locations_cosmos() -> dict[str, tuple[int, int]]:
 
     with open(LOCATIONS_DATA_PATH, encoding="utf-8") as f:
         location_data = json.load(f)
+
+    # Quick check: if we already have countries, skip full seeding
+    # This dramatically speeds up startup (avoids 150k+ city upserts)
+    existing_countries = await repo.get_all_countries()
+    expected_countries = len(location_data.get("countries", []))
+    if len(existing_countries) >= expected_countries:
+        logger.info(
+            "Location data already seeded, skipping",
+            existing_countries=len(existing_countries),
+            expected=expected_countries,
+        )
+        return {"countries": (0, 0), "states": (0, 0), "cities": (0, 0)}
 
     # Seed countries
     countries = location_data.get("countries", [])

@@ -1,0 +1,33 @@
+properties:
+  template:
+    containers:
+      - name: api
+        image: crtruepulseiflvvx.azurecr.io/truepulse-api:dev-74c4483
+        resources:
+          cpu: 0.5
+          memory: 1Gi
+        probes:
+          - type: Startup
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 10
+            failureThreshold: 30
+          - type: Liveness
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 0
+            periodSeconds: 10
+            timeoutSeconds: 10
+            failureThreshold: 5
+          - type: Readiness
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 0
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 5

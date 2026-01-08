@@ -1,0 +1,224 @@
+id: /subscriptions/72018561-f625-412e-9a7d-320bfdfda7ff/resourceGroups/rg-truepulse-dev/providers/Microsoft.App/containerapps/ca-truepulse-api-dev
+identity:
+  principalId: 3858548d-7b65-48b6-95df-51122140f914
+  tenantId: 33d60f86-6903-4609-971e-262ded473614
+  type: SystemAssigned, UserAssigned
+  userAssignedIdentities:
+    ? /subscriptions/72018561-f625-412e-9a7d-320bfdfda7ff/resourcegroups/rg-truepulse-dev/providers/Microsoft.ManagedIdentity/userAssignedIdentities/ca-truepulse-api-dev-identity
+    : clientId: 50c1e53e-d958-4179-adfa-0866bb2d654b
+      principalId: c430f32d-343e-4a9f-ba3a-d7d906d5bce4
+location: East US 2
+name: ca-truepulse-api-dev
+properties:
+  configuration:
+    activeRevisionsMode: Multiple
+    dapr: null
+    ingress:
+      additionalPortMappings: null
+      allowInsecure: true
+      clientCertificateMode: Ignore
+      corsPolicy:
+        allowCredentials: true
+        allowedHeaders:
+        - '*'
+        allowedMethods:
+        - GET
+        - POST
+        - PUT
+        - DELETE
+        - OPTIONS
+        allowedOrigins:
+        - https://dev.truepulse.net,https://www.dev.truepulse.net,https://truepulse.net,https://www.truepulse.net
+        exposeHeaders:
+        - X-Request-ID
+        maxAge: 86400
+      customDomains: null
+      exposedPort: 0
+      external: true
+      fqdn: ca-truepulse-api-dev.icyplant-c5249e64.eastus2.azurecontainerapps.io
+      ipSecurityRestrictions: null
+      stickySessions:
+        affinity: none
+      targetPort: 8000
+      traffic:
+      - label: label-1
+        latestRevision: true
+        weight: 100
+      transport: Http
+    maxInactiveRevisions: 0
+    registries:
+    - identity: /subscriptions/72018561-f625-412e-9a7d-320bfdfda7ff/resourceGroups/rg-truepulse-dev/providers/Microsoft.ManagedIdentity/userAssignedIdentities/ca-truepulse-api-dev-identity
+      passwordSecretRef: ''
+      server: crtruepulseiflvvx.azurecr.io
+      username: ''
+    secrets:
+    - identity: /subscriptions/72018561-f625-412e-9a7d-320bfdfda7ff/resourceGroups/rg-truepulse-dev/providers/Microsoft.ManagedIdentity/userAssignedIdentities/ca-truepulse-api-dev-identity
+      keyVaultUrl: https://kv-truepulse-dev-qsdhrx.vault.azure.net/secrets/vote-hash-secret
+      name: vote-hash-secret
+    - identity: /subscriptions/72018561-f625-412e-9a7d-320bfdfda7ff/resourceGroups/rg-truepulse-dev/providers/Microsoft.ManagedIdentity/userAssignedIdentities/ca-truepulse-api-dev-identity
+      keyVaultUrl: https://kv-truepulse-dev-qsdhrx.vault.azure.net/secrets/azure-openai-api-key
+      name: azure-openai-api-key
+    - identity: /subscriptions/72018561-f625-412e-9a7d-320bfdfda7ff/resourceGroups/rg-truepulse-dev/providers/Microsoft.ManagedIdentity/userAssignedIdentities/ca-truepulse-api-dev-identity
+      keyVaultUrl: https://kv-truepulse-dev-qsdhrx.vault.azure.net/secrets/communication-services-connection-string
+      name: communication-services-connection-string
+    - identity: /subscriptions/72018561-f625-412e-9a7d-320bfdfda7ff/resourceGroups/rg-truepulse-dev/providers/Microsoft.ManagedIdentity/userAssignedIdentities/ca-truepulse-api-dev-identity
+      keyVaultUrl: https://kv-truepulse-dev-qsdhrx.vault.azure.net/secrets/frontend-api-secret
+      name: frontend-api-secret
+    - identity: /subscriptions/72018561-f625-412e-9a7d-320bfdfda7ff/resourceGroups/rg-truepulse-dev/providers/Microsoft.ManagedIdentity/userAssignedIdentities/ca-truepulse-api-dev-identity
+      keyVaultUrl: https://kv-truepulse-dev-qsdhrx.vault.azure.net/secrets/jwt-secret-key
+      name: jwt-secret-key
+    - identity: /subscriptions/72018561-f625-412e-9a7d-320bfdfda7ff/resourceGroups/rg-truepulse-dev/providers/Microsoft.ManagedIdentity/userAssignedIdentities/ca-truepulse-api-dev-identity
+      keyVaultUrl: https://kv-truepulse-dev-qsdhrx.vault.azure.net/secrets/newsapi-org-key
+      name: newsapi-org-key
+    - identity: /subscriptions/72018561-f625-412e-9a7d-320bfdfda7ff/resourceGroups/rg-truepulse-dev/providers/Microsoft.ManagedIdentity/userAssignedIdentities/ca-truepulse-api-dev-identity
+      keyVaultUrl: https://kv-truepulse-dev-qsdhrx.vault.azure.net/secrets/newsdata-api-key
+      name: newsdata-api-key
+    service: null
+  customDomainVerificationId: 3851BBED35D58824A4A6CF3533186116A6ADBDFCA10BE95E9880C81AD3715B28
+  delegatedIdentities: []
+  environmentId: /subscriptions/72018561-f625-412e-9a7d-320bfdfda7ff/resourceGroups/rg-truepulse-dev/providers/Microsoft.App/managedEnvironments/cae-truepulse-dev
+  eventStreamEndpoint: https://eastus2.azurecontainerapps.dev/subscriptions/72018561-f625-412e-9a7d-320bfdfda7ff/resourceGroups/rg-truepulse-dev/containerApps/ca-truepulse-api-dev/eventstream
+  latestReadyRevisionName: ca-truepulse-api-dev--0000214
+  latestRevisionFqdn: ca-truepulse-api-dev--0000223.icyplant-c5249e64.eastus2.azurecontainerapps.io
+  latestRevisionName: ca-truepulse-api-dev--0000223
+  managedEnvironmentId: /subscriptions/72018561-f625-412e-9a7d-320bfdfda7ff/resourceGroups/rg-truepulse-dev/providers/Microsoft.App/managedEnvironments/cae-truepulse-dev
+  outboundIpAddresses:
+  - 20.97.130.219
+  - 20.69.200.68
+  - 52.167.135.54
+  - 52.184.149.238
+  - 52.179.250.88
+  - 52.184.149.147
+  - 52.184.198.180
+  - 52.184.138.179
+  - 52.179.253.112
+  - 52.184.190.79
+  - 52.184.141.185
+  - 52.184.151.206
+  - 20.97.132.38
+  - 4.153.163.131
+  - 20.36.242.179
+  - 20.36.243.222
+  - 20.36.243.227
+  - 20.36.243.208
+  - 128.85.230.186
+  - 4.153.163.156
+  - 20.36.242.169
+  - 4.153.163.201
+  - 20.36.244.19
+  - 20.97.133.137
+  - 20.36.244.21
+  - 20.36.243.201
+  - 128.85.220.176
+  - 128.85.212.114
+  - 135.18.214.171
+  - 20.85.91.213
+  - 128.85.239.223
+  - 4.153.23.192
+  - 4.153.23.210
+  - 4.153.23.204
+  - 20.94.122.99
+  - 4.153.23.173
+  - 20.94.122.65
+  - 20.94.122.133
+  - 20.94.122.111
+  - 20.94.122.70
+  - 20.94.122.101
+  - 20.1.250.250
+  - 20.1.251.135
+  - 20.7.131.26
+  - 20.7.130.240
+  - 20.7.131.54
+  - 20.7.131.60
+  - 20.7.131.34
+  - 20.7.131.59
+  - 20.7.131.44
+  - 20.7.131.5
+  - 20.7.131.39
+  - 20.7.131.50
+  - 20.1.251.104
+  - 172.200.51.234
+  - 172.200.52.27
+  - 172.200.51.44
+  - 172.200.51.235
+  - 172.200.51.243
+  - 172.200.51.45
+  - 172.200.51.191
+  - 172.200.51.242
+  - 172.200.52.26
+  - 172.200.51.190
+  - 20.1.251.2
+  - 4.153.75.54
+  - 172.193.97.218
+  - 68.220.18.20
+  - 172.193.72.214
+  - 20.161.102.207
+  - 130.213.148.50
+  - 68.220.243.198
+  - 13.68.118.203
+  - 13.68.119.127
+  - 52.184.147.35
+  - 52.184.147.9
+  - 20.94.111.32
+  - 20.94.110.46
+  - 68.220.145.179
+  provisioningState: Succeeded
+  runningStatus: Running
+  template:
+    containers:
+    - image: crtruepulseiflvvx.azurecr.io/truepulse-api:dev-74c4483
+      name: api
+      probes:
+      - failureThreshold: 5
+        httpGet:
+          path: /health
+          port: 8000
+        periodSeconds: 10
+        timeoutSeconds: 10
+        type: Liveness
+      - failureThreshold: 5
+        httpGet:
+          path: /health
+          port: 8000
+        periodSeconds: 10
+        timeoutSeconds: 5
+        type: Readiness
+      - failureThreshold: 30
+        httpGet:
+          path: /health
+          port: 8000
+        initialDelaySeconds: 10
+        periodSeconds: 10
+        timeoutSeconds: 10
+        type: Startup
+      resources:
+        cpu: 0.5
+        ephemeralStorage: 2Gi
+        memory: 1Gi
+    initContainers: null
+    revisionSuffix: ''
+    scale:
+      maxReplicas: 3
+      minReplicas: 1
+      rules:
+      - http:
+          metadata:
+            concurrentRequests: '50'
+        name: http-scaling
+    serviceBinds: null
+    terminationGracePeriodSeconds: null
+    volumes: null
+  workloadProfileName: Consumption
+resourceGroup: rg-truepulse-dev
+systemData:
+  createdAt: '2025-12-20T16:45:31.2920442'
+  createdBy: kevin.rabun@outlook.com
+  createdByType: User
+  lastModifiedAt: '2026-01-08T20:56:51.9370333'
+  lastModifiedBy: kevin.rabun@outlook.com
+  lastModifiedByType: User
+tags:
+  environment: dev
+  managedBy: bicep
+  project: TruePulse
+type: Microsoft.App/containerApps

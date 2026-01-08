@@ -1,0 +1,118 @@
+[
+  {
+    "name": "AZURE_STORAGE_ACCOUNT_NAME",
+    "value": "sttruepulsedevqsdhrx"
+  },
+  {
+    "name": "AZURE_STORAGE_TABLE_ENDPOINT",
+    "value": "https://sttruepulsedevqsdhrx.table.core.windows.net/"
+  },
+  {
+    "name": "JWT_SECRET_KEY",
+    "secretRef": "jwt-secret-key"
+  },
+  {
+    "name": "JWT_ALGORITHM",
+    "value": "HS256"
+  },
+  {
+    "name": "ACCESS_TOKEN_EXPIRE_MINUTES",
+    "value": "30"
+  },
+  {
+    "name": "VOTE_HASH_SECRET",
+    "secretRef": "vote-hash-secret"
+  },
+  {
+    "name": "AZURE_OPENAI_ENDPOINT",
+    "value": "https://aoai-truepulse-dev-qsdhrx.openai.azure.com/"
+  },
+  {
+    "name": "AZURE_OPENAI_DEPLOYMENT",
+    "value": "gpt-4o-mini"
+  },
+  {
+    "name": "AZURE_OPENAI_API_KEY",
+    "secretRef": "azure-openai-api-key"
+  },
+  {
+    "name": "AZURE_STORAGE_BLOB_URL",
+    "value": "https://sttruepulsedevqsdhrx.blob.core.windows.net/"
+  },
+  {
+    "name": "AZURE_COSMOS_ENDPOINT",
+    "value": "https://cosmos-truepulse-dev-qsdhrxv2.documents.azure.com:443/"
+  },
+  {
+    "name": "AZURE_COSMOS_DATABASE",
+    "value": "truepulse"
+  },
+  {
+    "name": "ENVIRONMENT",
+    "value": "dev"
+  },
+  {
+    "name": "LOG_LEVEL",
+    "value": "DEBUG"
+  },
+  {
+    "name": "AZURE_COMMUNICATION_SERVICE_NAME",
+    "value": "acs-truepulse-iflvvx"
+  },
+  {
+    "name": "AZURE_COMMUNICATION_CONNECTION_STRING",
+    "secretRef": "communication-services-connection-string"
+  },
+  {
+    "name": "AZURE_EMAIL_SERVICE_NAME",
+    "value": ""
+  },
+  {
+    "name": "AZURE_EMAIL_SENDER_ADDRESS",
+    "value": "DoNotReply@truepulse.net"
+  },
+  {
+    "name": "NEWSDATA_API_KEY",
+    "secretRef": "newsdata-api-key"
+  },
+  {
+    "name": "NEWSAPI_ORG_API_KEY",
+    "secretRef": "newsapi-org-key"
+  },
+  {
+    "name": "CORS_ORIGINS",
+    "value": "https://dev.truepulse.net,https://www.dev.truepulse.net,https://truepulse.net,https://www.truepulse.net"
+  },
+  {
+    "name": "ALLOWED_ORIGINS",
+    "value": "https://dev.truepulse.net,https://www.dev.truepulse.net,https://truepulse.net,https://www.truepulse.net"
+  },
+  {
+    "name": "FRONTEND_URL",
+    "value": "https://dev.truepulse.net"
+  },
+  {
+    "name": "FRONTEND_API_SECRET",
+    "secretRef": "frontend-api-secret"
+  },
+  {
+    "name": "ENFORCE_FRONTEND_ONLY",
+    "value": "false"
+  },
+  {
+    "name": "SECRET_KEY",
+    "secretRef": "jwt-secret-key"
+  },
+  {
+    "name": "WEBAUTHN_RP_ID",
+    "value": "dev.truepulse.net"
+  },
+  {
+    "name": "WEBAUTHN_RP_NAME",
+    "value": "TruePulse"
+  },
+  {
+    "name": "WEBAUTHN_ORIGIN",
+    "value": "https://dev.truepulse.net"
+  }
+]
