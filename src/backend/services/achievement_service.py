@@ -160,6 +160,12 @@ class AchievementService:
             "demo_education": ["education_level"],
             "demo_employment": ["employment_status"],
             "demo_political": ["political_leaning"],
+            "demo_marital": ["marital_status"],
+            "demo_religion": ["religious_affiliation"],
+            "demo_ethnicity": ["ethnicity"],
+            "demo_income": ["household_income"],
+            "demo_parental": ["parental_status"],
+            "demo_housing": ["housing_status"],
         }
 
         for achievement_id, required_fields in demo_map.items():
@@ -173,7 +179,7 @@ class AchievementService:
                     if newly_awarded:
                         awarded.append(achievement)
 
-        # Check profile_complete achievement
+        # Check profile_complete achievement (8+ basic fields)
         demo_count = 0
         for field in [
             "age_range",
@@ -192,6 +198,36 @@ class AchievementService:
 
         if demo_count >= 8:
             achievement = await self.achievement_repo.get_achievement("profile_complete")
+            if achievement:
+                newly_awarded = await self._try_award_achievement(user, achievement)
+                if newly_awarded:
+                    awarded.append(achievement)
+
+        # Check demo_complete_extended achievement (14+ fields)
+        extended_count = 0
+        for field in [
+            "age_range",
+            "gender",
+            "country",
+            "region",
+            "state_province",
+            "city",
+            "education_level",
+            "employment_status",
+            "industry",
+            "political_leaning",
+            "marital_status",
+            "religious_affiliation",
+            "ethnicity",
+            "household_income",
+            "parental_status",
+            "housing_status",
+        ]:
+            if getattr(user, field, None):
+                extended_count += 1
+
+        if extended_count >= 14:
+            achievement = await self.achievement_repo.get_achievement("demo_complete_extended")
             if achievement:
                 newly_awarded = await self._try_award_achievement(user, achievement)
                 if newly_awarded:
@@ -286,6 +322,85 @@ class AchievementService:
             points=points,
             description=description,
         )
+
+    async def check_and_award_pulse_achievements(self, user: UserDocument) -> list[AchievementDocument]:
+        """
+        Check and award pulse poll-related achievements.
+        Called after a user votes on a pulse poll.
+
+        Returns list of newly awarded achievements.
+        """
+        awarded = []
+        pulse_votes = user.pulse_polls_voted or 0
+        pulse_streak = user.pulse_poll_streak or 0
+
+        # Pulse vote count achievements
+        pulse_vote_achievements = [
+            ("pulse_first", 1),
+            ("pulse_10", 10),
+            ("pulse_30", 30),
+            ("pulse_100", 100),
+            ("pulse_365", 365),
+        ]
+
+        for achievement_id, target in pulse_vote_achievements:
+            if pulse_votes >= target:
+                achievement = await self.achievement_repo.get_achievement(achievement_id)
+                if achievement:
+                    newly_awarded = await self._try_award_achievement(user, achievement)
+                    if newly_awarded:
+                        awarded.append(achievement)
+
+        # Pulse streak achievements
+        pulse_streak_achievements = [
+            ("pulse_streak_7", 7),
+            ("pulse_streak_30", 30),
+            ("pulse_streak_90", 90),
+            ("pulse_streak_365", 365),
+        ]
+
+        for achievement_id, target in pulse_streak_achievements:
+            if pulse_streak >= target:
+                achievement = await self.achievement_repo.get_achievement(achievement_id)
+                if achievement:
+                    newly_awarded = await self._try_award_achievement(user, achievement)
+                    if newly_awarded:
+                        awarded.append(achievement)
+
+        return awarded
+
+    async def check_and_award_flash_achievements(self, user: UserDocument) -> list[AchievementDocument]:
+        """
+        Check and award flash poll-related achievements.
+        Called after a user votes on a flash poll.
+
+        Returns list of newly awarded achievements.
+        """
+        awarded = []
+        flash_votes = user.flash_polls_voted or 0
+
+        # Flash vote count achievements
+        flash_vote_achievements = [
+            ("flash_first", 1),
+            ("flash_10", 10),
+            ("flash_50", 50),
+            ("flash_100", 100),
+            ("flash_500", 500),
+        ]
+
+        for achievement_id, target in flash_vote_achievements:
+            if flash_votes >= target:
+                achievement = await self.achievement_repo.get_achievement(achievement_id)
+                if achievement:
+                    newly_awarded = await self._try_award_achievement(user, achievement)
+                    if newly_awarded:
+                        awarded.append(achievement)
+
+        # Note: Flash early bird, daily, and weekly achievements require
+        # additional tracking (time since poll opened, daily vote count)
+        # These would need additional user fields to track properly
+
+        return awarded
 
     async def check_and_award_verification_achievements(
         self,

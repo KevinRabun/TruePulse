@@ -280,6 +280,65 @@ class CosmosUserRepository:
         await self.update(user)
         return True
 
+    async def increment_pulse_poll_vote(self, user_id: str) -> bool:
+        """Increment the user's pulse poll vote count and update pulse streak."""
+        user = await self.get_by_id(user_id)
+        if not user:
+            return False
+
+        now = datetime.now(timezone.utc)
+        new_streak = self._calculate_pulse_streak(user.last_pulse_vote_date, user.pulse_poll_streak, now)
+
+        user.pulse_polls_voted += 1
+        user.last_pulse_vote_date = now
+        user.pulse_poll_streak = new_streak
+        user.longest_pulse_streak = max(user.longest_pulse_streak, new_streak)
+
+        await self.update(user)
+        return True
+
+    def _calculate_pulse_streak(
+        self,
+        last_pulse_vote: Optional[datetime],
+        current_streak: int,
+        now: datetime,
+    ) -> int:
+        """
+        Calculate the new pulse poll voting streak based on the last pulse vote.
+
+        Pulse polls are daily, so streak rules are:
+        - First pulse vote ever: streak = 1
+        - Voted on today's pulse already: streak unchanged
+        - Voted on yesterday's pulse: streak + 1
+        - More than 1 day gap: streak resets to 1
+        """
+        if last_pulse_vote is None:
+            return 1
+
+        if last_pulse_vote.tzinfo is None:
+            last_pulse_vote = last_pulse_vote.replace(tzinfo=timezone.utc)
+
+        last_vote_date = last_pulse_vote.date()
+        today_date = now.date()
+        days_since_last_vote = (today_date - last_vote_date).days
+
+        if days_since_last_vote == 0:
+            return max(current_streak, 1)
+        elif days_since_last_vote == 1:
+            return current_streak + 1
+        else:
+            return 1
+
+    async def increment_flash_poll_vote(self, user_id: str) -> bool:
+        """Increment the user's flash poll vote count."""
+        user = await self.get_by_id(user_id)
+        if not user:
+            return False
+
+        user.flash_polls_voted += 1
+        await self.update(user)
+        return True
+
     def _calculate_new_streak(
         self,
         last_vote_at: Optional[datetime],

@@ -660,6 +660,63 @@ async def track_share(
                             reference_id=achievement_id,
                         )
 
+    # Check platform-specific sharing achievements
+    platform_achievement_map = {
+        "twitter": "share_twitter",
+        "facebook": "share_facebook",
+        "linkedin": "share_linkedin",
+        "reddit": "share_reddit",
+        "whatsapp": "share_whatsapp",
+        "telegram": "share_telegram",
+    }
+
+    if platform in platform_achievement_map:
+        platform_achievement_id = platform_achievement_map[platform]
+        existing = await achievement_repo.get_user_achievement(user.id, platform_achievement_id)
+        if not existing or not existing.is_unlocked:
+            achievement = await achievement_repo.get_achievement(platform_achievement_id)
+            if achievement:
+                await achievement_repo.unlock_achievement(user.id, platform_achievement_id)
+                awarded_achievements.append(achievement)
+                if achievement.points_reward > 0:
+                    await user_repo.award_points(user.id, achievement.points_reward)
+                    await achievement_repo.record_points_transaction(
+                        user_id=user.id,
+                        action="achievement",
+                        points=achievement.points_reward,
+                        description=f"Unlocked: {achievement.name}",
+                        reference_type="achievement",
+                        reference_id=platform_achievement_id,
+                    )
+
+    # Check cross-platform champion achievement (shared to all 6 platforms)
+    social_platforms = ["twitter", "facebook", "linkedin", "reddit", "whatsapp", "telegram"]
+    unlocked_platforms = 0
+    for p in social_platforms:
+        platform_ach_id = platform_achievement_map.get(p)
+        if platform_ach_id:
+            existing = await achievement_repo.get_user_achievement(user.id, platform_ach_id)
+            if existing and existing.is_unlocked:
+                unlocked_platforms += 1
+
+    if unlocked_platforms >= 6:
+        existing = await achievement_repo.get_user_achievement(user.id, "share_all_platforms")
+        if not existing or not existing.is_unlocked:
+            achievement = await achievement_repo.get_achievement("share_all_platforms")
+            if achievement:
+                await achievement_repo.unlock_achievement(user.id, "share_all_platforms")
+                awarded_achievements.append(achievement)
+                if achievement.points_reward > 0:
+                    await user_repo.award_points(user.id, achievement.points_reward)
+                    await achievement_repo.record_points_transaction(
+                        user_id=user.id,
+                        action="achievement",
+                        points=achievement.points_reward,
+                        description=f"Unlocked: {achievement.name}",
+                        reference_type="achievement",
+                        reference_id="share_all_platforms",
+                    )
+
     # Calculate total points earned
     points_earned = share_points + sum(a.points_reward for a in awarded_achievements)
 

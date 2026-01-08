@@ -20,6 +20,7 @@ from schemas.user import (
     UserResponse,
     UserSettings,
 )
+from services.achievement_service import AchievementService
 
 router = APIRouter()
 
@@ -172,6 +173,7 @@ async def update_demographics(
     demographics: UserDemographics,
     current_user: Annotated[UserInDB, Depends(get_current_verified_user)],
     user_repo: CosmosUserRepository = Depends(get_user_repository),
+    achievement_repo: CosmosAchievementRepository = Depends(get_achievement_repository),
 ) -> DemographicsUpdateResponse:
     """
     Update demographic information.
@@ -243,9 +245,10 @@ async def update_demographics(
     updated_user = await user_repo.get_by_id(current_user.id)
     new_total_points = updated_user.total_points if updated_user else 0
 
-    # TODO: Migrate AchievementService to use Cosmos repositories
-    # Achievement checking for demographics is temporarily disabled pending migration
-    # Previously: achievement_service.check_and_award_demographic_achievements(updated_user, field)
+    # Check and award demographic achievements
+    if updated_user:
+        achievement_service = AchievementService(achievement_repo, user_repo)
+        await achievement_service.check_and_award_demographic_achievements(updated_user, "")
 
     return DemographicsUpdateResponse(
         demographics=demographics,

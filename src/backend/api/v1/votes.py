@@ -12,12 +12,15 @@ from fastapi import APIRouter, Depends, HTTPException, status
 
 from api.deps import get_current_verified_user
 from core.security import generate_vote_hash
-from models.cosmos_documents import PollStatus
+from models.cosmos_documents import PollStatus, PollType
+from repositories.cosmos_achievement_repository import CosmosAchievementRepository
 from repositories.cosmos_poll_repository import CosmosPollRepository
 from repositories.cosmos_user_repository import CosmosUserRepository
 from repositories.cosmos_vote_repository import CosmosVoteRepository
+from repositories.provider import get_achievement_repository
 from schemas.user import UserInDB
 from schemas.vote import VoteCreate, VoteResponse, VoteStatus
+from services.achievement_service import AchievementService
 
 router = APIRouter()
 
@@ -88,6 +91,7 @@ async def cast_vote(
     poll_repo: CosmosPollRepository = Depends(get_poll_repository),
     vote_repo: CosmosVoteRepository = Depends(get_vote_repository),
     user_repo: CosmosUserRepository = Depends(get_user_repository),
+    achievement_repo: CosmosAchievementRepository = Depends(get_achievement_repository),
 ) -> VoteResponse:
     """
     Cast a vote on a poll.
@@ -169,8 +173,24 @@ async def cast_vote(
     await user_repo.award_points(current_user.id, points_earned)
     await user_repo.increment_votes_cast(current_user.id)
 
-    # Note: Achievement checking and stats invalidation have been removed
-    # as they require separate Cosmos migration of AchievementService and StatsService
+    # Track pulse/flash poll votes for achievements
+    if poll.poll_type == PollType.PULSE:
+        await user_repo.increment_pulse_poll_vote(current_user.id)
+    elif poll.poll_type == PollType.FLASH:
+        await user_repo.increment_flash_poll_vote(current_user.id)
+
+    # Check and award voting and streak achievements
+    updated_user = await user_repo.get_by_id(current_user.id)
+    if updated_user:
+        achievement_service = AchievementService(achievement_repo, user_repo)
+        await achievement_service.check_and_award_voting_achievements(updated_user)
+        await achievement_service.check_and_award_streak_achievements(updated_user)
+
+        # Check pulse/flash poll achievements
+        if poll.poll_type == PollType.PULSE:
+            await achievement_service.check_and_award_pulse_achievements(updated_user)
+        elif poll.poll_type == PollType.FLASH:
+            await achievement_service.check_and_award_flash_achievements(updated_user)
 
     return VoteResponse(
         success=True,
