@@ -30,6 +30,21 @@ from models.cosmos_documents import (
 logger = logging.getLogger(__name__)
 
 
+def _to_cosmos_iso(dt: datetime) -> str:
+    """
+    Convert a datetime to ISO format compatible with Cosmos DB storage.
+
+    Cosmos DB stores datetimes with 'Z' suffix (via Pydantic model_dump),
+    but Python's isoformat() produces '+00:00' suffix. This function
+    ensures consistent format for query comparisons.
+    """
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    else:
+        dt = dt.astimezone(timezone.utc)
+    return dt.strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
 class CosmosUserRepository:
     """Repository for user operations using Cosmos DB."""
 
@@ -567,7 +582,7 @@ class CosmosUserRepository:
         from datetime import timedelta
 
         cutoff = datetime.now(timezone.utc) - timedelta(days=days)
-        cutoff_iso = cutoff.isoformat()
+        cutoff_iso = _to_cosmos_iso(cutoff)
 
         query = """
             SELECT VALUE COUNT(1) FROM c

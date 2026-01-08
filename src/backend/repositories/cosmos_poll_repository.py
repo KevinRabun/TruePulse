@@ -28,6 +28,30 @@ from models.cosmos_documents import (
 logger = logging.getLogger(__name__)
 
 
+def _to_cosmos_iso(dt: datetime) -> str:
+    """
+    Convert a datetime to ISO format compatible with Cosmos DB storage.
+
+    Cosmos DB stores datetimes with 'Z' suffix (via Pydantic model_dump),
+    but Python's isoformat() produces '+00:00' suffix. This function
+    ensures consistent format for query comparisons.
+
+    Args:
+        dt: A timezone-aware datetime object
+
+    Returns:
+        ISO format string with 'Z' suffix (e.g., '2026-01-08T12:00:00Z')
+    """
+    # Ensure UTC timezone
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    else:
+        dt = dt.astimezone(timezone.utc)
+
+    # Format with Z suffix to match Cosmos DB storage format
+    return dt.strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
 class CosmosPollRepository:
     """Repository for poll operations using Cosmos DB."""
 
@@ -44,7 +68,7 @@ class CosmosPollRepository:
 
     async def get_current_poll(self) -> Optional[PollDocument]:
         """Get the currently active poll."""
-        now = datetime.now(timezone.utc).isoformat()
+        now = _to_cosmos_iso(datetime.now(timezone.utc))
         query = """
             SELECT * FROM c
             WHERE c.status = @status
@@ -68,7 +92,7 @@ class CosmosPollRepository:
 
     async def get_previous_poll(self) -> Optional[PollDocument]:
         """Get the most recently closed poll."""
-        now = datetime.now(timezone.utc).isoformat()
+        now = _to_cosmos_iso(datetime.now(timezone.utc))
         query = """
             SELECT * FROM c
             WHERE c.status = @status
@@ -91,7 +115,7 @@ class CosmosPollRepository:
 
     async def get_upcoming_polls(self, limit: int = 5) -> list[PollDocument]:
         """Get polls scheduled for the future."""
-        now = datetime.now(timezone.utc).isoformat()
+        now = _to_cosmos_iso(datetime.now(timezone.utc))
         query = """
             SELECT * FROM c
             WHERE c.status = @status
@@ -291,7 +315,7 @@ class CosmosPollRepository:
     async def close_expired_polls(self) -> int:
         """Close all polls that have passed their end time."""
         now = datetime.now(timezone.utc)
-        now_iso = now.isoformat()
+        now_iso = _to_cosmos_iso(now)
 
         query = """
             SELECT * FROM c
@@ -324,7 +348,7 @@ class CosmosPollRepository:
 
     async def activate_scheduled_polls(self) -> int:
         """Activate polls that have reached their start time."""
-        now = datetime.now(timezone.utc).isoformat()
+        now = _to_cosmos_iso(datetime.now(timezone.utc))
 
         query = """
             SELECT * FROM c
@@ -361,7 +385,7 @@ class CosmosPollRepository:
 
     async def get_current_poll_by_type(self, poll_type: str) -> Optional[PollDocument]:
         """Get the currently active poll of a specific type."""
-        now = datetime.now(timezone.utc).isoformat()
+        now = _to_cosmos_iso(datetime.now(timezone.utc))
         query = """
             SELECT * FROM c
             WHERE c.status = @status
@@ -387,7 +411,7 @@ class CosmosPollRepository:
 
     async def get_previous_poll_by_type(self, poll_type: str) -> Optional[PollDocument]:
         """Get the most recently closed poll of a specific type."""
-        now = datetime.now(timezone.utc).isoformat()
+        now = _to_cosmos_iso(datetime.now(timezone.utc))
         query = """
             SELECT * FROM c
             WHERE c.status = @status
@@ -412,7 +436,7 @@ class CosmosPollRepository:
 
     async def get_upcoming_polls_by_type(self, poll_type: str, limit: int = 5) -> list[PollDocument]:
         """Get upcoming scheduled polls of a specific type."""
-        now = datetime.now(timezone.utc).isoformat()
+        now = _to_cosmos_iso(datetime.now(timezone.utc))
         query = """
             SELECT * FROM c
             WHERE c.status = @status
@@ -554,7 +578,7 @@ class CosmosPollRepository:
             "(NOT IS_DEFINED(c.document_type) OR c.document_type = null)",
         ]
         parameters: list[dict[str, Any]] = [
-            {"name": "@since", "value": since.isoformat()},
+            {"name": "@since", "value": _to_cosmos_iso(since)},
         ]
 
         if poll_type:
@@ -594,7 +618,7 @@ class CosmosPollRepository:
             "(NOT IS_DEFINED(c.document_type) OR c.document_type = null)",
         ]
         parameters: list[dict[str, Any]] = [
-            {"name": "@scheduled_start", "value": scheduled_start.isoformat()},
+            {"name": "@scheduled_start", "value": _to_cosmos_iso(scheduled_start)},
         ]
 
         if poll_type:

@@ -22,6 +22,21 @@ from models.cosmos_documents import VoteDocument
 logger = logging.getLogger(__name__)
 
 
+def _to_cosmos_iso(dt: datetime) -> str:
+    """
+    Convert a datetime to ISO format compatible with Cosmos DB storage.
+
+    Cosmos DB stores datetimes with 'Z' suffix (via Pydantic model_dump),
+    but Python's isoformat() produces '+00:00' suffix. This function
+    ensures consistent format for query comparisons.
+    """
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    else:
+        dt = dt.astimezone(timezone.utc)
+    return dt.strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
 class CosmosVoteRepository:
     """
     Repository for vote operations using Cosmos DB.
@@ -259,7 +274,7 @@ class CosmosVoteRepository:
             query,
             parameters=[
                 {"name": "@poll_id", "value": poll_id},
-                {"name": "@since", "value": since.isoformat()},
+                {"name": "@since", "value": _to_cosmos_iso(since)},
             ],
             partition_key=poll_id,
         )
