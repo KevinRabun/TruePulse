@@ -290,17 +290,17 @@ class AchievementService:
     async def check_and_award_verification_achievements(
         self,
         user: UserDocument,
-        verification_type: str,  # "email" or "phone"
+        verification_type: str,  # "email" or "passkey"
     ) -> list[AchievementDocument]:
         """
         Check and award verification-related achievements.
-        Called after a user verifies their email or phone.
+        Called after a user verifies their email or registers a passkey.
 
         Returns list of newly awarded achievements.
         """
         awarded = []
 
-        # Award specific verification achievement
+        # Award specific verification achievement for email
         if verification_type == "email":
             achievement = await self.achievement_repo.get_achievement("email_verified")
             if achievement:
@@ -308,8 +308,10 @@ class AchievementService:
                 if newly_awarded:
                     awarded.append(achievement)
 
-        # Check if fully verified (email verified is our only verification requirement now)
-        if user.email_verified:
+        # Check if fully verified (requires BOTH email verified AND at least one passkey)
+        # The user must have verified email AND registered at least one passkey
+        has_passkey = len(user.passkeys) > 0 if user.passkeys else False
+        if user.email_verified and has_passkey:
             achievement = await self.achievement_repo.get_achievement("fully_verified")
             if achievement:
                 newly_awarded = await self._try_award_achievement(user, achievement)

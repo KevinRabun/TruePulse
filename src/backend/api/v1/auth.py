@@ -24,6 +24,7 @@ from core.security import (
 from repositories.cosmos_user_repository import CosmosUserRepository
 from schemas.auth import RefreshTokenRequest, TokenResponse
 from schemas.user import UserCreate, UserResponse
+from services.achievement_service import AchievementService
 from services.email_service import get_email_service
 from services.redis_service import RedisService, get_redis_service
 
@@ -246,10 +247,8 @@ async def verify_email(
     await user_repo.update(user)
 
     # Award verification achievement
-    # TODO: Update achievement service to use Cosmos DB
-    # from services.achievement_service import AchievementService
-    # achievement_service = AchievementService()
-    # await achievement_service.check_and_award_verification_achievements(user, "email")
+    achievement_service = AchievementService()
+    await achievement_service.check_and_award_verification_achievements(user, "email")
 
     return {"message": "Email verified successfully"}
 

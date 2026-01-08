@@ -14,6 +14,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from api.deps import get_current_user, get_user_repository
 from repositories.cosmos_user_repository import CosmosUserRepository
 from schemas.user import UserInDB
+from services.achievement_service import AchievementService
 from services.passkey_service import (
     ChallengeExpiredError,
     PasskeyAuthenticationError,
@@ -210,6 +211,13 @@ async def verify_registration(
             credential_data=request.credential,  # Now a dict, not JSON string
             credential_name=request.credential_name,
         )
+
+        # Award verification achievement for passkey registration
+        # Refresh user to get latest state (especially email_verified status)
+        refreshed_user = await user_repo.get_by_id(current_user.id)
+        if refreshed_user:
+            achievement_service = AchievementService()
+            await achievement_service.check_and_award_verification_achievements(refreshed_user, "passkey")
 
         return {
             "success": True,
