@@ -475,11 +475,13 @@ class CosmosUserRepository:
         """
         # Use IS_DEFINED check to handle legacy documents where show_on_leaderboard
         # field doesn't exist (defaults to True per the UserDocument model)
+        # Check both null and undefined for deleted_at since the field may be
+        # explicitly set to null rather than being undefined
         query = """
             SELECT * FROM c
             WHERE c.is_active = true
               AND (c.show_on_leaderboard = true OR NOT IS_DEFINED(c.show_on_leaderboard))
-              AND NOT IS_DEFINED(c.deleted_at)
+              AND (c.deleted_at = null OR NOT IS_DEFINED(c.deleted_at))
             ORDER BY c.total_points DESC
             OFFSET @offset LIMIT @limit
         """
@@ -498,7 +500,7 @@ class CosmosUserRepository:
         query = """
             SELECT VALUE COUNT(1) FROM c
             WHERE c.is_active = true
-              AND NOT IS_DEFINED(c.deleted_at)
+              AND (c.deleted_at = null OR NOT IS_DEFINED(c.deleted_at))
         """
         return await query_count(USERS_CONTAINER, query)
 
@@ -542,7 +544,7 @@ class CosmosUserRepository:
         """
         conditions = [
             "c.is_active = true",
-            "NOT IS_DEFINED(c.deleted_at)",
+            "(c.deleted_at = null OR NOT IS_DEFINED(c.deleted_at))",
         ]
 
         if pulse_notifications:
@@ -570,7 +572,7 @@ class CosmosUserRepository:
         query = """
             SELECT VALUE COUNT(1) FROM c
             WHERE c.is_active = true
-              AND NOT IS_DEFINED(c.deleted_at)
+              AND (c.deleted_at = null OR NOT IS_DEFINED(c.deleted_at))
               AND c.last_login_at >= @cutoff
         """
         return await query_count(
@@ -589,7 +591,7 @@ class CosmosUserRepository:
             SELECT VALUE COUNT(1) FROM (
                 SELECT DISTINCT c.country FROM c
                 WHERE c.is_active = true
-                  AND NOT IS_DEFINED(c.deleted_at)
+                  AND (c.deleted_at = null OR NOT IS_DEFINED(c.deleted_at))
                   AND IS_DEFINED(c.country)
                   AND c.country != null
                   AND c.share_anonymous_demographics = true
