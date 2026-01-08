@@ -456,6 +456,7 @@ class PollScheduler:
                 scheduled_start=window_start,
                 scheduled_end=window_end,
                 source_event=poll_data.source_event if hasattr(poll_data, "source_event") else None,
+                source_event_url=poll_data.source_event_url if hasattr(poll_data, "source_event_url") else None,
                 is_featured=poll_type == "pulse",
                 ai_generated=True,
                 poll_type=poll_type,
