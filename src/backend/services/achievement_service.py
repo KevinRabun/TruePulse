@@ -15,9 +15,13 @@ from repositories.cosmos_user_repository import CosmosUserRepository
 class AchievementService:
     """Service for checking and awarding achievements using Cosmos DB."""
 
-    def __init__(self):
-        self.achievement_repo = CosmosAchievementRepository()
-        self.user_repo = CosmosUserRepository()
+    def __init__(
+        self,
+        achievement_repo: Optional[CosmosAchievementRepository] = None,
+        user_repo: Optional[CosmosUserRepository] = None,
+    ):
+        self.achievement_repo = achievement_repo or CosmosAchievementRepository()
+        self.user_repo = user_repo or CosmosUserRepository()
 
     async def check_and_award_voting_achievements(self, user: UserDocument) -> list[AchievementDocument]:
         """
