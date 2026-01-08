@@ -457,7 +457,7 @@ async def get_user_achievements_status(
 @router.get("/leaderboard", response_model=LeaderboardResponse)
 async def get_leaderboard(
     user_repo: CosmosUserRepository = Depends(get_user_repository),
-    period: str = Query("weekly", regex="^(daily|weekly|monthly|alltime)$"),
+    period: str = Query("weekly", pattern="^(daily|weekly|monthly|alltime)$"),
     page: int = Query(1, ge=1),
     per_page: int = Query(20, ge=1, le=100),
 ) -> LeaderboardResponse:
@@ -505,7 +505,7 @@ async def get_leaderboard(
 async def get_my_leaderboard_position(
     current_user: Annotated[UserInDB, Depends(get_current_active_user)],
     user_repo: CosmosUserRepository = Depends(get_user_repository),
-    period: str = Query("weekly", regex="^(daily|weekly|monthly|alltime)$"),
+    period: str = Query("weekly", pattern="^(daily|weekly|monthly|alltime)$"),
 ) -> LeaderboardEntry | None:
     """
     Get the current user's position on the leaderboard.

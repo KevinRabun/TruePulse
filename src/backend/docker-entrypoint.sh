@@ -52,5 +52,7 @@ if [ -n "$RUN_MIGRATION" ] && [ "$RUN_MIGRATION" != "none" ]; then
 fi
 
 # Start the main application
-echo "Starting uvicorn server..."
-exec uvicorn main:app --host 0.0.0.0 --port 8000 --workers 4
+# Use WEB_CONCURRENCY env var if set, otherwise default to 1 worker for limited memory
+WORKERS=${WEB_CONCURRENCY:-1}
+echo "Starting uvicorn server with $WORKERS workers..."
+exec uvicorn main:app --host 0.0.0.0 --port 8000 --workers $WORKERS
