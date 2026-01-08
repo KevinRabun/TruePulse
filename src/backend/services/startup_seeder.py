@@ -1,18 +1,25 @@
 """
 Startup seeder service.
 
-Safely ensures database has required seed data (achievements, etc.) on container startup.
+Safely ensures database has required seed data (achievements, locations, etc.) on container startup.
 Uses upsert logic to add missing records and update existing ones.
 
 Now uses Cosmos DB for data persistence.
 """
 
+import json
+from pathlib import Path
+
 import structlog
 
 from models.cosmos_documents import AchievementDocument, AchievementTier
 from repositories.cosmos_achievement_repository import CosmosAchievementRepository
+from repositories.cosmos_location_repository import CosmosLocationRepository
 
 logger = structlog.get_logger(__name__)
+
+# Location data file path
+LOCATIONS_DATA_PATH = Path(__file__).parent.parent / "data" / "locations.json"
 
 # =============================================================================
 # ACHIEVEMENT DEFINITIONS
@@ -1380,6 +1387,70 @@ async def _seed_achievements_cosmos() -> tuple[int, int]:
     return (inserted, updated)
 
 
+async def _seed_locations_cosmos() -> dict[str, tuple[int, int]]:
+    """
+    Seed locations (countries, states, cities) using Cosmos DB upsert.
+
+    Loads data from the static JSON file and upserts to Cosmos DB.
+    This ensures location data is persisted and queryable without
+    keeping the entire dataset in memory.
+
+    Returns dict with counts for each location type:
+        {
+            "countries": (inserted, updated),
+            "states": (inserted, updated),
+            "cities": (inserted, updated),
+        }
+    """
+    repo = CosmosLocationRepository()
+    results: dict[str, tuple[int, int]] = {}
+
+    # Load location data from JSON file
+    if not LOCATIONS_DATA_PATH.exists():
+        logger.warning("Locations data file not found", path=str(LOCATIONS_DATA_PATH))
+        return {"countries": (0, 0), "states": (0, 0), "cities": (0, 0)}
+
+    with open(LOCATIONS_DATA_PATH, encoding="utf-8") as f:
+        location_data = json.load(f)
+
+    # Seed countries
+    countries = location_data.get("countries", [])
+    countries_inserted, countries_updated = await repo.upsert_countries_bulk(countries)
+    results["countries"] = (countries_inserted, countries_updated)
+    logger.info(
+        "Countries seeded",
+        inserted=countries_inserted,
+        updated=countries_updated,
+        total=len(countries),
+    )
+
+    # Seed states
+    states = location_data.get("states", {})
+    states_inserted, states_updated = await repo.upsert_states_bulk(states)
+    results["states"] = (states_inserted, states_updated)
+    total_states = sum(len(s) for s in states.values())
+    logger.info(
+        "States seeded",
+        inserted=states_inserted,
+        updated=states_updated,
+        total=total_states,
+    )
+
+    # Seed cities
+    cities = location_data.get("cities", {})
+    cities_inserted, cities_updated = await repo.upsert_cities_bulk(cities)
+    results["cities"] = (cities_inserted, cities_updated)
+    total_cities = sum(len(c) for c in cities.values())
+    logger.info(
+        "Cities seeded",
+        inserted=cities_inserted,
+        updated=cities_updated,
+        total=total_cities,
+    )
+
+    return results
+
+
 async def seed_all() -> None:
     """
     Seed all required data at startup.
@@ -1398,10 +1469,19 @@ async def seed_all() -> None:
             total=len(ACHIEVEMENTS),
         )
 
+        # Seed locations
+        location_results = await _seed_locations_cosmos()
+        logger.info(
+            "Locations seeded",
+            countries=location_results.get("countries", (0, 0)),
+            states=location_results.get("states", (0, 0)),
+            cities=location_results.get("cities", (0, 0)),
+        )
+
         logger.info("Startup seeder completed successfully")
 
     except Exception as e:
         logger.exception("Startup seeder failed", error=str(e))
         # Don't raise - we don't want to prevent app startup
-        # The app can function without achievements, and they can be
+        # The app can function without achievements/locations, and they can be
         # manually seeded later via the migration workflow

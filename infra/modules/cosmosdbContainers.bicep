@@ -212,6 +212,25 @@ var containers = [
       ]
     }
   }
+  {
+    name: 'locations'
+    partitionKey: '/document_type'
+    uniqueKeys: []
+    indexingPolicy: {
+      indexingMode: 'consistent'
+      includedPaths: [
+        { path: '/code/?' }
+        { path: '/name/?' }
+        { path: '/country_code/?' }
+        { path: '/state_id/?' }
+        { path: '/city_id/?' }
+      ]
+      excludedPaths: [
+        { path: '/*' }
+        { path: '/_etag/?' }
+      ]
+    }
+  }
 ]
 
 // ============================================================================

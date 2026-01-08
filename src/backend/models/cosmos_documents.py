@@ -560,3 +560,50 @@ class LeaderboardSnapshotDocument(CosmosDocument):
     # Metadata
     total_users: int = 0
     created_at: datetime = Field(default_factory=lambda: datetime.utcnow())
+
+
+# ============================================================================
+# Location Documents
+# ============================================================================
+
+
+class CountryDocument(CosmosDocument):
+    """
+    Country document stored in the 'locations' container.
+
+    Partition key: /document_type
+    Uses a single partition for countries since they're a small set (250).
+    """
+
+    document_type: str = "country"
+    code: str  # ISO 3166-1 alpha-2 country code (e.g., "US", "GB")
+    name: str  # Full country name
+
+
+class StateDocument(CosmosDocument):
+    """
+    State/Province document stored in the 'locations' container.
+
+    Partition key: /document_type
+    Grouped by document_type for efficient querying by country.
+    """
+
+    document_type: str = "state"
+    state_id: int  # Unique numeric ID for the state
+    code: Optional[str] = None  # State code (e.g., "CA", "TX")
+    name: str  # Full state/province name
+    country_code: str  # ISO country code this state belongs to
+
+
+class CityDocument(CosmosDocument):
+    """
+    City document stored in the 'locations' container.
+
+    Partition key: /document_type
+    Grouped by document_type for efficient querying by state.
+    """
+
+    document_type: str = "city"
+    city_id: int  # Unique numeric ID for the city
+    name: str  # City name
+    state_id: int  # State ID this city belongs to
