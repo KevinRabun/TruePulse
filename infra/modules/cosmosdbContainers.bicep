@@ -32,6 +32,9 @@ var containers = [
         { path: '/username/?' }
         { path: '/is_active/?' }
         { path: '/created_at/?' }
+        { path: '/total_points/?' }
+        { path: '/show_on_leaderboard/?' }
+        { path: '/deleted_at/?' }
       ]
       excludedPaths: [
         { path: '/*' }
