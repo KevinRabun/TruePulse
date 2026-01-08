@@ -153,7 +153,7 @@ function ProfilePageContent() {
   }
 
   return (
-    <div className="min-h-screen bg-linear-to-br from-primary-50 via-white to-accent-50 dark:from-slate-900 dark:via-purple-900 dark:to-slate-900 py-12 px-4">
+    <div className="min-h-screen bg-linear-to-br from-primary-50 via-white to-accent-50 dark:from-slate-900 dark:via-purple-900 dark:to-slate-900 pt-8 pb-12 px-4">
       <div className="max-w-4xl mx-auto">
         {/* Back Button */}
         <Link
