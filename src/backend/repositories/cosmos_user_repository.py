@@ -473,10 +473,12 @@ class CosmosUserRepository:
 
         Note: Cross-partition query - use cached leaderboard snapshots for production.
         """
+        # Use IS_DEFINED check to handle legacy documents where show_on_leaderboard
+        # field doesn't exist (defaults to True per the UserDocument model)
         query = """
             SELECT * FROM c
             WHERE c.is_active = true
-              AND c.show_on_leaderboard = true
+              AND (c.show_on_leaderboard = true OR NOT IS_DEFINED(c.show_on_leaderboard))
               AND NOT IS_DEFINED(c.deleted_at)
             ORDER BY c.total_points DESC
             OFFSET @offset LIMIT @limit

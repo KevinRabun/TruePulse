@@ -186,3 +186,27 @@ class TestUserAwardPoints:
         user.level = 2
 
         assert user.level == 2
+
+    def test_show_on_leaderboard_defaults_to_true(self) -> None:
+        """Test that show_on_leaderboard defaults to True for new users."""
+        user = UserDocument(
+            id=str(uuid.uuid4()),
+            email="test@example.com",
+            username="testuser",
+        )
+
+        # show_on_leaderboard should default to True
+        assert user.show_on_leaderboard is True
+
+    def test_show_on_leaderboard_is_serialized(self) -> None:
+        """Test that show_on_leaderboard is included in JSON serialization."""
+        user = UserDocument(
+            id=str(uuid.uuid4()),
+            email="test@example.com",
+            username="testuser",
+        )
+
+        # When serialized to JSON for Cosmos DB, the field should be present
+        user_dict = user.model_dump(mode="json")
+        assert "show_on_leaderboard" in user_dict
+        assert user_dict["show_on_leaderboard"] is True
