@@ -266,7 +266,6 @@ function ProfilePageContent() {
           {[
             { id: 'overview', label: 'Overview' },
             { id: 'achievements', label: 'Achievements' },
-            { id: 'history', label: 'Voting History' },
             { id: 'settings', label: 'Settings', icon: <CogIcon className="h-4 w-4" /> },
           ].map((tab) => (
             <button
@@ -298,21 +297,32 @@ function ProfilePageContent() {
               exit={{ opacity: 0, y: -20 }}
               className="grid md:grid-cols-2 gap-6"
             >
-              {/* Recent Activity */}
+              {/* Voting Stats */}
               <div className="bg-white dark:bg-slate-800/50 rounded-xl border border-gray-200 dark:border-slate-700/50 p-6">
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Recent Activity</h3>
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Voting Stats</h3>
                 <div className="space-y-4">
-                  {profile.recent_votes?.slice(0, 5).map((vote, index) => (
-                    <div key={index} className="flex items-center gap-3">
-                      <div className="w-2 h-2 rounded-full bg-primary-500 dark:bg-cyan-400"></div>
-                      <div className="flex-1">
-                        <p className="text-gray-900 dark:text-white text-sm">{vote.poll_question}</p>
-                        <p className="text-gray-500 dark:text-slate-500 text-xs">{new Date(vote.voted_at).toLocaleDateString()}</p>
-                      </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-gray-600 dark:text-slate-400">Total Votes Cast</span>
+                    <span className="text-gray-900 dark:text-white font-semibold">{profile.total_votes}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-gray-600 dark:text-slate-400">Current Streak</span>
+                    <span className="text-gray-900 dark:text-white font-semibold">{profile.current_streak} days</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-gray-600 dark:text-slate-400">Longest Streak</span>
+                    <span className="text-gray-900 dark:text-white font-semibold">{profile.longest_streak} days</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-gray-600 dark:text-slate-400">Achievements Unlocked</span>
+                    <span className="text-gray-900 dark:text-white font-semibold">{profile.achievements_count}</span>
+                  </div>
+                  <div className="mt-4 p-3 bg-gray-50 dark:bg-slate-900/30 rounded-lg">
+                    <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-slate-400">
+                      <LockClosedIcon className="h-4 w-4" />
+                      <span>Your individual votes are kept private</span>
                     </div>
-                  )) || (
-                    <p className="text-gray-600 dark:text-slate-400 text-sm">No recent activity</p>
-                  )}
+                  </div>
                 </div>
               </div>
 
@@ -434,48 +444,6 @@ function ProfilePageContent() {
                   Complete actions to earn achievements!
                 </p>
               )}
-            </motion.div>
-          )}
-
-          {activeTab === 'history' && (
-            <motion.div
-              key="history"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -20 }}
-              className="bg-white dark:bg-slate-800/50 rounded-xl border border-gray-200 dark:border-slate-700/50 p-6"
-            >
-              <div className="flex items-center justify-between mb-6">
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Voting History</h3>
-                <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-slate-400">
-                  <LockClosedIcon className="h-4 w-4" />
-                  <span>Your votes are private</span>
-                </div>
-              </div>
-              <div className="space-y-3">
-                {profile.recent_votes?.map((vote, index) => (
-                  <div
-                    key={index}
-                    className="flex items-center gap-4 p-4 bg-gray-50 dark:bg-slate-900/30 rounded-xl hover:bg-gray-100 dark:hover:bg-slate-900/50 transition-colors"
-                  >
-                    <div className="flex-1">
-                      <Link href={`/poll?id=${vote.poll_id}`} className="text-gray-900 dark:text-white hover:text-primary-600 dark:hover:text-cyan-400 transition-colors">
-                        {vote.poll_question}
-                      </Link>
-                      <p className="text-sm text-gray-500 dark:text-slate-500">
-                        {new Date(vote.voted_at).toLocaleDateString()} at {new Date(vote.voted_at).toLocaleTimeString()}
-                      </p>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-sm text-gray-500 dark:text-slate-400">+10 pts</p>
-                    </div>
-                  </div>
-                )) || (
-                  <p className="text-center text-gray-600 dark:text-slate-400 py-8">
-                    No voting history yet. Start participating in polls!
-                  </p>
-                )}
-              </div>
             </motion.div>
           )}
 
