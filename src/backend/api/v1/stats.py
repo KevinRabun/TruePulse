@@ -219,10 +219,9 @@ async def get_platform_stats(
     # Count active users using repository
     active_users = await user_repo.count_active_users()
 
-    # Note: total_users and countries_represented require additional repository methods
-    # For now, use active_users as a proxy or implement additional methods
+    # Count total users and unique countries
     total_users = active_users  # TODO: Add count_total_users() to CosmosUserRepository
-    countries_represented = 0  # TODO: Add count_countries() to CosmosUserRepository
+    countries_represented = await user_repo.count_unique_countries()
 
     # Build formatted stats
     formatted = FormattedStats(
