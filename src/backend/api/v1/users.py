@@ -460,7 +460,7 @@ async def export_user_data(
             {
                 "achievement_id": a.achievement_id,
                 "progress": a.progress,
-                "unlocked": a.unlocked,
+                "unlocked": a.is_unlocked,
                 "unlocked_at": a.unlocked_at.isoformat() + "Z" if a.unlocked_at else None,
             }
             for a in user_achievements
