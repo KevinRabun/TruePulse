@@ -7,7 +7,7 @@ Manages scheduled background tasks using APScheduler:
 - Cleanup tasks
 
 This runs in-process with the FastAPI application.
-Uses Redis-based distributed locks to coordinate across multiple replicas.
+Uses Azure Table Storage distributed locks to coordinate across multiple replicas.
 Now uses Cosmos DB via repositories.
 """
 
@@ -20,7 +20,7 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
 from apscheduler.triggers.interval import IntervalTrigger
 
-from services.redis_service import RedisService
+from services.token_cache_service import TokenCacheService
 
 logger = structlog.get_logger(__name__)
 
@@ -32,17 +32,17 @@ LOCK_POLL_GENERATION = "lock:poll_generation"
 _scheduler: AsyncIOScheduler | None = None
 
 
-class RedisDistributedLock:
-    """Redis-based distributed lock for coordinating across replicas."""
+class TableStorageDistributedLock:
+    """Azure Table Storage distributed lock for coordinating across replicas."""
 
-    def __init__(self, redis_service: RedisService):
-        self.redis = redis_service
+    def __init__(self, token_cache_service: TokenCacheService):
+        self.token_cache = token_cache_service
         self.instance_id = f"{socket.gethostname()}:{id(self)}"
 
     @asynccontextmanager
     async def acquire_lock(self, lock_name: str, timeout_seconds: int = 300):
         """
-        Acquire a distributed lock using Redis.
+        Acquire a distributed lock using Azure Table Storage.
 
         Args:
             lock_name: Unique name for the lock
@@ -52,7 +52,7 @@ class RedisDistributedLock:
             True if lock acquired, False if another instance holds it
         """
         # Try to acquire lock by setting if not exists
-        existing = await self.redis.cache_get(lock_name)
+        existing = await self.token_cache.cache_get(lock_name)
         if existing is not None:
             # Lock exists, another instance has it
             logger.debug(f"Lock {lock_name} held by another instance")
@@ -60,15 +60,15 @@ class RedisDistributedLock:
             return
 
         # Set the lock with TTL
-        await self.redis.cache_set(lock_name, self.instance_id, timeout_seconds)
+        await self.token_cache.cache_set(lock_name, self.instance_id, timeout_seconds)
 
         try:
             yield True
         finally:
             # Release the lock - only if we still own it
-            current_holder = await self.redis.cache_get(lock_name)
+            current_holder = await self.token_cache.cache_get(lock_name)
             if current_holder == self.instance_id:
-                await self.redis.cache_delete(lock_name)
+                await self.token_cache.cache_delete(lock_name)
                 logger.debug(f"Released lock {lock_name}")
 
 
@@ -82,16 +82,16 @@ async def poll_rotation_job() -> None:
     3. Generates new polls from current events if needed
     4. Sends notifications for newly activated polls
 
-    Uses Redis-based distributed locking to ensure only one replica runs at a time.
+    Uses Azure Table Storage distributed locking to ensure only one replica runs at a time.
     """
     from services.poll_scheduler import PollScheduler
 
     logger.info("Poll rotation job triggered, attempting to acquire lock...")
 
     try:
-        redis_service = RedisService()
-        await redis_service.initialize()
-        lock_manager = RedisDistributedLock(redis_service)
+        token_cache_service = TokenCacheService()
+        await token_cache_service.initialize()
+        lock_manager = TableStorageDistributedLock(token_cache_service)
 
         async with lock_manager.acquire_lock(LOCK_POLL_ROTATION, timeout_seconds=300) as acquired:
             if not acquired:
@@ -145,16 +145,16 @@ async def generate_polls_job() -> None:
     Background job to generate polls from current events.
 
     Runs periodically to ensure there are always upcoming polls scheduled.
-    Uses Redis-based distributed locking to ensure only one replica runs at a time.
+    Uses Azure Table Storage distributed locking to ensure only one replica runs at a time.
     """
     from services.poll_scheduler import PollScheduler
 
     logger.info("Poll generation job triggered, attempting to acquire lock...")
 
     try:
-        redis_service = RedisService()
-        await redis_service.initialize()
-        lock_manager = RedisDistributedLock(redis_service)
+        token_cache_service = TokenCacheService()
+        await token_cache_service.initialize()
+        lock_manager = TableStorageDistributedLock(token_cache_service)
 
         async with lock_manager.acquire_lock(LOCK_POLL_GENERATION, timeout_seconds=600) as acquired:
             if not acquired:
@@ -187,18 +187,18 @@ async def cleanup_locks_job() -> None:
     Background job to clean up expired cache entries.
 
     Runs periodically to release memory from expired in-memory cache entries.
-    Note: Redis/Azure Tables entries automatically expire via TTL.
+    Note: Azure Table Storage entries automatically expire via TTL.
     """
     logger.debug("Running cache cleanup job...")
 
     try:
-        redis_service = RedisService()
+        token_cache_service = TokenCacheService()
         # Clean up expired entries from in-memory cache
         now = __import__("datetime").datetime.now(__import__("datetime").timezone.utc)
-        expired_keys = [k for k, (_, exp) in list(redis_service._in_memory_cache.items()) if exp < now]
+        expired_keys = [k for k, (_, exp) in list(token_cache_service._in_memory_cache.items()) if exp < now]
         for key in expired_keys:
-            if key in redis_service._in_memory_cache:
-                del redis_service._in_memory_cache[key]
+            if key in token_cache_service._in_memory_cache:
+                del token_cache_service._in_memory_cache[key]
 
         if expired_keys:
             logger.info(f"Cleaned up {len(expired_keys)} expired cache entries")

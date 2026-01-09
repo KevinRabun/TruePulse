@@ -2,6 +2,7 @@
 User profile and settings endpoints.
 """
 
+from datetime import datetime
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -340,3 +341,142 @@ async def delete_account(
     await user_repo.soft_delete(current_user.id)
 
     return {"message": "Account deleted successfully"}
+
+
+@router.get("/me/export")
+async def export_user_data(
+    current_user: Annotated[UserInDB, Depends(get_current_verified_user)],
+    user_repo: CosmosUserRepository = Depends(get_user_repository),
+    achievement_repo: CosmosAchievementRepository = Depends(get_achievement_repository),
+) -> dict:
+    """
+    Export all user data in a portable format.
+
+    GDPR Article 20 - Right to Data Portability:
+    Users have the right to receive their personal data in a structured,
+    commonly used, and machine-readable format.
+
+    Returns:
+        JSON object containing all user data including:
+        - Profile information
+        - Settings
+        - Demographics (if provided)
+        - Gamification stats
+        - Achievement progress
+        - Passkey metadata (not credentials)
+        - Account timestamps
+
+    Note: Vote history is not included as votes are stored anonymously
+    without user_id linkage to protect ballot secrecy.
+    """
+    # Get full user document from repository
+    user_doc = await user_repo.get_by_id(current_user.id)
+    if not user_doc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found",
+        )
+
+    # Get user achievements
+    user_achievements = await achievement_repo.get_user_achievements(
+        user_id=current_user.id,
+        unlocked_only=False,  # Include all progress
+    )
+
+    # Build export data structure
+    export_data = {
+        "export_info": {
+            "format_version": "1.0",
+            "exported_at": datetime.utcnow().isoformat() + "Z",
+            "service": "TruePulse",
+            "gdpr_article": "Article 20 - Right to Data Portability",
+        },
+        "profile": {
+            "id": user_doc.id,
+            "email": user_doc.email,
+            "username": user_doc.username,
+            "display_name": user_doc.display_name,
+            "bio": getattr(user_doc, "bio", None),
+            "avatar_url": getattr(user_doc, "avatar_url", None),
+            "is_active": user_doc.is_active,
+            "is_verified": user_doc.is_verified,
+            "email_verified": user_doc.email_verified,
+        },
+        "demographics": {
+            "age_range": user_doc.age_range,
+            "gender": user_doc.gender,
+            "country": user_doc.country,
+            "state_province": getattr(user_doc, "state_province", None),
+            "city": getattr(user_doc, "city", None),
+            "education_level": getattr(user_doc, "education_level", None),
+            "employment_status": getattr(user_doc, "employment_status", None),
+            "industry": getattr(user_doc, "industry", None),
+            "political_leaning": getattr(user_doc, "political_leaning", None),
+            "marital_status": getattr(user_doc, "marital_status", None),
+            "religious_affiliation": getattr(user_doc, "religious_affiliation", None),
+            "ethnicity": getattr(user_doc, "ethnicity", None),
+            "household_income": getattr(user_doc, "household_income", None),
+            "parental_status": getattr(user_doc, "parental_status", None),
+            "housing_status": getattr(user_doc, "housing_status", None),
+            "consent_timestamp": getattr(user_doc, "demographics_consent_at", None),
+            "consent_version": getattr(user_doc, "demographics_consent_version", None),
+        },
+        "gamification": {
+            "total_points": user_doc.total_points,
+            "level": user_doc.level,
+            "current_streak": user_doc.current_streak,
+            "longest_streak": user_doc.longest_streak,
+            "votes_cast": user_doc.votes_cast,
+            "total_shares": getattr(user_doc, "total_shares", 0),
+            "pulse_polls_voted": getattr(user_doc, "pulse_polls_voted", 0),
+            "flash_polls_voted": getattr(user_doc, "flash_polls_voted", 0),
+            "pulse_poll_streak": getattr(user_doc, "pulse_poll_streak", 0),
+            "longest_pulse_streak": getattr(user_doc, "longest_pulse_streak", 0),
+        },
+        "settings": {
+            "email_notifications": getattr(user_doc, "email_notifications", True),
+            "push_notifications": getattr(user_doc, "push_notifications", False),
+            "daily_poll_reminder": getattr(user_doc, "daily_poll_reminder", True),
+            "show_on_leaderboard": getattr(user_doc, "show_on_leaderboard", True),
+            "share_anonymous_demographics": getattr(user_doc, "share_anonymous_demographics", True),
+            "theme_preference": getattr(user_doc, "theme_preference", "system"),
+            "pulse_poll_notifications": getattr(user_doc, "pulse_poll_notifications", True),
+            "flash_poll_notifications": getattr(user_doc, "flash_poll_notifications", True),
+            "flash_polls_per_day": getattr(user_doc, "flash_polls_per_day", 5),
+        },
+        "passkeys": [
+            {
+                "id": pk.id,
+                "device_name": pk.device_name,
+                "device_type": pk.device_type,
+                "created_at": pk.created_at.isoformat() + "Z" if pk.created_at else None,
+                "last_used_at": pk.last_used_at.isoformat() + "Z" if pk.last_used_at else None,
+                "is_active": pk.is_active,
+                # Note: credential_id and public_key are NOT exported for security
+            }
+            for pk in getattr(user_doc, "passkeys", [])
+        ],
+        "achievements": [
+            {
+                "achievement_id": a.achievement_id,
+                "progress": a.progress,
+                "unlocked": a.unlocked,
+                "unlocked_at": a.unlocked_at.isoformat() + "Z" if a.unlocked_at else None,
+            }
+            for a in user_achievements
+        ],
+        "timestamps": {
+            "created_at": user_doc.created_at.isoformat() + "Z" if user_doc.created_at else None,
+            "updated_at": user_doc.updated_at.isoformat() + "Z" if user_doc.updated_at else None,
+            "last_login_at": user_doc.last_login_at.isoformat() + "Z" if user_doc.last_login_at else None,
+            "last_vote_at": getattr(user_doc, "last_vote_at", None),
+        },
+        "privacy_notice": {
+            "vote_data": "Your individual votes are stored anonymously using cryptographic hashes. "
+            "They cannot be linked to your identity or included in this export to protect ballot secrecy.",
+            "deletion": "You can delete your account at any time via DELETE /api/v1/users/me. "
+            "This will remove all personal data but anonymous vote hashes will be retained.",
+        },
+    }
+
+    return export_data

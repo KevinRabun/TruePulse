@@ -60,13 +60,13 @@ export default function PrivacyPolicyPage() {
               </p>
               <ul className="list-disc pl-6 text-gray-600 dark:text-gray-400 mt-2">
                 <li>Email address (for account verification and recovery)</li>
-                <li>
-                  <strong>Phone number (required)</strong> - Used for SMS verification to confirm your identity 
-                  and prevent fraudulent accounts. This is mandatory to ensure our &quot;one person = one vote&quot; 
-                  policy. We do not use your phone number for marketing purposes.
-                </li>
                 <li>Display name (can be a pseudonym)</li>
-                <li>Password (stored using industry-standard encryption)</li>
+                <li>
+                  <strong>Passkey authentication</strong> - We use modern passkey (WebAuthn/FIDO2) 
+                  authentication instead of passwords. Your passkey is stored securely on your device 
+                  and only a public key is stored on our servers. This provides phishing-resistant, 
+                  passwordless authentication that is more secure than traditional passwords.
+                </li>
               </ul>
 
               <h3 className="text-xl font-semibold text-gray-900 dark:text-white mt-6 mb-3">

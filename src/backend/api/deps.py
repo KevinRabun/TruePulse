@@ -18,7 +18,7 @@ from core.security import decode_token
 from models.cosmos_documents import UserDocument
 from repositories.cosmos_user_repository import CosmosUserRepository
 from schemas.user import UserInDB
-from services.redis_service import RedisService, get_redis_service
+from services.token_cache_service import TokenCacheService, get_token_cache_service
 
 logger = structlog.get_logger(__name__)
 
@@ -75,7 +75,7 @@ def _user_doc_to_schema(user: UserDocument) -> UserInDB:
 async def get_current_user(
     credentials: Annotated[HTTPAuthorizationCredentials, Depends(security)],
     user_repo: CosmosUserRepository = Depends(get_user_repository),
-    token_service: RedisService = Depends(get_redis_service),
+    token_service: TokenCacheService = Depends(get_token_cache_service),
 ) -> UserInDB:
     """
     Extract and validate the current user from the JWT token.
@@ -224,8 +224,8 @@ class RateLimiter:
     """
     Rate limiter dependency for API endpoints.
 
-    Uses Redis sliding window algorithm for distributed rate limiting.
-    Falls back to allowing requests if Redis is unavailable.
+    Uses Azure Table Storage sliding window algorithm for distributed rate limiting.
+    Falls back to allowing requests if storage is unavailable.
     """
 
     def __init__(
@@ -239,7 +239,7 @@ class RateLimiter:
     async def __call__(
         self,
         request: Request,
-        redis: RedisService = Depends(get_redis_service),
+        token_cache: TokenCacheService = Depends(get_token_cache_service),
     ) -> None:
         """
         Check rate limit for the current request.
@@ -250,7 +250,7 @@ class RateLimiter:
         identifier = self._get_identifier(request)
         key = f"{self.key_prefix}:{identifier}"
 
-        is_allowed, remaining = await redis.check_rate_limit(
+        is_allowed, remaining = await token_cache.check_rate_limit(
             identifier=key,
             limit=self.requests_per_minute,
             window_seconds=60,

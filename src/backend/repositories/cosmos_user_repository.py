@@ -444,11 +444,54 @@ class CosmosUserRepository:
         household_income: Optional[str] = None,
         parental_status: Optional[str] = None,
         housing_status: Optional[str] = None,
+        record_consent: bool = True,
     ) -> Optional[UserDocument]:
-        """Update user demographics."""
+        """
+        Update user demographics.
+
+        Args:
+            user_id: The user's ID
+            age_range: User's age range
+            gender: User's gender
+            country: User's country
+            state_province: User's state/province
+            city: User's city
+            education_level: User's education level
+            employment_status: User's employment status
+            industry: User's industry
+            political_leaning: User's political leaning
+            marital_status: User's marital status
+            religious_affiliation: User's religious affiliation
+            ethnicity: User's ethnicity
+            household_income: User's household income
+            parental_status: User's parental status
+            housing_status: User's housing status
+            record_consent: If True, records consent timestamp for GDPR compliance
+        """
         user = await self.get_by_id(user_id)
         if not user:
             return None
+
+        # Track if any demographics are being set for the first time
+        is_first_demographics = not any(
+            [
+                user.age_range,
+                user.gender,
+                user.country,
+                user.state_province,
+                user.city,
+                user.education_level,
+                user.employment_status,
+                user.industry,
+                user.political_leaning,
+                user.marital_status,
+                user.religious_affiliation,
+                user.ethnicity,
+                user.household_income,
+                user.parental_status,
+                user.housing_status,
+            ]
+        )
 
         if age_range is not None:
             user.age_range = age_range
@@ -480,6 +523,13 @@ class CosmosUserRepository:
             user.parental_status = parental_status
         if housing_status is not None:
             user.housing_status = housing_status
+
+        # Record consent timestamp if this is first time providing demographics (GDPR compliance)
+        if record_consent and is_first_demographics:
+            from datetime import datetime
+
+            user.demographics_consent_at = datetime.utcnow()
+            user.demographics_consent_version = "1.0"
 
         return await self.update(user)
 

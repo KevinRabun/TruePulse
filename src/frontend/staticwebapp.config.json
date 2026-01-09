@@ -1,4 +1,6 @@
 {
+  "$schema": "https://json.schemastore.org/staticwebapp.config.json",
+  "_comment": "CSP Note: 'unsafe-eval' is required for Google Ads (pagead2.googlesyndication.com) which uses eval() for ad rendering. Cloudflare Turnstile also requires it for CAPTCHA challenges. This is a known limitation of these third-party services.",
   "navigationFallback": {
     "rewrite": "/index.html",
     "exclude": ["/_next/*", "/api/*", "*.{css,scss,js,png,gif,ico,jpg,svg,json,woff,woff2,ttf,eot}"]

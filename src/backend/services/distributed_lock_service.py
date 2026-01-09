@@ -4,7 +4,7 @@ Distributed Lock Service
 Provides distributed locking for coordinating background jobs
 across multiple application instances (Container App replicas).
 
-Uses Azure Table Storage (via RedisService) for lock state,
+Uses Azure Table Storage (via TokenCacheService) for lock state,
 ensuring only one instance runs a particular job at a time.
 """
 
@@ -16,7 +16,7 @@ from typing import Any, AsyncGenerator, Optional
 
 import structlog
 
-from services.redis_service import RedisService
+from services.token_cache_service import TokenCacheService
 
 logger = structlog.get_logger(__name__)
 
@@ -92,8 +92,8 @@ class DistributedLockService:
     Service for managing distributed locks.
 
     Usage:
-        redis_svc = await get_redis_service()
-        async with DistributedLockService.acquire_lock(redis_svc, "my_job") as acquired:
+        token_cache_svc = await get_token_cache_service()
+        async with DistributedLockService.acquire_lock(token_cache_svc, "my_job") as acquired:
             if acquired:
                 # Do the work
                 pass
@@ -103,21 +103,21 @@ class DistributedLockService:
     """
 
     @staticmethod
-    async def _get_lock_info(redis_svc: RedisService, lock_name: str) -> Optional[LockInfo]:
+    async def _get_lock_info(token_cache_svc: TokenCacheService, lock_name: str) -> Optional[LockInfo]:
         """Get lock info from cache."""
-        data = await redis_svc.cache_get(f"{LOCK_PREFIX}{lock_name}")
+        data = await token_cache_svc.cache_get(f"{LOCK_PREFIX}{lock_name}")
         if data is None:
             return None
         return LockInfo.from_dict(data)
 
     @staticmethod
     async def _set_lock_info(
-        redis_svc: RedisService,
+        token_cache_svc: TokenCacheService,
         lock_info: LockInfo,
         ttl_seconds: int = DEFAULT_LOCK_TIMEOUT_SECONDS,
     ) -> bool:
         """Save lock info to cache."""
-        return await redis_svc.cache_set(
+        return await token_cache_svc.cache_set(
             f"{LOCK_PREFIX}{lock_info.lock_name}",
             lock_info.to_dict(),
             ttl_seconds + 60,  # Keep a bit longer than lock timeout for history
@@ -125,7 +125,7 @@ class DistributedLockService:
 
     @staticmethod
     async def try_acquire(
-        redis_svc: RedisService,
+        token_cache_svc: TokenCacheService,
         lock_name: str,
         timeout_seconds: int = DEFAULT_LOCK_TIMEOUT_SECONDS,
     ) -> bool:
@@ -136,7 +136,7 @@ class DistributedLockService:
         then tries to acquire it.
 
         Args:
-            redis_svc: Redis service instance
+            token_cache_svc: Token cache service instance
             lock_name: Name of the lock to acquire
             timeout_seconds: How long the lock is valid
 
@@ -149,7 +149,7 @@ class DistributedLockService:
 
         try:
             # Get current lock state
-            lock_info = await DistributedLockService._get_lock_info(redis_svc, lock_name)
+            lock_info = await DistributedLockService._get_lock_info(token_cache_svc, lock_name)
 
             # Check if lock is available or expired
             if lock_info is not None:
@@ -173,7 +173,7 @@ class DistributedLockService:
                 last_run_result=lock_info.last_run_result if lock_info else None,
             )
 
-            await DistributedLockService._set_lock_info(redis_svc, new_lock, timeout_seconds)
+            await DistributedLockService._set_lock_info(token_cache_svc, new_lock, timeout_seconds)
             logger.info(f"Lock '{lock_name}' acquired by {instance_id}")
             return True
 
@@ -183,7 +183,7 @@ class DistributedLockService:
 
     @staticmethod
     async def release(
-        redis_svc: RedisService,
+        token_cache_svc: TokenCacheService,
         lock_name: str,
         success: bool = True,
         result_notes: Optional[str] = None,
@@ -192,7 +192,7 @@ class DistributedLockService:
         Release a lock.
 
         Args:
-            redis_svc: Redis service instance
+            token_cache_svc: Token cache service instance
             lock_name: Name of the lock to release
             success: Whether the job completed successfully
             result_notes: Optional notes about the job result
@@ -204,7 +204,7 @@ class DistributedLockService:
         now = datetime.now(timezone.utc)
 
         try:
-            lock_info = await DistributedLockService._get_lock_info(redis_svc, lock_name)
+            lock_info = await DistributedLockService._get_lock_info(token_cache_svc, lock_name)
 
             if lock_info is None or lock_info.locked_by != instance_id:
                 logger.warning(f"Lock '{lock_name}' release failed - not held by {instance_id}")
@@ -218,7 +218,7 @@ class DistributedLockService:
             lock_info.last_run_at = now
             lock_info.last_run_result = result_notes or ("success" if success else "failed")
 
-            await DistributedLockService._set_lock_info(redis_svc, lock_info, 86400)  # Keep for 24h
+            await DistributedLockService._set_lock_info(token_cache_svc, lock_info, 86400)  # Keep for 24h
             logger.info(f"Lock '{lock_name}' released by {instance_id}")
             return True
 
@@ -228,7 +228,7 @@ class DistributedLockService:
 
     @staticmethod
     async def extend(
-        redis_svc: RedisService,
+        token_cache_svc: TokenCacheService,
         lock_name: str,
         timeout_seconds: int = DEFAULT_LOCK_TIMEOUT_SECONDS,
     ) -> bool:
@@ -239,7 +239,7 @@ class DistributedLockService:
         the lock from expiring.
 
         Args:
-            redis_svc: Redis service instance
+            token_cache_svc: Token cache service instance
             lock_name: Name of the lock to extend
             timeout_seconds: New timeout duration
 
@@ -251,13 +251,13 @@ class DistributedLockService:
         expires_at = now + timedelta(seconds=timeout_seconds)
 
         try:
-            lock_info = await DistributedLockService._get_lock_info(redis_svc, lock_name)
+            lock_info = await DistributedLockService._get_lock_info(token_cache_svc, lock_name)
 
             if lock_info is None or not lock_info.is_locked or lock_info.locked_by != instance_id:
                 return False
 
             lock_info.expires_at = expires_at
-            await DistributedLockService._set_lock_info(redis_svc, lock_info, timeout_seconds)
+            await DistributedLockService._set_lock_info(token_cache_svc, lock_info, timeout_seconds)
             logger.debug(f"Lock '{lock_name}' extended until {expires_at}")
             return True
 
@@ -268,7 +268,7 @@ class DistributedLockService:
     @staticmethod
     @asynccontextmanager
     async def acquire_lock(
-        redis_svc: RedisService,
+        token_cache_svc: TokenCacheService,
         lock_name: str,
         timeout_seconds: int = DEFAULT_LOCK_TIMEOUT_SECONDS,
     ) -> AsyncGenerator[bool, None]:
@@ -276,21 +276,21 @@ class DistributedLockService:
         Context manager for acquiring and releasing a lock.
 
         Usage:
-            redis_svc = await get_redis_service()
-            async with DistributedLockService.acquire_lock(redis_svc, "my_job") as acquired:
+            token_cache_svc = await get_token_cache_service()
+            async with DistributedLockService.acquire_lock(token_cache_svc, "my_job") as acquired:
                 if acquired:
                     # Do the work
                     pass
 
         Args:
-            redis_svc: Redis service instance
+            token_cache_svc: Token cache service instance
             lock_name: Name of the lock to acquire
             timeout_seconds: How long the lock is valid
 
         Yields:
             True if lock acquired, False otherwise
         """
-        acquired = await DistributedLockService.try_acquire(redis_svc, lock_name, timeout_seconds)
+        acquired = await DistributedLockService.try_acquire(token_cache_svc, lock_name, timeout_seconds)
         success = True
         result_notes = None
 
@@ -302,12 +302,12 @@ class DistributedLockService:
             raise
         finally:
             if acquired:
-                await DistributedLockService.release(redis_svc, lock_name, success, result_notes)
+                await DistributedLockService.release(token_cache_svc, lock_name, success, result_notes)
 
     @staticmethod
-    async def get_lock_status(redis_svc: RedisService, lock_name: str) -> Optional[LockInfo]:
+    async def get_lock_status(token_cache_svc: TokenCacheService, lock_name: str) -> Optional[LockInfo]:
         """Get the current status of a lock."""
-        return await DistributedLockService._get_lock_info(redis_svc, lock_name)
+        return await DistributedLockService._get_lock_info(token_cache_svc, lock_name)
 
 
 # Lock names for standard jobs

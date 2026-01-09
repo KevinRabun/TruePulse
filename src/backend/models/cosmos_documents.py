@@ -138,6 +138,10 @@ class UserDocument(CosmosDocument):
     parental_status: Optional[str] = None
     housing_status: Optional[str] = None
 
+    # Demographics consent tracking (GDPR compliance)
+    demographics_consent_at: Optional[datetime] = None  # When user consented to share demographics
+    demographics_consent_version: Optional[str] = None  # Version of consent form accepted (e.g., "1.0")
+
     # Settings
     email_notifications: bool = True
     push_notifications: bool = False

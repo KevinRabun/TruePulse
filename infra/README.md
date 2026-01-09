@@ -289,7 +289,7 @@ az communication email domain link \
 
 ### Dev Environment (Optimized for Low Cost)
 
-The dev environment is configured with serverless/minimal SKUs. Note: Redis and Cosmos DB were intentionally excluded from the architecture in favor of Azure Table Storage for simplicity and cost-effectiveness.
+The dev environment is configured with serverless/minimal SKUs to optimize costs while maintaining full functionality.
 
 | Resource | SKU | Monthly Cost | Notes |
 |----------|-----|--------------|-------|

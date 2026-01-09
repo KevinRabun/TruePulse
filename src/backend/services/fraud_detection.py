@@ -556,7 +556,7 @@ class DeviceFingerprintService:
 
     def __init__(self):
         self.salt = FraudConfig.FINGERPRINT_SALT
-        # In production, use Redis for fingerprint storage
+        # In production, use Azure Table Storage for fingerprint storage
         self._fingerprint_store: dict[str, dict] = {}
 
     def generate_fingerprint_id(self, fingerprint: DeviceFingerprint) -> str:
@@ -703,7 +703,7 @@ class FraudDetectionService:
         self.behavioral_service = BehavioralAnalysisService()
         self.fingerprint_service = DeviceFingerprintService()
 
-        # In production, use Redis
+        # In production, use Azure Table Storage via TokenCacheService
         self._rate_limit_store: dict[str, list[float]] = {}
         self._challenge_store: dict[str, dict] = {}
 

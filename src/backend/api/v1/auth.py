@@ -26,7 +26,7 @@ from schemas.auth import RefreshTokenRequest, TokenResponse
 from schemas.user import UserCreate, UserResponse
 from services.achievement_service import AchievementService
 from services.email_service import get_email_service
-from services.redis_service import RedisService, get_redis_service
+from services.token_cache_service import TokenCacheService, get_token_cache_service
 
 logger = structlog.get_logger(__name__)
 
@@ -184,7 +184,7 @@ async def refresh_token(request: RefreshTokenRequest) -> TokenResponse:
 @router.post("/logout")
 async def logout(
     refresh_token: Optional[str] = Body(None, embed=True),
-    redis: RedisService = Depends(get_redis_service),
+    token_cache: TokenCacheService = Depends(get_token_cache_service),
 ) -> dict[str, str]:
     """
     Logout user and invalidate tokens.
@@ -199,11 +199,11 @@ async def logout(
         # Blacklist for the duration of refresh token validity
         ttl_seconds = settings.REFRESH_TOKEN_EXPIRE_DAYS * 24 * 60 * 60
 
-        success = await redis.blacklist_token(token_hash, ttl_seconds)
+        success = await token_cache.blacklist_token(token_hash, ttl_seconds)
         if success:
             logger.info("user_logout", token_blacklisted=True)
         else:
-            logger.warning("user_logout", token_blacklisted=False, reason="redis_unavailable")
+            logger.warning("user_logout", token_blacklisted=False, reason="storage_unavailable")
     else:
         logger.info("user_logout", token_blacklisted=False, reason="no_token_provided")
 

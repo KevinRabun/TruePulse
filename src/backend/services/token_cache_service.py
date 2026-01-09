@@ -1,14 +1,12 @@
 """
 Token and cache service for centralized state management.
 
-Previously used Redis, now uses Azure Table Storage for cost optimization.
+Uses Azure Table Storage for persistent state management.
 Provides:
 - Token blacklisting for JWT logout
 - Rate limiting with sliding window
 - Password reset token management
 - Distributed caching for stats and other data
-
-Maintains the same interface for backward compatibility.
 """
 
 from datetime import datetime, timezone
@@ -19,20 +17,18 @@ import structlog
 logger = structlog.get_logger(__name__)
 
 
-class RedisService:
+class TokenCacheService:
     """
-    Token and cache service (now backed by Azure Tables).
-
-    Maintains the same interface as the original Redis-based service
-    for backward compatibility, but uses Azure Table Storage.
+    Token and cache service backed by Azure Table Storage.
 
     Features:
-    - Token blacklist management
-    - Rate limiting
+    - Token blacklist management (for JWT logout)
+    - Rate limiting (per-user and per-IP)
+    - Password reset token storage
     - Generic caching (in-memory with optional persistence)
     """
 
-    _instance: Optional["RedisService"] = None
+    _instance: Optional["TokenCacheService"] = None
     _table_service: Optional[Any] = None
     _in_memory_cache: dict[str, tuple[Any, datetime]] = {}  # key -> (value, expires_at)
 
@@ -42,7 +38,7 @@ class RedisService:
     PREFIX_CACHE = "cache:"
     PREFIX_PASSWORD_RESET = "password_reset:"
 
-    def __new__(cls) -> "RedisService":
+    def __new__(cls) -> "TokenCacheService":
         """Singleton pattern for service."""
         if cls._instance is None:
             cls._instance = super().__new__(cls)
@@ -58,10 +54,10 @@ class RedisService:
             from services.table_service import get_table_service
 
             self._table_service = await get_table_service()
-            logger.info("token_service_initialized", backend="azure_tables")
+            logger.info("token_cache_service_initialized", backend="azure_tables")
         except Exception as e:
             logger.warning("table_service_unavailable", error=str(e))
-            logger.info("token_service_initialized", backend="in_memory")
+            logger.info("token_cache_service_initialized", backend="in_memory")
 
     async def close(self) -> None:
         """Close service connections."""
@@ -287,10 +283,10 @@ class RedisService:
 
 
 # Global instance
-redis_service = RedisService()
+token_cache_service = TokenCacheService()
 
 
-async def get_redis_service() -> RedisService:
+async def get_token_cache_service() -> TokenCacheService:
     """Dependency for getting token/cache service."""
-    await redis_service.initialize()
-    return redis_service
+    await token_cache_service.initialize()
+    return token_cache_service
