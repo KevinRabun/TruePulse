@@ -1,0 +1,15 @@
+# TruePulse robots.txt
+# Allow all crawlers to index all content
+
+User-agent: *
+Allow: /
+
+# Google AdSense/AdWords
+User-agent: Mediapartners-Google
+Allow: /
+
+User-agent: AdsBot-Google
+Allow: /
+
+# Sitemap location
+Sitemap: https://truepulse.net/sitemap.xml
