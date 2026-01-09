@@ -37,6 +37,10 @@ contract:
     - using_raw_bicep_when_avm_possible
     - changing_infra_or_code_outside_of_github_ci_cd
     - pushing_to_github_without_passing_local_checks
+    - ignoring_security_warnings_or_issues
+    - ignoring_vs_code_recommendations_warnings_problems
+    - being_ambiguous_about_requirements_or_solutions
+    - being_nice_over_correct_and_complete
   required:
     - fix_root_cause_not_tests
     - show_commands_and_outputs
