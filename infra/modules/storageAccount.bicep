@@ -93,6 +93,8 @@ module storageAccount 'br/public:avm/res/storage/storage-account:0.18.0' = {
       keyName: cmkKeyName
       userAssignedIdentityResourceId: storageIdentity.id
     } : null
+    // Enable CMK for Table and Queue services (keyType must be 'Account' for CMK)
+    keyType: enableCMK ? 'Account' : null
     // Blob services configuration
     blobServices: {
       containerDeleteRetentionPolicyEnabled: true
