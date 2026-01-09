@@ -178,14 +178,15 @@ class PollScheduler:
         Activate polls whose scheduled start time has arrived.
 
         Called by the background scheduler at the top of each hour.
-        """
-        count = await self.repo.activate_scheduled_polls()
-        if count > 0:
-            logger.info(f"Activated {count} scheduled polls")
 
-        # Return the list of currently active polls
-        current = await self.get_current_poll()
-        return [current] if current else []
+        Returns:
+            List of polls that were JUST activated in this cycle (not all active polls).
+            This is important for notifications - we only notify for newly activated polls.
+        """
+        activated_polls = await self.repo.activate_scheduled_polls()
+        if activated_polls:
+            logger.info(f"Activated {len(activated_polls)} scheduled polls")
+        return activated_polls
 
     async def close_expired_polls(self) -> list[PollDocument]:
         """

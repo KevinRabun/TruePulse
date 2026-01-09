@@ -297,6 +297,7 @@ class PollDocument(CosmosDocument):
     created_at: datetime = Field(default_factory=lambda: datetime.utcnow())
     expires_at: Optional[datetime] = None
     closed_at: Optional[datetime] = None
+    notifications_sent_at: Optional[datetime] = None  # Track when notifications were sent
 
     @property
     def is_expired(self) -> bool:

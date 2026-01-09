@@ -346,8 +346,14 @@ class CosmosPollRepository:
 
         return closed_count
 
-    async def activate_scheduled_polls(self) -> int:
-        """Activate polls that have reached their start time."""
+    async def activate_scheduled_polls(self) -> list[PollDocument]:
+        """
+        Activate polls that have reached their start time.
+
+        Returns:
+            List of PollDocument objects that were JUST activated in this call.
+            Returns empty list if no polls were activated.
+        """
         now = _to_cosmos_iso(datetime.now(timezone.utc))
 
         query = """
@@ -366,18 +372,18 @@ class CosmosPollRepository:
             ],
         )
 
-        activated_count = 0
+        activated_polls: list[PollDocument] = []
         for result in results:
             poll = PollDocument(**result)
             poll.status = PollStatus.ACTIVE
             poll.is_active = True
             await self.update(poll)
-            activated_count += 1
+            activated_polls.append(poll)
 
-        if activated_count > 0:
-            logger.info(f"Activated {activated_count} scheduled polls")
+        if activated_polls:
+            logger.info(f"Activated {len(activated_polls)} scheduled polls")
 
-        return activated_count
+        return activated_polls
 
     # ========================================================================
     # Poll Type Methods (Pulse and Flash)

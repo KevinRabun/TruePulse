@@ -119,16 +119,40 @@ async def poll_rotation_job() -> None:
 
 
 async def _send_notifications_for_polls(polls: list) -> None:
-    """Send notifications for a list of newly activated polls."""
+    """
+    Send notifications for a list of newly activated polls.
+
+    Includes idempotency check via notifications_sent_at field to prevent
+    duplicate notifications even if called multiple times for the same poll.
+    """
+    from datetime import datetime, timezone
+
+    from repositories.cosmos_poll_repository import CosmosPollRepository
     from services.notification_service import send_poll_notifications
+
+    poll_repo = CosmosPollRepository()
 
     for poll in polls:
         try:
+            # Idempotency check - skip if notifications already sent
+            if getattr(poll, "notifications_sent_at", None):
+                logger.info(
+                    "poll_notifications_skipped_already_sent",
+                    poll_id=str(poll.id),
+                    notifications_sent_at=str(poll.notifications_sent_at),
+                )
+                continue
+
             poll_type = getattr(poll, "poll_type", None)
             if poll_type:
                 poll_type_value = poll_type.value if hasattr(poll_type, "value") else str(poll_type)
                 if poll_type_value in ("pulse", "flash"):
                     result = await send_poll_notifications(poll, poll_type_value)
+
+                    # Mark notifications as sent to prevent re-sending
+                    poll.notifications_sent_at = datetime.now(timezone.utc)
+                    await poll_repo.update(poll)
+
                     logger.info(
                         "poll_notifications_complete",
                         poll_id=str(poll.id),
