@@ -94,6 +94,77 @@ export async function hasPlatformAuthenticator(): Promise<boolean> {
 }
 
 /**
+ * Detect if running on iOS (iPhone/iPad)
+ */
+export function isIOSDevice(): boolean {
+  if (typeof window === 'undefined' || typeof navigator === 'undefined') return false;
+  
+  const userAgent = navigator.userAgent;
+  const platform = navigator.platform;
+  
+  // Check for iOS indicators
+  const isIOS = /iPad|iPhone|iPod/.test(userAgent) ||
+    (platform === 'MacIntel' && navigator.maxTouchPoints > 1); // iPad with desktop mode
+  
+  return isIOS;
+}
+
+/**
+ * Detect if running Safari browser on iOS
+ * On iOS, all browsers use WebKit, but only Safari has full passkey support
+ */
+export function isIOSSafari(): boolean {
+  if (typeof window === 'undefined' || typeof navigator === 'undefined') return false;
+  if (!isIOSDevice()) return false;
+  
+  const userAgent = navigator.userAgent;
+  
+  // Safari on iOS doesn't include 'CriOS' (Chrome), 'FxiOS' (Firefox), 'EdgiOS' (Edge), etc.
+  const isChrome = /CriOS/.test(userAgent);
+  const isFirefox = /FxiOS/.test(userAgent);
+  const isEdge = /EdgiOS/.test(userAgent);
+  const isOpera = /OPiOS/.test(userAgent);
+  const isBrave = /Brave/.test(userAgent);
+  
+  // If none of the third-party browser identifiers are present, it's Safari
+  return !isChrome && !isFirefox && !isEdge && !isOpera && !isBrave;
+}
+
+/**
+ * Get the name of the current browser on iOS
+ */
+export function getIOSBrowserName(): string | null {
+  if (typeof window === 'undefined' || typeof navigator === 'undefined') return null;
+  if (!isIOSDevice()) return null;
+  
+  const userAgent = navigator.userAgent;
+  
+  if (/CriOS/.test(userAgent)) return 'Chrome';
+  if (/FxiOS/.test(userAgent)) return 'Firefox';
+  if (/EdgiOS/.test(userAgent)) return 'Edge';
+  if (/OPiOS/.test(userAgent)) return 'Opera';
+  if (/Brave/.test(userAgent)) return 'Brave';
+  
+  return 'Safari';
+}
+
+/**
+ * Check if passkey registration/authentication may have issues on the current browser
+ * Returns a warning message if there's a known limitation, null otherwise
+ */
+export function getPasskeyBrowserWarning(): { message: string; browserName: string } | null {
+  if (!isIOSDevice()) return null;
+  if (isIOSSafari()) return null;
+  
+  const browserName = getIOSBrowserName() || 'this browser';
+  
+  return {
+    message: `Passkey registration may not work in ${browserName} on iOS. Apple restricts full passkey support to Safari only. Please open this page in Safari to set up your passkey.`,
+    browserName
+  };
+}
+
+/**
  * Get current device information for trust scoring
  */
 async function getDeviceInfo(): Promise<DeviceInfo> {

@@ -20,6 +20,7 @@ import {
   isPasskeySupported,
   hasPlatformAuthenticator,
   registerPasskey,
+  getPasskeyBrowserWarning,
 } from "@/lib/passkey";
 import { useAuthStore } from "@/lib/store";
 
@@ -40,6 +41,7 @@ export function PasskeyRegister({
   const [status, setStatus] = useState<"idle" | "success" | "error">("idle");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [deviceName, setDeviceName] = useState("");
+  const [browserWarning, setBrowserWarning] = useState<{ message: string; browserName: string } | null>(null);
 
   const { accessToken } = useAuthStore();
 
@@ -53,6 +55,10 @@ export function PasskeyRegister({
         const platform = await hasPlatformAuthenticator();
         setHasPlatform(platform);
       }
+      
+      // Check for iOS browser limitations
+      const warning = getPasskeyBrowserWarning();
+      setBrowserWarning(warning);
     };
     checkSupport();
   }, []);
@@ -116,6 +122,26 @@ export function PasskeyRegister({
 
   return (
     <div className={`space-y-6 ${className}`}>
+      {/* iOS Safari-only warning */}
+      {browserWarning && (
+        <div className="p-4 bg-amber-50 dark:bg-amber-900/20 rounded-lg border border-amber-200 dark:border-amber-800/50">
+          <div className="flex items-start gap-3">
+            <AlertCircle className="h-5 w-5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+            <div>
+              <p className="text-sm font-medium text-amber-800 dark:text-amber-200 mb-1">
+                Safari Required on iOS
+              </p>
+              <p className="text-sm text-amber-700 dark:text-amber-300">
+                {browserWarning.message}
+              </p>
+              <p className="text-xs text-amber-600 dark:text-amber-400 mt-2">
+                This is an Apple platform limitation that affects all third-party browsers on iOS.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Benefits section */}
       <div className="bg-linear-to-br from-indigo-50 to-purple-50 dark:from-indigo-900/20 dark:to-purple-900/20 rounded-xl p-5">
         <div className="flex items-center gap-3 mb-4">
