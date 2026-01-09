@@ -9,7 +9,7 @@
       "value": "eastus2"
     },
     "enableCMK": {
-      "value": false
+      "value": true
     }
   }
 }

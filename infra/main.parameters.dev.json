@@ -9,7 +9,7 @@
       "value": "eastus2"
     },
     "enableCMK": {
-      "value": false
+      "value": true
     },
     "emailSenderAddress": {
       "value": "DoNotReply@dd655f4d-7954-42b0-883e-c1b0dbf465c9.azurecomm.net"
