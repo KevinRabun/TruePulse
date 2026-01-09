@@ -296,7 +296,7 @@ resource cosmosContainers 'Microsoft.DocumentDB/databaseAccounts/sqlDatabases/co
   parent: database
   name: container.name
   properties: {
-    resource: union(
+    resource: any(union(
       {
         id: container.name
         partitionKey: {
@@ -310,9 +310,9 @@ resource cosmosContainers 'Microsoft.DocumentDB/databaseAccounts/sqlDatabases/co
           uniqueKeys: container.uniqueKeys
         } : null
       },
-      // Only add defaultTtl if specified in container config
+      // defaultTtl is a valid Cosmos DB property not in Bicep type definitions
       contains(container, 'defaultTtl') ? { defaultTtl: container.defaultTtl } : {}
-    )
+    ))
     // No throughput options for serverless containers
   }
 }]

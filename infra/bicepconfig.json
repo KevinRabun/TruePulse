@@ -1,0 +1,19 @@
+{
+  "$schema": "https://raw.githubusercontent.com/Azure/bicep/main/src/Bicep.Core/Configuration/bicepconfig.schema.json",
+  "analyzers": {
+    "core": {
+      "enabled": true,
+      "rules": {
+        "no-unnecessary-dependson": {
+          "level": "warning"
+        },
+        "use-resource-symbol-reference": {
+          "level": "warning"
+        }
+      }
+    }
+  },
+  "experimentalFeaturesEnabled": {
+    "userDefinedFunctions": true
+  }
+}

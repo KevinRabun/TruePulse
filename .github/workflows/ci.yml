@@ -193,8 +193,9 @@ jobs:
   infrastructure-validate:
     name: Validate Bicep
     runs-on: ubuntu-latest
-    # Only run if Azure credentials are configured
-    if: ${{ vars.AZURE_CONFIGURED == 'true' }}
+    # Only run if Azure credentials are configured (AZURE_CONFIGURED repo variable must be 'true')
+    # Note: vars.AZURE_CONFIGURED is a valid GitHub Actions repository variable
+    if: vars.AZURE_CONFIGURED == 'true'
     steps:
       - uses: actions/checkout@v6
 

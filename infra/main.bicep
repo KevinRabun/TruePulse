@@ -290,9 +290,6 @@ module cosmosDbManagedIdentity 'modules/cosmosdbManagedIdentity.bicep' = if (ena
     tags: tags
     keyVaultResourceId: keyVault.outputs.resourceId
   }
-  dependsOn: [
-    keyVault // Ensure Key Vault exists before granting access
-  ]
 }
 
 // Cosmos DB Serverless - unified document database for all data
@@ -314,14 +311,10 @@ module cosmosDb 'modules/cosmosdb.bicep' = {
     keyVaultResourceId: enableCMK ? keyVault.outputs.resourceId : ''
     cmkKeyName: enableCMK ? keyVault.outputs.cosmosEncryptionKeyName : ''
     // User-Assigned MI for CMK (required for CMK + Continuous backup)
-    cmkUserAssignedIdentityId: enableCMK ? cosmosDbManagedIdentity.outputs.id : ''
+    cmkUserAssignedIdentityId: enableCMK ? cosmosDbManagedIdentity!.outputs.id : ''
     // Skip containers in main deployment when CMK is enabled (deployed separately to avoid conflicts)
     skipContainers: enableCMK
   }
-  dependsOn: [
-    keyVault // Ensure Key Vault and CMK are created before Cosmos DB
-    cosmosDbManagedIdentity // Ensure MI has Key Vault access before Cosmos DB creation
-  ]
 }
 
 // Cosmos DB Containers - deployed separately to avoid CMK update conflicts
